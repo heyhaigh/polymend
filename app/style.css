@@ -492,3 +492,37 @@ body.outcome-clean :is(.about, .faq) { display: none; }
   canvas { height: min(58vh, 440px); }
   .stage-hint { display: none; }
 }
+
+/* --- embed code: on the home page, and in the pop-up opened from the footer */
+#embed { scroll-margin-top: 330px; }
+.snippet { position: relative; margin: 14px 0 12px; padding: 16px 16px 62px; background: var(--fill-strong); border: 1px solid var(--line-strong); border-radius: 12px; }
+.snippet code { font: inherit; }
+.snippet pre { font: inherit; font-size: 13px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; user-select: all; }
+.snippet .copy { position: absolute; right: 12px; bottom: 12px; cursor: pointer; }
+.snippet-note { font-size: 13px; opacity: 0.75; }
+:is(.about, .modal) :is(p, li) code { padding: 1px 5px; background: var(--fill-strong); border-radius: 4px; white-space: nowrap; }
+
+.modal { width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 32px); margin: auto; padding: 0; overflow-y: auto; color: var(--ink); background: var(--paper); border: 1px solid var(--line-strong); border-radius: 16px; box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35); }
+.modal::backdrop { background: rgba(0, 0, 0, 0.5); }
+.modal-body { padding: 24px; }
+.modal h2 { margin-bottom: 8px; }
+.modal ul { margin: 16px 0 20px 20px; font-size: 14px; }
+.modal li { margin-bottom: 6px; }
+.modal .pill { cursor: pointer; }
+
+/* --- the copy that other sites place in a frame (/embed): the tool alone, with no title,
+   explanation or site footer, and a one-line credit. Before a file is given it sits in the
+   middle of whatever height the frame was given. */
+body.embed .tool-container { min-height: 100vh; display: flex; flex-direction: column; padding-bottom: 16px; }
+body.embed .top-stick { padding-top: 20px; }
+/* Before a file is given, the upload card grows to fill the frame, so the whole frame
+   reads as one drop target whatever height its owner chose. */
+body.embed:not(.has-results) .top-stick { flex: 1; display: flex; flex-direction: column; position: static; }
+body.embed:not(.has-results) .top-stick::after { display: none; }
+body.embed .tool-header { width: 100%; }
+body.embed:not(.has-results) .cta-box { flex: 1; width: 100%; display: flex; flex-direction: column; justify-content: center; }
+body.embed .tool-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+body.embed .tool-subtitle { display: none; }
+.embed-credit { width: 100%; max-width: 720px; margin: 12px auto 0; display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
+.embed-credit a { opacity: 0.65; text-decoration: none; }
+.embed-credit a:is(:hover, :focus-visible) { opacity: 1; text-decoration: underline; }

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Embed demo: Polymend on someone else's page</title>
+  <meta name="robots" content="noindex,nofollow">
+  <!-- A made-up third-party site, deliberately unlike Polymend, with the embed code pasted
+       into an article. Local only; not part of the published site. -->
+  <style>
+    * { box-sizing: border-box; margin: 0; }
+    body { font: 17px/1.65 Georgia, 'Times New Roman', serif; color: #1d2733; background: #ffffff; }
+    body.dark { color: #dfe6ee; background: #12161c; }
+    .bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 24px; border-bottom: 1px solid #e3e8ee; font: 600 15px/1 -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; }
+    body.dark .bar { border-color: #2a323d; }
+    .bar span { letter-spacing: 0.02em; }
+    .bar nav { display: flex; gap: 20px; font-weight: 400; color: #5b6b7c; }
+    .bar button { font: inherit; font-weight: 400; padding: 7px 12px; border: 1px solid #c9d3de; border-radius: 6px; background: none; color: inherit; cursor: pointer; }
+    article { max-width: 760px; margin: 0 auto; padding: 48px 24px 96px; }
+    .kicker { font: 600 12px/1 -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #2f6fed; }
+    h1 { font-size: 38px; line-height: 1.2; margin: 12px 0 10px; }
+    .by { font: 14px/1.4 -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; color: #5b6b7c; margin-bottom: 28px; }
+    p { margin-bottom: 18px; }
+    h2 { font-size: 24px; margin: 36px 0 12px; }
+    iframe { display: block; margin: 28px 0; }
+    .demo-note { margin: 0 0 28px; padding: 12px 16px; border-left: 3px solid #2f6fed; background: #f1f5fb; font: 14px/1.5 -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; color: #33414f; }
+    body.dark .demo-note { background: #1a212b; color: #b9c4d0; }
+    @media (max-width: 600px) { h1 { font-size: 30px; } .bar nav { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <span>The Print Bench</span>
+    <nav><span>Guides</span><span>Reviews</span><span>About</span></nav>
+    <button id="mode" type="button">Show on a dark site</button>
+  </div>
+  <article>
+    <p class="kicker">Guides</p>
+    <h1>What to do when your slicer says a model has errors</h1>
+    <p class="by">A made-up article on a made-up site, to show the embed in place.</p>
+    <p class="demo-note">Everything inside the frame below is Polymend, loaded from a different address than this page, exactly as it would be on a real site. The surrounding page is deliberately a different design.</p>
+    <p>You download a figure, drop it into your slicer, and a yellow warning tells you the model has open edges or non-manifold edges. The model looks fine. The slicer disagrees.</p>
+    <p>Most of the time the cause is small: a few stray triangles stuck to the surface, or a pinhole you would never see. You can fix those right here without installing anything. Drop your file on the box below.</p>
+    <div id="slot"></div>
+    <h2>What just happened</h2>
+    <p>The tool above ran in your browser. Your file did not go anywhere. It removed the stray pieces, patched the small holes, and handed you a file your slicer should take without complaint.</p>
+    <p>If it says "Partly repaired", the damage is bigger than a quick fix, and it is time to open a 3D editor.</p>
+  </article>
+  <script>
+    // The frame is loaded from the other local name for this computer (localhost vs
+    // 127.0.0.1), so the browser treats it as a different site, as it would in real use.
+    const other = location.hostname === '127.0.0.1' ? 'localhost' : '127.0.0.1';
+    const base = `${location.protocol}//${other}:${location.port}/embed`;
+    const slot = document.getElementById('slot'), mode = document.getElementById('mode');
+    let dark = new URLSearchParams(location.search).has('dark');
+    function place() {
+      document.body.classList.toggle('dark', dark);
+      mode.textContent = dark ? 'Show on a light site' : 'Show on a dark site';
+      // This is the code from the home page, with only the address changed to the local copy.
+      slot.innerHTML = `<iframe src="${base}${dark ? '?theme=dark' : ''}" title="Polymend: STL and GLB mesh repair" width="100%" height="720" style="border:0;border-radius:12px" loading="lazy"></iframe>`;
+    }
+    mode.addEventListener('click', () => { dark = !dark; place(); });
+    place();
+  </script>
+</body>
+</html>

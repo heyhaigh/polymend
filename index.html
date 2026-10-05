@@ -22,16 +22,20 @@
   <meta name="twitter:image" content="https://polymend.xyz/og-image.jpg">
   <!-- connect-src 'none' means this page cannot send your file, or anything else, anywhere. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <!-- embed:cut -->
   <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebApplication", "@id": "https://polymend.xyz/#app", "name": "Polymend", "url": "https://polymend.xyz/", "description": "Free mesh repair for 3D printing. Fix non-manifold and open edges in STL and GLB files so your slicer accepts them. Runs in your browser; your file is never uploaded.", "applicationCategory": "UtilitiesApplication", "applicationSubCategory": "3D printing", "operatingSystem": "Any, in a current web browser", "browserRequirements": "Requires JavaScript and WebGL2", "isAccessibleForFree": true, "license": "https://opensource.org/licenses/MIT", "image": "https://polymend.xyz/og-image.jpg", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "featureList": ["STL and GLB mesh repair: fixes non-manifold and open edges", "Converts GLB to STL and 3MF", "Side by side before and after 3D view", "Sets print height in millimeters", "Runs in the browser; files are never uploaded"], "author": {"@type": "Person", "@id": "https://heyhaigh.ai/#person", "name": "Ryan Haigh", "url": "https://heyhaigh.ai"}, "softwareVersion": "0.2.0"}, {"@type": "FAQPage", "@id": "https://polymend.xyz/#faq", "mainEntity": [{"@type": "Question", "name": "What are non-manifold edges and open edges?", "acceptedAnswer": {"@type": "Answer", "text": "A printable model is a closed surface where every edge is shared by exactly two triangles. An open edge belongs to only one triangle, which leaves a gap beside it. A non-manifold edge is shared by three or more triangles, so a slicer cannot tell which side is the inside of the model."}}, {"@type": "Question", "name": "Why does my slicer say my model has errors?", "acceptedAnswer": {"@type": "Answer", "text": "A model can look right and still carry small faults in its mesh: stray triangles stuck to the surface, tiny holes, and triangles facing the wrong way. Bambu Studio reports these on import as open edges, non-manifold edges and reversed faces. In testing, twelve detailed figure models each had 6 to 54 non-manifold edges and 16 to 114 open edges. Polymend brought all twelve to zero, and all twelve then imported into Bambu Studio without the warning."}}, {"@type": "Question", "name": "Is my file uploaded anywhere?", "acceptedAnswer": {"@type": "Answer", "text": "No. The repair runs in your browser, on your device. The page's security policy blocks it from sending data anywhere, and once the page has loaded the repair needs no connection at all."}}, {"@type": "Question", "name": "Which files can I use?", "acceptedAnswer": {"@type": "Answer", "text": "GLB files (binary glTF) and STL files, binary or text, up to 400 MB or 4 million triangles. Compressed GLB files that use Draco or meshopt are not supported yet; export an uncompressed GLB instead."}}, {"@type": "Question", "name": "Can it convert a GLB to an STL?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Drop in a GLB and Polymend turns it upright for printing, lets you set its height in millimeters, repairs it, and gives you an STL, a 3MF, or both in one ZIP. Color and texture are not kept."}}, {"@type": "Question", "name": "Why does Bambu Studio say the 3MF is not from Bambu Lab?", "acceptedAnswer": {"@type": "Answer", "text": "That notice is expected and is not an error. A 3MF file can carry a whole slicer project, with printer and filament settings, or just a model. Polymend's 3MF holds only the model, at the size you set in millimeters, so Bambu Studio tells you it loaded the geometry alone and will use your own current settings. Other slicers show similar notices for 3MF files they did not create."}}, {"@type": "Question", "name": "Does it change the shape of my model?", "acceptedAnswer": {"@type": "Answer", "text": "It changes as little as it can. No existing point of the model is moved. It deletes stray triangles, usually a few dozen out of hundreds of thousands, and adds a few to patch small holes. You can see every change in the side by side view and step through them one at a time."}}, {"@type": "Question", "name": "What does \"Partly repaired\" mean?", "acceptedAnswer": {"@type": "Answer", "text": "Some faults remain and your slicer will probably still warn. Polymend leaves holes of more than 100 edges open, and it does not cut apart surfaces that touch along an edge unless you turn that option on. For a badly damaged model, a general repair tool or a 3D editor such as Blender will do better."}}, {"@type": "Question", "name": "Is it really free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Polymend is free to use and open source under the MIT license."}}]}]}</script>
+  <!-- /embed:cut -->
   <link rel="preload" href="app/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="app/style.css">
   <!-- Sets the saved theme before anything is drawn. -->
   <script src="app/theme.js"></script>
 </head>
 <body>
+  <!-- embed:cut -->
   <div class="controls-group">
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode" title="Toggle theme (T)"></button>
   </div>
+  <!-- /embed:cut -->
 
   <main class="tool-container">
     <div class="top-stick" id="top-stick">
@@ -178,6 +182,7 @@
     </section>
 
 
+    <!-- embed:cut -->
     <section class="about" aria-labelledby="about-title">
       <h2 id="about-title">What Polymend fixes</h2>
       <p>Polymend is a free mesh repair tool for 3D printing. Some 3D models look finished but are not printable as they are: a slicer such as Bambu Studio flags them with open edges, non-manifold edges or reversed faces. Polymend repairs those faults in an STL or GLB file and gives you back an STL or 3MF your slicer accepts.</p>
@@ -194,6 +199,14 @@
         <li>Set a print height in millimeters if you want one.</li>
         <li>Download an STL, a 3MF, or both.</li>
       </ol>
+
+      <h2 id="embed">Add it to your site</h2>
+      <p>Polymend can sit inside any web page. Paste this code where you want the tool to appear. It works there exactly as it does here: models are repaired in your visitor's browser and are never sent to your site or to Polymend.</p>
+      <div class="snippet">
+        <pre><code id="embed-snippet">&lt;iframe src=&quot;https://polymend.xyz/embed&quot; title=&quot;Polymend: STL and GLB mesh repair&quot; width=&quot;100%&quot; height=&quot;720&quot; style=&quot;border:0;border-radius:12px&quot; loading=&quot;lazy&quot;&gt;&lt;/iframe&gt;</code></pre>
+        <button type="button" class="pill copy" data-copy="embed-snippet">Copy code</button>
+      </div>
+      <p class="snippet-note">It is light by default. Add <code>?theme=dark</code> to the address for a dark page, or <code>?theme=auto</code> to follow each visitor's own setting.</p>
     </section>
 
     <section class="faq" aria-labelledby="faq-title">
@@ -246,6 +259,7 @@
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
       <a href="https://github.com/heyhaigh/polymend">Open source on GitHub</a>
+      <a href="#embed" data-embed-open>Embed on your site</a>
     </nav>
     <p class="credit">
       <a href="https://heyhaigh.ai/">
@@ -253,6 +267,27 @@
         <span>Created by Ryan Haigh</span>
       </a>
     </p>
+
+    <dialog id="embed-dialog" class="modal" aria-labelledby="embed-dialog-title">
+      <div class="modal-body">
+        <h2 id="embed-dialog-title">Add Polymend to your site</h2>
+        <p>Paste this code where you want the tool to appear. Your visitors can drop in a model, see the repair and download the result without leaving your page.</p>
+        <div class="snippet">
+          <pre><code id="embed-snippet-copy"></code></pre>
+          <button type="button" class="pill copy" data-copy="embed-snippet-copy">Copy code</button>
+        </div>
+        <ul>
+          <li><strong>Size.</strong> It fills the width you give it. A height of 720 suits most pages; results scroll inside the frame.</li>
+          <li><strong>Theme.</strong> Light by default. Add <code>?theme=dark</code> or <code>?theme=auto</code> to the address.</li>
+          <li><strong>Sound.</strong> A short chime marks the finish. Add <code>?sound=off</code> to silence it.</li>
+          <li><strong>Privacy.</strong> The same as here. Models stay in your visitor's browser; nothing is sent to your site or to Polymend.</li>
+          <li><strong>Cost.</strong> Free. A small "Created by Ry" link sits under the tool.</li>
+        </ul>
+        <button type="button" class="pill" data-embed-close>Close</button>
+      </div>
+    </dialog>
+    <!-- /embed:cut -->
+    <!-- embed:credit -->
   </main>
 
   <script type="module" src="app/app.js"></script>

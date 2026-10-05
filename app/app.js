@@ -12,7 +12,7 @@ const plural = (count, one, many = one + 's') => `${number(count)} ${count === 1
 const state = { name: '', format: '', report: null, extent: [0, 0, 0], spots: [], spot: -1, busy: false, which: 'after' };
 const viewer = createViewer($('canvas'));
 if (!viewer) { $('canvas').hidden = true; $('no-webgl').hidden = false; }
-$('version').textContent = `Version ${VERSION}.`;
+if ($('version')) $('version').textContent = `Version ${VERSION}.`; // absent from the embedded page
 
 // The model is drawn in a warm clay grey that sits on either theme's stage.
 const theme = window.polymendTheme;
@@ -464,6 +464,38 @@ for (const input of document.querySelectorAll('[data-option]')) {
   });
 }
 $('outcome-title').tabIndex = -1;
+
+// The embed code. It is written once, in the page text; the footer's pop-up shows the same
+// words. Neither exists on the embedded page itself.
+if ($('embed-snippet')) {
+  const dialog = $('embed-dialog');
+  $('embed-snippet-copy').textContent = $('embed-snippet').textContent;
+  for (const button of document.querySelectorAll('[data-copy]')) {
+    button.addEventListener('click', async () => {
+      const source = $(button.dataset.copy);
+      let copied = false;
+      try { await navigator.clipboard.writeText(source.textContent); copied = true; } catch {}
+      if (!copied) { // no clipboard access: select the code, so the visitor's own copy command works
+        const range = document.createRange();
+        range.selectNodeContents(source);
+        getSelection().removeAllRanges();
+        getSelection().addRange(range);
+      }
+      button.textContent = copied ? 'Copied' : 'Selected. Now copy it';
+      clearTimeout(button.restore);
+      button.restore = setTimeout(() => { button.textContent = 'Copy code'; }, 1800);
+    });
+  }
+  for (const link of document.querySelectorAll('[data-embed-open]')) {
+    link.addEventListener('click', event => {
+      if (typeof dialog.showModal !== 'function') return; // a very old browser follows the link to the section instead
+      event.preventDefault();
+      dialog.showModal();
+    });
+  }
+  // The Close button, or a click on the dimmed page around the box.
+  dialog.addEventListener('click', event => { if (event.target === dialog || event.target.closest('[data-embed-close]')) dialog.close(); });
+}
 
 // The halftone dots that follow the pointer across the orange card, as on heyhaigh.ai.
 if (matchMedia('(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)').matches) {

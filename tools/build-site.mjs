@@ -3,11 +3,17 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { embedPage } from './make-embed.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'dist');
-const include = ['index.html', '404.html', 'privacy.html', 'terms.html', 'favicon.svg', 'favicon-48.png', 'apple-touch-icon.png', 'og-image.jpg', 'robots.txt', 'sitemap.xml', 'llms.txt', '_headers', 'LICENSE', 'app', 'src'];
+const include = ['index.html', 'embed.html', '404.html', 'privacy.html', 'terms.html', 'favicon.svg', 'favicon-48.png', 'apple-touch-icon.png', 'og-image.jpg', 'robots.txt', 'sitemap.xml', 'llms.txt', '_headers', 'LICENSE', 'app', 'src'];
 const allowed = /\.(html|js|css|svg|txt|xml|woff2|webp|png|jpg)$|^_headers$|^LICENSE$/;
+
+// embed.html is made from index.html; never publish one that has fallen behind.
+if (fs.readFileSync(path.join(root, 'embed.html'), 'utf8') !== embedPage(fs.readFileSync(path.join(root, 'index.html'), 'utf8'))) {
+  throw new Error('embed.html is out of date. Run: node tools/make-embed.mjs');
+}
 
 fs.rmSync(dist, { recursive: true, force: true });
 const copied = [];

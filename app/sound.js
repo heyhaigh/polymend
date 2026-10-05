@@ -51,8 +51,11 @@ function schedule(kind) {
   document.documentElement.dataset.lastSound = kind; // lets tests see that a chime was sent
 }
 
+// A page that embeds the tool can end its address with ?sound=off to keep it quiet.
+const SILENT = typeof location !== 'undefined' && new URLSearchParams(location.search).get('sound') === 'off';
+
 export function play(kind) {
-  if (!CHIMES[kind] || !ensure()) return;
+  if (SILENT || !CHIMES[kind] || !ensure()) return;
   if (context.state === 'running') { schedule(kind); return; }
   // Not unlocked yet: ask once more, and play only if the browser agrees.
   context.resume().then(() => { if (context.state === 'running') schedule(kind); }).catch(() => {});

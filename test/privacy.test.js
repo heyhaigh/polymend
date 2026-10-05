@@ -5,12 +5,13 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { embedPage } from '../tools/make-embed.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const walk = dir => fs.readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap(entry =>
   entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]);
-const shipped = ['index.html', '404.html', 'privacy.html', 'terms.html', ...walk('app'), ...walk('src')].filter(file => /\.(html|js|css)$/.test(file));
+const shipped = ['index.html', 'embed.html', '404.html', 'privacy.html', 'terms.html', ...walk('app'), ...walk('src')].filter(file => /\.(html|js|css)$/.test(file));
 
 const policyOf = text => Object.fromEntries(text.split(';').map(part => part.trim().split(/\s+/)).filter(part => part[0]).map(([name, ...values]) => [name, values]));
 
@@ -30,7 +31,7 @@ test('the page policy forbids every network connection and all outside code', ()
 });
 
 test('the privacy and terms pages carry the same no-connection policy', () => {
-  for (const file of ['privacy.html', 'terms.html']) {
+  for (const file of ['privacy.html', 'terms.html', 'embed.html']) {
     const meta = read(file).match(/http-equiv="Content-Security-Policy" content="([^"]+)"/);
     assert.ok(meta, `${file} must carry a Content-Security-Policy`);
     const policy = policyOf(meta[1]);
@@ -73,4 +74,30 @@ test('the one piece of server code only answers the ownership-check address', ()
   assert.ok(!/\bfetch\s*\(\s*["'`]https?:/.test(worker), 'site-worker.js must not call out to other sites');
   assert.match(worker, /return env\.ASSETS\.fetch\(request\);/);
   assert.match(read('wrangler.toml'), /run_worker_first = \["\/google[0-9a-f]+\.html"\]/);
+});
+
+test('the embedded copy is the home page with parts removed, and is up to date', () => {
+  const embed = read('embed.html');
+  assert.equal(embed, embedPage(read('index.html')), 'embed.html is out of date. Run: node tools/make-embed.mjs');
+  assert.match(embed, /<meta name="robots" content="noindex">/);
+  assert.ok(!/id="theme-toggle"|class="faq"|class="site-links"|<dialog/.test(embed), 'the embedded copy should be the tool alone');
+  // Every link in a frame must open a new tab; the rest of the site refuses to be framed.
+  for (const link of embed.matchAll(/<a\b[^>]*>/g)) assert.match(link[0], /target="_blank"/, `embed.html link stays inside the frame: ${link[0]}`);
+});
+
+test('only the embedded copy may be placed in a frame by other sites, and it is just as closed', () => {
+  const blocks = Object.fromEntries(read('_headers').split(/\n(?=\/)/).map(block => [block.split('\n')[0].trim(), block]));
+  const policy = block => policyOf(block.match(/^\s+Content-Security-Policy: (.+)$/m)[1]);
+  const site = policy(blocks['/*']), embed = policy(blocks['/embed']);
+  assert.deepEqual(site['frame-ancestors'], ["'self'", 'https://heyhaigh.ai', 'https://www.heyhaigh.ai']);
+  assert.deepEqual(embed['frame-ancestors'], ['*']);
+  assert.match(blocks['/embed'], /^\s+! Content-Security-Policy$/m, 'the site-wide policy must be dropped for /embed, or both would apply');
+  // Apart from who may frame it, the two policies are identical.
+  assert.deepEqual({ ...embed, 'frame-ancestors': null }, { ...site, 'frame-ancestors': null });
+});
+
+test('the embed code on the home page points at the embedded copy and nothing else', () => {
+  const code = read('index.html').match(/<code id="embed-snippet">([^<]+)<\/code>/)[1].replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"');
+  assert.match(code, /^<iframe src="https:\/\/polymend\.xyz\/embed" [^>]*><\/iframe>$/);
+  assert.ok(!/<script|allow=|sandbox=/.test(code), 'the embed code should be a plain frame: no script, no extra permissions');
 });
