@@ -111,8 +111,8 @@ strong { font-weight: 600; }
 /* --- page frame */
 .tool-container { max-width: 1120px; margin: 0 auto; padding: 0 24px 64px; }
 /* The top block is sticky. app.js slides it up far enough that the title and description
-   scroll away, leaving the status line and the upload card pinned while the rest of the
-   page scrolls beneath them. The same on phones. */
+   (or the outcome card that replaces them) scroll away, leaving the status line and the
+   upload card pinned while the rest of the page scrolls beneath them. The same on phones. */
 .top-stick { position: sticky; top: -190px; z-index: 30; margin-inline: -24px; padding: 96px 24px 16px; background: var(--paper); transition: background-color 0.3s ease; }
 /* Text rising toward the card fades out, and is gone 16px below it. */
 .top-stick::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 48px; background: linear-gradient(var(--paper), color-mix(in srgb, var(--paper) 0%, transparent)); pointer-events: none; }
@@ -123,7 +123,10 @@ body.has-results .top-stick::after { height: 24px; }
 .tool-header { max-width: 720px; margin: 0 auto 32px; }
 /* With a model loaded, the working area matters more than the introduction. */
 body.has-results .tool-header { margin-bottom: 20px; }
-body.has-results .tool-subtitle { margin-bottom: 16px; }
+/* An outcome, good or bad, takes the place of the title and description. The title stays
+   in the page for screen readers. */
+body.has-outcome .tool-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+body.has-outcome .tool-subtitle { display: none; }
 .tool-title { font-size: 32px; font-weight: 400; line-height: 1.3; margin-bottom: 16px; }
 .tool-subtitle { opacity: 0.7; margin-bottom: 28px; }
 .tool-meta { font-size: 13px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
@@ -286,11 +289,16 @@ body.dragging.drag-wrong .cta-box {
   background: color-mix(in srgb, var(--tone) 7%, transparent);
   border: 1px solid color-mix(in srgb, var(--tone) 32%, transparent);
   border-radius: 12px;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
+  transition: background-color 0.3s ease, border-color 0.3s ease, opacity 0.3s ease;
 }
 .outcome.sound { --tone: var(--tone-info); }
 .outcome.partial { --tone: var(--tone-warn); }
 .outcome.failed { --tone: var(--tone-bad); }
+.tool-header .outcome { margin: 0 0 20px; }
+.tool-header .outcome:not([hidden]) + .outcome { margin-top: -8px; }
+/* An earlier failure, while the next file is being read. */
+.outcome.stale { opacity: 0.5; }
+.outcome.stale h2::before { animation: none; }
 .outcome h2 { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
 /* The dot carries the outcome's colour and sends out a slow ring, like a status light. */
 .outcome h2::before {

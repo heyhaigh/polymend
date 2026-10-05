@@ -38,6 +38,18 @@
     <header class="tool-header">
       <h1 class="tool-title">Polymend</h1>
       <p class="tool-subtitle">Make problematic 3D models printable. Drop in a GLB or STL and get back a file your slicer accepts.</p>
+      <!-- Once there is an outcome, it takes the place of the title and description. -->
+      <div id="failure" class="outcome failed" role="alert" hidden>
+        <p class="label">Outcome</p>
+        <h2 id="failure-title"></h2>
+        <p id="failure-detail"></p>
+      </div>
+      <div id="outcome" class="outcome" hidden>
+        <p class="label">Outcome</p>
+        <h2 id="outcome-title"></h2>
+        <p id="outcome-detail"></p>
+        <ul id="outcome-reasons"></ul>
+      </div>
       <div class="byline-row">
         <p class="tool-meta"><span class="meta-text">Runs in your browser for free</span><span id="badge" class="badge idle">Nothing is uploaded</span></p>
       </div>
@@ -61,12 +73,6 @@
       <input id="file" type="file" accept=".glb,.stl,model/gltf-binary,model/stl" hidden>
       <p id="status" class="status" role="status" aria-live="polite"></p>
     </section>
-    </div>
-
-    <div id="failure" class="outcome failed" role="alert" hidden>
-      <p class="label">Outcome</p>
-      <h2 id="failure-title"></h2>
-      <p id="failure-detail"></p>
     </div>
 
     <section id="results" hidden aria-labelledby="outcome-title">
@@ -120,13 +126,6 @@
             <span id="view-hint"></span>
           </figcaption>
         </figure>
-
-        <div id="outcome" class="outcome">
-          <p class="label">Outcome</p>
-          <h2 id="outcome-title"></h2>
-          <p id="outcome-detail"></p>
-          <ul id="outcome-reasons"></ul>
-        </div>
 
         <div class="details">
           <h3>What a slicer would object to</h3>

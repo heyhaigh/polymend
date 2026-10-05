@@ -69,21 +69,35 @@ function lostModel() {
   state.reloading = false;
   state.report = null;
   $('results').hidden = true;
+  $('outcome').hidden = true;
   document.body.classList.remove('has-results', 'outcome-clean');
   $('drop').classList.remove('compact');
   $('choose-label').textContent = 'Choose a file';
-  placeSticky();
+  placeTop();
 }
 startWorker();
 
 /**
- * The top block is sticky, but slides up until its title and description are out of view.
- * What stays pinned is the status line and the upload card (or the file strip, once a
- * model is loaded), so choosing a file is always one click away.
+ * The top block is sticky, but slides up until whatever sits above the status line is out
+ * of view: the title and description at first, the outcome card once there is one. What
+ * stays pinned is the status line and the upload card (or the file strip, once a model is
+ * loaded), so choosing a file is always one click away.
  */
 function placeSticky() {
   const meta = document.querySelector('.top-stick .tool-meta');
   $('top-stick').style.top = `${16 - meta.offsetTop}px`;
+}
+
+/** An outcome, good or bad, takes the place of the title and description. */
+function placeTop() {
+  document.body.classList.toggle('has-outcome', !$('failure').hidden || !$('outcome').hidden);
+  placeSticky();
+}
+
+/** The outcome card is the first thing on the page, so a new outcome brings the page back to it. */
+function toTop() {
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  window.scrollTo({ top: 0, behavior: calm ? 'auto' : 'smooth' });
 }
 window.addEventListener('resize', placeSticky);
 document.fonts?.ready.then(placeSticky); // the real font changes the heights slightly
@@ -118,8 +132,11 @@ function fail(message, title = FAILURES.unreadable.title) {
   const kept = state.report ? ` The model below is still ${state.shown}.` : '';
   $('failure-title').textContent = title;
   $('failure-detail').textContent = message + kept;
+  $('failure').classList.remove('stale');
   $('failure').hidden = false;
   document.body.classList.remove('outcome-clean');
+  placeTop();
+  toTop();
   setBadge('bad', 'Not repaired');
   sound.play('failed');
   setStatus(state.report ? `${state.shown} · ${number(state.report.before.triangles)} triangles` : '');
@@ -145,7 +162,10 @@ async function openFile(file) {
   state.pendingFile = file;
   state.fresh = true;
   setBusy(true);
-  $('failure').hidden = true;
+  // With no model on the page, an earlier failure stays, dimmed, until the new outcome
+  // replaces it. Hiding it would bring the title back for a moment and shift the page twice.
+  if ($('outcome').hidden) $('failure').classList.add('stale'); else $('failure').hidden = true;
+  placeTop();
   setBadge('working', 'Working on this device');
   setStatus(`Reading ${file.name}`, 'busy');
   let buffer;
@@ -176,8 +196,8 @@ function showResult(message) {
   $('drop').classList.add('compact');
   $('choose-label').textContent = 'Choose another file';
   $('results').hidden = false;
+  $('outcome').hidden = false;
   document.body.classList.add('has-results');
-  placeSticky();
   if (fresh) {
     // A GLB is nominally in meters, but many arrive at an arbitrary size, so a height is needed.
     // An STL may already be the right size, so it is left alone unless asked.
@@ -190,13 +210,14 @@ function showResult(message) {
   document.body.classList.toggle('outcome-clean', message.report.status !== 'partial');
   showOutcomeBadge();
   renderOutcome();
+  placeTop(); // after the card has its words, because its height sets where the top block pins
   renderCounts();
   renderChanges();
   renderSize();
   viewer?.setModel(message);
   show(state.which);
   leaveCloseUp(false);
-  if (fresh) { viewer?.home(); $('outcome-title').focus({ preventScroll: true }); sound.play(message.report.status); }
+  if (fresh) { viewer?.home(); $('outcome-title').focus({ preventScroll: true }); toTop(); sound.play(message.report.status); }
 }
 
 function renderOutcome() {
@@ -436,6 +457,7 @@ for (const input of document.querySelectorAll('[data-option]')) {
     if (!state.report || state.busy) return;
     setBusy(true);
     $('failure').hidden = true;
+    placeTop();
     setBadge('working', 'Working on this device');
     setStatus('Repairing again', 'busy');
     ask({ type: 'options', options: options() });

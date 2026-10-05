@@ -1,5 +1,5 @@
 // Drive the real page in real browser engines with a real model.
-// Usage: node tools/browser-check.mjs [chromium|webkit|firefox] [stl|glb] [mobile]
+// Usage: [POLYMEND_URL=https://polymend.xyz/] node tools/browser-check.mjs [chromium|webkit|firefox] [stl|glb] [mobile]
 import fs from 'node:fs';
 import { playwright as findPlaywright, sample } from './local.mjs';
 const playwright = findPlaywright();
@@ -19,7 +19,9 @@ const requests = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 page.on('request', request => requests.push(request.url()));
-await page.goto('http://127.0.0.1:8650/', { waitUntil: 'load' });
+// POLYMEND_URL points the check at another copy of the page, such as the live site.
+const address = process.env.POLYMEND_URL || 'http://127.0.0.1:8650/';
+await page.goto(address, { waitUntil: 'load' });
 await page.waitForTimeout(300);
 const loadRequests = requests.length;
 
