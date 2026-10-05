@@ -171,6 +171,7 @@ test('nothing public uses a word the owner has ruled out', () => {
     const text = fs.readFileSync(path.join(root, file), 'utf8').toLowerCase();
     for (const word of words) assert.ok(!text.includes(word), `${file} contains a word that must not appear in anything public`);
   }
-  const messages = execFileSync('git', ['log', '--format=%B'], { cwd: root, encoding: 'utf8' }).toLowerCase();
-  for (const word of words) assert.ok(!messages.includes(word), 'a commit message contains a word that must not appear in anything public');
+  // Every commit's message and every line ever added, since the history is public too.
+  const history = execFileSync('git', ['log', '-p', '--format=%B'], { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28 }).toLowerCase();
+  for (const word of words) assert.ok(!history.includes(word), 'the public history contains a word that must not appear in anything public');
 });
