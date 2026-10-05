@@ -1,0 +1,9 @@
+node_modules/
+corpus/
+out/
+.DS_Store
+dist/
+.wrangler/
+tools/local.json
+# Local notes kept beside the docs.
+docs/.*

@@ -1,0 +1,486 @@
+/* Polymend. Visual language follows heyhaigh.ai: Geist Mono, the warm paper and deep
+   navy themes, glass pills, the orange action card and bordered tables. */
+
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('fonts/GeistMono-Variable.woff2') format('woff2');
+}
+
+:root {
+  --paper: #e6e5de;
+  --ink: #1a1a1a;
+  --line: rgba(0, 0, 0, 0.08);
+  --line-strong: rgba(0, 0, 0, 0.1);
+  --fill: rgba(0, 0, 0, 0.02);
+  --fill-strong: rgba(0, 0, 0, 0.05);
+  --glass: rgba(255, 255, 255, 0.2);
+  --glass-hover: rgba(255, 255, 255, 0.3);
+  --stage: #f5f4ef;
+  --orange: #e67e22;
+  --orange-hover: #d46f19;
+  --orange-dot: #b9601b;
+  --orange-wash: linear-gradient(135deg, rgba(230, 126, 34, 0.1), rgba(243, 156, 18, 0.1));
+  --orange-line: rgba(230, 126, 34, 0.3);
+  --good: #32634e;
+  --orange-text: #a3510d;
+  --info-text: #0a62a6;
+  --bad-text: #b3005c;
+  /* Outcome colours: green done, blue nothing needed, orange partly, pink failed. */
+  --tone-good: #12bd3d;
+  --tone-info: #008bea;
+  --tone-warn: #e67e22;
+  --tone-bad: #f00683;
+  --scrollbar: #424242;
+  /* The four vinyl colours of the toys on heyhaigh.ai. */
+  --removed: #f00683;
+  --added: #12bd3d;
+  --flipped: #008bea;
+  color-scheme: light;
+  background-color: var(--paper);
+}
+
+:root.dark-mode {
+  --paper: #07121f;
+  --ink: #e6e5de;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.2);
+  --fill: rgba(255, 255, 255, 0.02);
+  --fill-strong: rgba(255, 255, 255, 0.08);
+  --glass: rgba(255, 255, 255, 0.1);
+  --glass-hover: rgba(255, 255, 255, 0.15);
+  --stage: #0f1d2e;
+  --orange-hover: #f49a4b;
+  --orange-dot: #f3aa54;
+  --orange-wash: linear-gradient(135deg, rgba(230, 126, 34, 0.15), rgba(243, 156, 18, 0.15));
+  --orange-line: rgba(230, 126, 34, 0.4);
+  --good: #a3c6ad;
+  --orange-text: #f3aa54;
+  --info-text: #7cc4f8;
+  --bad-text: #ff7fc0;
+  --scrollbar: #ffffff;
+  color-scheme: dark;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scrollbar-color: var(--scrollbar) transparent; }
+
+body {
+  font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.7;
+  background-color: var(--paper);
+  color: var(--ink);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+a { color: inherit; text-underline-offset: 2px; border-radius: 4px; transition: background-color 0.2s ease-out; }
+a:is(:hover, :focus-visible) { background-color: color-mix(in srgb, currentColor 12%, transparent); }
+:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button[disabled] { opacity: 0.5; cursor: default; }
+strong { font-weight: 600; }
+
+/* --- fixed controls, as on the site */
+.controls-group { position: fixed; top: 20px; right: 20px; display: flex; align-items: center; gap: 6px; z-index: 1000; }
+.theme-toggle, .round {
+  background: var(--glass);
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.theme-toggle:hover, .round:not([disabled]):hover { background: var(--glass-hover); }
+.round svg { display: block; }
+.theme-toggle svg { display: block; }
+
+/* --- page frame */
+.tool-container { max-width: 1120px; margin: 0 auto; padding: 0 24px 64px; }
+/* The top block is sticky. app.js slides it up far enough that the title and description
+   scroll away, leaving the status line and the upload card pinned while the rest of the
+   page scrolls beneath them. The same on phones. */
+.top-stick { position: sticky; top: -190px; z-index: 30; margin-inline: -24px; padding: 96px 24px 16px; background: var(--paper); transition: background-color 0.3s ease; }
+/* Text rising toward the card fades out, and is gone 16px below it. */
+.top-stick::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 48px; background: linear-gradient(var(--paper), color-mix(in srgb, var(--paper) 0%, transparent)); pointer-events: none; }
+/* On a very short screen, such as a phone on its side, pinning would leave no room to read. */
+@media (max-height: 560px) { .top-stick { position: static; } .top-stick::after { display: none; } }
+body.has-results .top-stick::after { height: 24px; }
+/* Every 720px block sits in the middle of the page; text inside stays left-aligned. */
+.tool-header { max-width: 720px; margin: 0 auto 32px; }
+/* With a model loaded, the working area matters more than the introduction. */
+body.has-results .tool-header { margin-bottom: 20px; }
+body.has-results .tool-subtitle { margin-bottom: 16px; }
+.tool-title { font-size: 32px; font-weight: 400; line-height: 1.3; margin-bottom: 16px; }
+.tool-subtitle { opacity: 0.7; margin-bottom: 28px; }
+.tool-meta { font-size: 13px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.meta-text { opacity: 0.7; }
+/* A small status badge. Faint while nothing is loaded, coloured once there is news. */
+.badge { padding: 2px; border-radius: 4px; line-height: 1.3; background: color-mix(in srgb, currentColor 10%, transparent); transition: color 0.2s ease-out, background-color 0.2s ease-out, opacity 0.2s ease-out; }
+.badge.idle { opacity: 0.4; }
+.badge.working { color: var(--orange-text); }
+.badge.good { color: var(--good); }
+.badge.warn { color: var(--orange-text); }
+.badge.info { color: var(--info-text); }
+.badge.bad { color: var(--bad-text); }
+
+h2 { font-size: 20px; font-weight: 400; }
+h3 { font-size: 18px; font-weight: 400; margin: 28px 0 8px; }
+.details h3:first-child { margin-top: 0; }
+.caption { font-size: 11px; line-height: 1.6; opacity: 0.7; margin-top: 8px; }
+.label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.6; margin-bottom: 6px; }
+
+/* --- the orange action card */
+.cta-box {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 24px;
+  background: var(--orange-wash);
+  border: 1px solid var(--orange-line);
+  border-radius: 12px;
+  transition: padding 0.2s ease-out, border-color 0.3s ease-out, box-shadow 0.3s ease-out, background-color 0.3s ease-out;
+  max-width: 720px;
+  margin-inline: auto;
+}
+.cta-box h2, .drop-refuse-title { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+/* The invitation and the refusal occupy the same space and cross-fade. */
+.drop-faces { display: grid; width: 100%; }
+.drop-face { grid-area: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.3s ease-out; }
+.drop-refuse { opacity: 0; pointer-events: none; }
+.drop-refuse .drop-copy { margin-bottom: 0; }
+body.dragging.drag-wrong .drop-ready { opacity: 0; pointer-events: none; }
+body.dragging.drag-wrong .drop-refuse { opacity: 1; }
+.cta-box .drop-copy { opacity: 0.8; margin-bottom: 16px; max-width: 34em; }
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .cta-box::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background: radial-gradient(circle, var(--orange-dot) 1px, transparent 1.5px) 0 0 / 9px 9px;
+    mask-image:
+      radial-gradient(circle 95px at var(--trail-x0, -200px) var(--trail-y0, -200px), #000 0%, transparent 100%),
+      radial-gradient(circle 85px at var(--trail-x1, -200px) var(--trail-y1, -200px), #0009 0%, transparent 100%),
+      radial-gradient(circle 70px at var(--trail-x2, -200px) var(--trail-y2, -200px), #0005 0%, transparent 100%);
+    opacity: 0;
+    transition: opacity 0.4s ease-out;
+  }
+  .cta-box.has-pointer-trail::before { opacity: 0.24; transition-duration: 0.2s; }
+}
+/* While a file is dragged over the page the dots fill the card. */
+/* The brighter edge fades in and out; it does not snap. */
+body.dragging .cta-box { border-color: var(--orange); box-shadow: 0 0 0 3px color-mix(in srgb, var(--orange) 18%, transparent); }
+body.dragging .cta-box::before { opacity: 0.3; mask-image: none; -webkit-mask-image: none; transition-duration: 0.3s; }
+/* A file that is clearly the wrong kind turns the card the failure colour and gives it a
+   small shake, repeated gently for as long as the file is held there. */
+body.dragging.drag-wrong .cta-box {
+  --orange-dot: var(--tone-bad);
+  border-color: var(--tone-bad);
+  background: color-mix(in srgb, var(--tone-bad) 9%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone-bad) 20%, transparent);
+  animation: refuse 1.5s ease-in-out infinite;
+}
+@keyframes refuse {
+  0%, 30%, 100% { transform: translateX(0); }
+  5% { transform: translateX(-5px); }
+  11% { transform: translateX(5px); }
+  17% { transform: translateX(-3px); }
+  23% { transform: translateX(3px); }
+}
+@media (prefers-reduced-motion: reduce) { body.dragging.drag-wrong .cta-box { animation: none; } }
+/* Once a model is loaded the card steps back to a quiet strip. */
+.cta-box.compact {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 12px 16px;
+  text-align: left;
+  padding: 14px 20px;
+  background: var(--fill);
+  border-color: var(--line);
+}
+.cta-box.compact h2, .cta-box.compact .drop-copy { display: none; }
+.cta-box.compact .drop-faces { width: auto; }
+.cta-box.compact .drop-face { align-items: flex-start; }
+.cta-box.compact .drop-refuse-title { font-size: 13px; margin: 0; white-space: nowrap; }
+.cta-box.compact::before { display: none; }
+
+.cta-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: var(--orange);
+  color: #1a1a1a;
+  border: 0;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s ease-out, transform 0.2s ease-out;
+}
+.cta-button .cta-button-label { text-decoration: underline; text-underline-offset: 2px; }
+/* The file button is plain on both screens. */
+.choose .cta-button-label { text-decoration: none; }
+.cta-button:not([disabled]):is(:hover, :focus-visible) { background-color: var(--orange-hover); transform: translateY(-2px); }
+.cta-button svg, .pill svg { display: block; flex-shrink: 0; }
+.cta-box.compact .cta-button { padding: 8px 16px; font-size: 13px; }
+/* Once a model is loaded, orange belongs to the downloads alone. */
+.cta-box.compact .choose { background: #ffffff; color: #1a1a1a; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12); }
+.cta-box.compact .choose:not([disabled]):is(:hover, :focus-visible) { background-color: #f1f0ec; }
+.cta-box.compact .status { flex: 1 1 12em; }
+
+/* The quieter pill, as on the site's secondary buttons. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  min-height: 38px;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 28px;
+  background: color-mix(in srgb, currentColor 5%, transparent);
+  font-size: 13px;
+  white-space: nowrap;
+  transition: transform 0.2s ease-out, background-color 0.2s ease-out;
+}
+.pill:not([disabled]):is(:hover, :focus-visible) { transform: translateY(-2px); background: color-mix(in srgb, currentColor 12%, transparent); }
+@media (prefers-reduced-motion: reduce) {
+  .pill, .cta-button { transition: none; }
+  .pill:hover, .cta-button:hover { transform: none !important; }
+}
+
+.status { margin: 12px 0 0; font-size: 13px; opacity: 0.7; max-width: 46em; }
+.status:empty { display: none; }
+.cta-box.compact .status { margin: 0; }
+.status.error { opacity: 1; padding: 12px 16px; border-left: 3px solid var(--removed); background: var(--fill-strong); border-radius: 0 8px 8px 0; text-align: left; }
+.status.busy::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 10px; border-radius: 50%; background: var(--orange); animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.25; transform: scale(0.7); } }
+@media (prefers-reduced-motion: reduce) { .status.busy::before { animation: none; } }
+
+/* --- outcome */
+#results { margin-top: 20px; }
+.outcome {
+  --tone: var(--tone-good);
+  max-width: 720px;
+  margin: 24px auto 0;
+  padding: 16px 20px;
+  background: color-mix(in srgb, var(--tone) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tone) 32%, transparent);
+  border-radius: 12px;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+.outcome.sound { --tone: var(--tone-info); }
+.outcome.partial { --tone: var(--tone-warn); }
+.outcome.failed { --tone: var(--tone-bad); }
+.outcome h2 { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+/* The dot carries the outcome's colour and sends out a slow ring, like a status light. */
+.outcome h2::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--tone);
+  flex-shrink: 0;
+  animation: status-ring 2.4s ease-out infinite;
+}
+.outcome.partial h2::before { animation-duration: 1.8s; }
+.outcome.failed h2::before { animation-duration: 1.2s; }
+@keyframes status-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--tone) 60%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--tone) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) { .outcome h2::before { animation: none; } }
+.outcome h2:focus { outline: none; }
+.outcome ul { margin: 10px 0 0 24px; }
+.outcome ul:empty { display: none; }
+.outcome li { margin-bottom: 5px; }
+
+/* --- viewer and panel */
+/* The viewer takes the full width; the verdict and the details follow beneath it. */
+.stack { margin-top: 48px; }
+.view { min-width: 0; }
+.details { max-width: 720px; margin: 32px auto 0; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 12px; }
+
+/* Before / After / Side by side, shaped like the site's navigation pill. */
+.segmented { display: inline-flex; gap: 4px; padding: 4px; background: var(--glass); border: 1px solid var(--line-strong); border-radius: 50px; }
+.segmented button { border: 0; background: transparent; padding: 6px 12px; border-radius: 50px; font-size: 13px; font-weight: 500; transition: background 0.25s cubic-bezier(0.4, 0, 0.2, 1); white-space: nowrap; }
+.segmented button:hover { background: color-mix(in srgb, currentColor 8%, transparent); }
+.segmented button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.stepper { display: inline-flex; align-items: center; gap: 8px; }
+.stepper span { min-width: 9.5em; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
+
+.stage { position: relative; background: var(--stage); border-radius: 12px; overflow: hidden; transition: background-color 0.3s ease; }
+canvas { display: block; width: 100%; height: min(68vh, 620px); touch-action: none; cursor: grab; border-radius: 12px; }
+canvas:active { cursor: grabbing; }
+canvas:focus-visible { outline-offset: -3px; }
+.stage-hint { position: absolute; top: 12px; right: 12px; font-size: 10px; padding: 4px 10px; border-radius: 12px; background: rgba(0, 0, 0, 0.65); color: #fff; pointer-events: none; }
+.stage-button { position: absolute; top: 12px; left: 12px; font-size: 10px; line-height: 1.7; padding: 4px 10px; border: 0; border-radius: 12px; background: rgba(0, 0, 0, 0.65); color: #fff; transition: background-color 0.2s ease-out; }
+.stage-button:is(:hover, :focus-visible) { background: #000; }
+.stage-button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+/* While a close-up is showing, a white Back button takes the corner; "Whole model" returns after. */
+.stage-back { display: inline-flex; align-items: center; gap: 6px; background: #ffffff; color: #1a1a1a; font-size: 11px; font-weight: 500; padding: 5px 12px 5px 10px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); }
+.stage-back:is(:hover, :focus-visible) { background: #f1f0ec; }
+.stage-back:focus-visible { outline-color: #1a1a1a; }
+.stage-back[hidden], .stage-button[hidden] { display: none; }
+.stage-label { position: absolute; bottom: 12px; font-size: 10px; padding: 4px 10px; border-radius: 12px; background: rgba(0, 0, 0, 0.65); color: #fff; pointer-events: none; }
+.stage-label.left { left: 12px; }
+.stage-label.right { left: calc(50% + 12px); }
+.stage:not(.split) .stage-label { display: none; }
+.stage.split::after { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: var(--line-strong); pointer-events: none; }
+.no-webgl { padding: 60px 20px; text-align: center; }
+figcaption { font-size: 11px; line-height: 1.6; opacity: 0.8; margin-top: 10px; }
+.legend { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 4px; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+.swatch.removed { background: var(--removed); }
+.swatch.added { background: var(--added); }
+.swatch.flipped { background: var(--flipped); }
+
+/* --- tables, as in the site's articles */
+.ry-table-wrapper { display: block; overflow-x: auto; }
+.ry-table-wrapper table { width: 100%; border-collapse: collapse; font-size: 14px; border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.ry-table-wrapper th, .ry-table-wrapper td { padding: 10px 14px; text-align: right; border: 1px solid var(--line); }
+.ry-table-wrapper th:first-child { text-align: left; font-weight: 400; }
+.ry-table-wrapper thead th { font-weight: 600; background: var(--fill); }
+.counts td.zero { color: var(--good); font-weight: 600; }
+.counts td.left { font-weight: 600; }
+
+.changes { margin: 8px 0 0 24px; }
+.changes li { margin-bottom: 5px; }
+
+/* Options sit in the same box the site uses for a contents list. */
+.options { margin-top: 28px; padding: 16px 20px; background: var(--fill); border: 1px solid var(--line); border-radius: 12px; }
+.options summary { font-weight: 600; opacity: 0.7; cursor: pointer; }
+.options label { display: block; margin-top: 10px; }
+.options label .caption { display: block; margin: 2px 0 0 26px; }
+.row { display: block; margin: 6px 0; }
+input[type="number"] { width: 7em; padding: 6px 10px; border: 1px solid color-mix(in srgb, currentColor 20%, transparent); border-radius: 8px; background: color-mix(in srgb, currentColor 5%, transparent); }
+input[type="checkbox"] { width: 14px; height: 14px; margin-right: 8px; accent-color: var(--orange); vertical-align: -2px; }
+.size { margin: 8px 0 12px; font-variant-numeric: tabular-nums; }
+/* One download button with a menu: the main part takes everything, the arrow offers one format. */
+.download-split { position: relative; z-index: 20; display: inline-flex; transition: transform 0.2s ease-out; }
+.toolbar .download-split { margin-left: auto; }
+.download-split:has(button:not([disabled]):is(:hover, :focus-visible)) { transform: translateY(-2px); }
+.split-main, .split-caret {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  border: 0;
+  background: var(--orange);
+  color: #1a1a1a;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background-color 0.2s ease-out;
+}
+.split-main { padding: 0 16px 0 18px; border-radius: 24px 0 0 24px; }
+.split-caret { padding: 0 14px 0 10px; border-radius: 0 24px 24px 0; box-shadow: inset 1px 0 0 rgba(0, 0, 0, 0.22); }
+.split-main svg, .split-caret svg { display: block; flex-shrink: 0; }
+.split-main:not([disabled]):is(:hover, :focus-visible), .split-caret:not([disabled]):is(:hover, :focus-visible), .split-caret[aria-expanded="true"] { background-color: var(--orange-hover); }
+/* When faults remain the button gives up its orange, like the site's quieter pill. */
+.download-split.anyway .split-main, .download-split.anyway .split-caret { background: color-mix(in srgb, currentColor 5%, transparent); color: inherit; box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 20%, transparent); }
+.download-split.anyway :is(.split-main, .split-caret):not([disabled]):is(:hover, :focus-visible) { background: color-mix(in srgb, currentColor 12%, transparent); }
+.split-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  min-width: 270px;
+  padding: 6px;
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+:root.dark-mode .split-menu { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3); }
+.details .split-menu { right: auto; left: 0; }
+.split-menu button { display: block; width: 100%; padding: 8px 12px; border: 0; border-radius: 8px; background: transparent; text-align: left; font-size: 13px; line-height: 1.5; transition: background-color 0.2s ease-out; }
+.split-menu button:is(:hover, :focus-visible) { background: color-mix(in srgb, currentColor 10%, transparent); outline: none; }
+.split-menu strong { display: block; font-weight: 500; }
+.split-menu span { display: block; font-size: 11px; opacity: 0.7; }
+@media (prefers-reduced-motion: reduce) { .download-split { transition: none; transform: none !important; } }
+
+/* After a clean repair there is nothing to explain, so the explanation and questions are
+   put away. They stay for the first screen, a partial repair, and a failure. */
+body.outcome-clean :is(.about, .faq) { display: none; }
+
+/* The explanation under the tool, set like one of the site's articles. */
+.about { max-width: 720px; margin: 72px auto 0; }
+.about h2 { margin: 32px 0 10px; padding-top: 12px; }
+.about h2:first-child { margin-top: 0; }
+.about p { margin-bottom: 10px; }
+.about ul, .about ol { margin: 8px 0 12px 24px; }
+.about li { margin-bottom: 5px; }
+
+/* Questions and answers, in the boxed, ruled form used at the foot of heyhaigh.ai articles. */
+.faq { max-width: 720px; margin: 48px auto 0; padding: 24px; background: var(--fill); border-radius: 12px; }
+.faq h2 { margin: 0 0 24px; }
+.faq-item { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid color-mix(in srgb, currentColor 6%, transparent); }
+.faq-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.faq-question { font-size: 15px; font-weight: 600; line-height: 1.7; margin: 0 0 8px; }
+.faq-answer { font-size: 14px; line-height: 1.6; opacity: 0.8; }
+
+.tool-footer { max-width: 720px; margin: 64px auto 0; padding-top: 24px; border-top: 1px solid var(--line); font-size: 12px; opacity: 0.75; }
+.tool-footer p { margin-bottom: 10px; }
+
+/* Privacy, terms and source: a quiet row above the credit. */
+.site-links { max-width: 720px; margin: 40px auto 0; display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 13px; }
+.site-links a { opacity: 0.8; }
+.site-links a:is(:hover, :focus-visible) { opacity: 1; }
+
+/* Text pages: privacy and terms, set like an article on heyhaigh.ai. */
+.prose { max-width: 720px; margin: 0 auto; padding-top: 96px; }
+.prose-back { font-size: 13px; margin-bottom: 20px; }
+.prose-back a { text-decoration: none; padding: 6px 12px; border: 1px solid var(--line-strong); border-radius: 19px; background: var(--glass); }
+.prose .tool-title { margin-bottom: 10px; }
+.prose-lede { margin-top: 24px; font-size: 15px; }
+.prose h2 { margin: 32px 0 10px; }
+.prose p { margin-bottom: 10px; }
+.prose ul { margin: 8px 0 12px 24px; }
+.prose li { margin-bottom: 6px; }
+
+/* The one link home: the hand and a credit, in the site's glass pill. */
+.credit { max-width: 720px; margin: 20px auto 0; }
+.credit a {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px 6px 6px;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  background: var(--glass);
+  border: 1px solid var(--line-strong);
+  border-radius: 50px;
+  transition: background 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.credit a:is(:hover, :focus-visible) { background: var(--glass-hover); }
+.credit img { display: block; width: 32px; height: 32px; border-radius: 50%; transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+.credit a:hover img { transform: scale(1.08); }
+@media (prefers-reduced-motion: reduce) { .credit a:hover img { transform: none; } }
+
+@media (max-width: 768px) {
+  .top-stick { padding-top: 80px; }
+  .tool-title { font-size: 26px; }
+  canvas { height: min(58vh, 440px); }
+  .stage-hint { display: none; }
+}

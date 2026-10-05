@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Polymend error states</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="../app/style.css">
+  <script src="../app/theme.js"></script>
+  <style>
+    .lab { max-width: 720px; margin: 0 auto; padding: 72px 24px 80px; }
+    .lab h1 { font-size: 32px; font-weight: 400; margin-bottom: 12px; }
+    .lab > p { opacity: 0.7; }
+    .lab > h2 { margin: 48px 0 4px; }
+    .case { margin-top: 28px; }
+    .when { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.6; }
+    .case .outcome { margin-top: 8px; }
+    .case .tool-meta { margin-top: 10px; }
+    .note { font-size: 12px; opacity: 0.7; margin-top: 10px; }
+    .dropdemo { margin-top: 12px; }
+    .dropdemo .cta-box { padding: 28px 24px; }
+    .switch { margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <div class="controls-group">
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode"></button>
+  </div>
+  <main class="lab">
+    <h1>Error states</h1>
+    <p>Every way a file can be refused, with the exact words the tool shows. The messages below are produced by the real code, not copied, so this page cannot drift from the tool. To see one on the tool itself, drop that kind of file on it.</p>
+
+    <h2>The upload card while a file is held over the page</h2>
+    <p class="note">The edge brightens and the dots fill the card. Both fade in and out over 0.3 seconds.</p>
+    <div class="dropdemo"><section class="cta-box" id="demo-card"><div class="drop-faces">
+      <div class="drop-face drop-ready"><h2>Drop a model here</h2><p class="drop-copy">A <strong>.glb</strong> or <strong>.stl</strong> file. Anywhere on this page works.</p><button type="button" class="cta-button choose"><span class="cta-button-label">Choose a file</span></button></div>
+      <div class="drop-face drop-refuse"><p class="drop-refuse-title">That file cannot be used</p><p class="drop-copy">Polymend takes <strong>.glb</strong> and <strong>.stl</strong> files.</p></div>
+    </div></section></div>
+    <button id="toggle-drag" type="button" class="pill switch" aria-pressed="false">Hold a file over it</button>
+    <button id="toggle-wrong" type="button" class="pill switch" aria-pressed="false">Hold the wrong kind of file over it</button>
+    <p class="note">A file that is clearly not a model, such as a picture or a PDF, cross-fades the card to pink, hides the button, and gives it a small repeating shake while it is held there. Browsers reveal a file's type but not its name before the drop, and Safari reveals neither, so some wrong files are only caught once dropped.</p>
+
+    <h2>When a file cannot be used</h2>
+    <p class="note">Each appears as a pink outcome card under the upload card, with the low bell chime. The status badge beside "Runs in your browser for free" reads "Not repaired".</p>
+    <div id="cases"></div>
+  </main>
+
+  <script type="module">
+    import { load } from '../src/pipeline.js';
+    import { FAILURES } from '../app/messages.js';
+
+    const text = string => new TextEncoder().encode(string);
+
+    /** A minimal GLB with the given scene description, to provoke real GLB errors. */
+    function glb(json) {
+      let body = text(JSON.stringify({ asset: { version: '2.0' }, ...json }));
+      const padded = new Uint8Array(body.length + (-body.length & 3)).fill(0x20);
+      padded.set(body);
+      const out = new Uint8Array(20 + padded.length);
+      const view = new DataView(out.buffer);
+      view.setUint32(0, 0x46546c67, true); view.setUint32(4, 2, true); view.setUint32(8, out.length, true);
+      view.setUint32(12, padded.length, true); view.setUint32(16, 0x4e4f534a, true);
+      out.set(padded, 20);
+      return out;
+    }
+
+    /** Run the tool's own file reader and return the words it refuses with. */
+    function refusal(bytes, name) {
+      try { load(bytes, name); return null; } catch (error) { return error.message; }
+    }
+
+    const cases = [
+      ['You drop a picture, a document, or any file that is not a model', FAILURES.unreadable.title, refusal(new Uint8Array(200), 'holiday photo.png')],
+      ['You drop a different kind of 3D file (OBJ, FBX, 3MF and so on)', FAILURES.unreadable.title, refusal(new Uint8Array(200), 'figure.obj')],
+      ['You drop a .gltf file, which keeps its parts in separate files', FAILURES.unreadable.title, refusal(new Uint8Array(200), 'figure.gltf')],
+      ['A file is named .stl but is not a model', FAILURES.unreadable.title, refusal(text('this is not a model'), 'notes.stl')],
+      ['A text STL that was cut off partway', FAILURES.unreadable.title, refusal(text('solid part\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nendloop\nendfacet\n'), 'broken.stl')],
+      ['A GLB that uses Draco compression', FAILURES.unreadable.title, refusal(glb({ extensionsRequired: ['KHR_draco_mesh_compression'], scenes: [{ nodes: [] }] }), 'compressed.glb')],
+      ['A GLB with no triangles in it', FAILURES.unreadable.title, refusal(glb({ scene: 0, scenes: [{ nodes: [] }] }), 'empty.glb')],
+      ['A file named .glb that is not one', FAILURES.unreadable.title, refusal(new Uint8Array(200), 'not-really.glb')],
+      ['The file is over 400 MB', FAILURES.tooLarge.title, FAILURES.tooLarge.detail],
+      ['A repair runs for 1 minute', FAILURES.timedOut.title, FAILURES.timedOut.detail],
+      ['The repair hits an unexpected fault', FAILURES.crashed.title, FAILURES.crashed.detail],
+      ['Any of the above while an earlier model is still on the page', FAILURES.unreadable.title, refusal(new Uint8Array(200), 'figure.obj') + ' The model below is still pink-block-knight.stl.'],
+    ];
+
+    const list = document.getElementById('cases');
+    for (const [when, title, detail] of cases) {
+      const block = document.createElement('div');
+      block.className = 'case';
+      block.innerHTML = '<p class="when"></p><div class="outcome failed"><p class="label">Outcome</p><h2></h2><p></p></div>';
+      block.querySelector('.when').textContent = when;
+      block.querySelector('h2').textContent = title;
+      block.querySelector('.outcome p:last-child').textContent = detail ?? '(this file was accepted, so no error is shown)';
+      list.append(block);
+    }
+    const badge = document.createElement('p');
+    badge.className = 'tool-meta case';
+    badge.innerHTML = '<span class="meta-text">Runs in your browser for free</span><span class="badge bad">Not repaired</span>';
+    list.append(badge);
+
+    // The drag-over look uses the tool's own styles: a class on <body>.
+    function hold(kind) {
+      const now = document.body.classList.contains('drag-wrong') ? 'wrong' : document.body.classList.contains('dragging') ? 'right' : null;
+      const next = now === kind ? null : kind;
+      document.body.classList.toggle('dragging', next !== null);
+      document.body.classList.toggle('drag-wrong', next === 'wrong');
+      buttons.right.setAttribute('aria-pressed', String(next === 'right'));
+      buttons.wrong.setAttribute('aria-pressed', String(next === 'wrong'));
+      buttons.right.textContent = next === 'right' ? 'Take the file away' : 'Hold a file over it';
+      buttons.wrong.textContent = next === 'wrong' ? 'Take the file away' : 'Hold the wrong kind of file over it';
+    }
+    buttons.right.addEventListener('click', () => hold('right'));
+    buttons.wrong.addEventListener('click', () => hold('wrong'));
+  </script>
+</body>
+</html>

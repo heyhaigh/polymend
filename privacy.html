@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy · Polymend</title>
+  <meta name="description" content="Polymend repairs your 3D model in your browser. It collects nothing: no uploads, no analytics, no cookies.">
+  <link rel="canonical" href="https://polymend.xyz/privacy">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon-48.png" type="image/png" sizes="48x48">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <link rel="preload" href="/app/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/app/style.css">
+  <script src="/app/theme.js"></script>
+</head>
+<body>
+  <div class="controls-group">
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode" title="Toggle theme (T)"></button>
+  </div>
+  <main class="tool-container">
+    <article class="prose">
+      <p class="prose-back"><a href="/">Polymend</a></p>
+      <h1 class="tool-title">Privacy</h1>
+      <p class="tool-meta"><span class="meta-text">Last updated: Oct 5, 2026</span></p>
+      <p class="prose-lede">Polymend is built so that there is nothing to collect. Your model is repaired on your own device and is never sent anywhere.</p>
+
+      <h2>The short version</h2>
+      <ul>
+        <li><strong>Your files stay with you.</strong> The repair runs in your browser. Polymend never receives, sees or stores your model.</li>
+        <li><strong>No analytics, collected or stored.</strong> Polymend does not measure, record or keep anything about you or how you use it. There are no cookies, no advertising and no accounts.</li>
+        <li><strong>You can check.</strong> The code is open source, and the page is set up so that your browser will refuse to let it send data anywhere.</li>
+      </ul>
+
+      <h2>Your files</h2>
+      <p>When you choose or drop a file, it is read by the page running in your browser and repaired there. It is not uploaded. The repaired file is created on your device and saved by you. When you close the page, nothing of your model remains with Polymend, because nothing was ever sent.</p>
+
+      <h2>No analytics</h2>
+      <p>Polymend has no analytics of any kind. It does not count visits, record what you click, log which files you open, or build any history of how the tool is used. Nothing like that is collected, so nothing like that is stored, by Polymend or by anyone on its behalf.</p>
+
+      <h2>What the page stores on your device</h2>
+      <p>One thing: if you switch between the light and dark themes, your choice is saved in your browser so the page looks the same next time. It never leaves your device, and you can clear it by clearing this site's data in your browser.</p>
+
+      <h2>What the hosting provider sees</h2>
+      <p>One thing is outside Polymend's control. The site is delivered by Cloudflare, and like every web host, Cloudflare's servers receive your IP address and basic details about your browser when your browser asks for the page. Cloudflare may keep those for a time to keep its service secure and reliable, and it keeps its own totals of traffic to every site it serves, such as how many requests arrived. That record belongs to Cloudflare's systems, not to Polymend. Polymend adds nothing to it, puts no measuring script in the page, and does not use it to identify or follow anyone. <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare's privacy policy</a> describes how it handles that data.</p>
+
+      <h2>How the "no upload" promise is enforced</h2>
+      <p>The page carries a security policy that tells your browser to block it from making any network connection. That is a rule your browser enforces, not just a statement. The project also has automated checks that fail if anyone tries to add analytics, outside scripts or anything else that could send data.</p>
+
+      <h2>Open source</h2>
+      <p>All of Polymend's code is public under the MIT license at <a href="https://github.com/heyhaigh/polymend">github.com/heyhaigh/polymend</a>. Anyone can read it to confirm what is written here.</p>
+
+      <h2>Links to other sites</h2>
+      <p>This site links to GitHub and to heyhaigh.ai. Those sites have their own privacy practices.</p>
+
+      <h2>Children</h2>
+      <p>Polymend does not knowingly collect information from anyone, including children.</p>
+
+      <h2>Changes</h2>
+      <p>If this policy changes, the new version will be posted here with a new date. Because the code is public, its history is too.</p>
+
+      <h2>Questions</h2>
+      <p>Open an issue on <a href="https://github.com/heyhaigh/polymend/issues">GitHub</a>, or reach Ryan Haigh through <a href="https://heyhaigh.ai/">heyhaigh.ai</a>.</p>
+    </article>
+    <nav class="site-links" aria-label="About this site">
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="https://github.com/heyhaigh/polymend">Open source on GitHub</a>
+    </nav>
+    <p class="credit">
+      <a href="https://heyhaigh.ai/">
+        <img src="/app/ry-hand-96.webp" alt="" width="32" height="32">
+        <span>Created by Ryan Haigh</span>
+      </a>
+    </p>
+  </main>
+</body>
+</html>

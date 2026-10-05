@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Polymend component library</title>
+  <meta name="robots" content="noindex,nofollow">
+  <style>
+    @font-face { font-family: 'Geist Mono'; font-weight: 100 900; font-display: swap; src: url('../app/fonts/GeistMono-Variable.woff2') format('woff2'); }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { display: grid; grid-template-columns: 260px minmax(0, 1fr); font: 13px/1.6 'Geist Mono', ui-monospace, Menlo, monospace; background: #0e131a; color: #e6ebe4; }
+    nav { padding: 24px 14px; border-right: 1px solid #253448; overflow-y: auto; }
+    nav h1 { font-size: 15px; font-weight: 500; padding: 0 10px 4px; }
+    nav p { font-size: 11px; opacity: 0.6; padding: 0 10px 18px; }
+    nav ol { list-style: none; display: grid; gap: 2px; }
+    nav a { display: grid; grid-template-columns: 2.2em 1fr; padding: 8px 10px; border-radius: 8px; color: inherit; text-decoration: none; }
+    nav a:hover { background: #1a2330; }
+    nav a[aria-current="page"] { background: #253448; }
+    nav a span:first-child { opacity: 0.5; }
+    :focus-visible { outline: 2px solid #a3c6ad; outline-offset: 2px; }
+    main { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; }
+    header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 14px 20px; border-bottom: 1px solid #253448; }
+    header h2 { font-size: 15px; font-weight: 500; }
+    header p { flex: 1 1 20em; font-size: 12px; opacity: 0.7; }
+    header button, header a { font: inherit; color: inherit; background: #1a2330; border: 1px solid #344247; border-radius: 8px; padding: 6px 12px; cursor: pointer; text-decoration: none; }
+    header button:hover, header a:hover { background: #253448; }
+    iframe { width: 100%; height: 100%; border: 0; background: #07121f; }
+    @media (max-width: 760px) { body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); } nav { border-right: 0; border-bottom: 1px solid #253448; padding: 14px; } nav p { padding-bottom: 10px; } }
+  </style>
+</head>
+<body>
+  <nav aria-label="Library pages">
+    <h1>Polymend library</h1>
+    <p>Local studies. Not part of the published site.</p>
+    <ol id="list"></ol>
+  </nav>
+  <main>
+    <header>
+      <h2 id="title"></h2>
+      <p id="description"></p>
+      <button id="reload" type="button">Reload</button>
+      <a id="open" target="_blank" rel="noopener">Open page</a>
+    </header>
+    <iframe id="frame" title=""></iframe>
+  </main>
+  <script>
+    // Add a page here and it appears in the sidebar. The hash is its permanent address.
+    const pages = [
+      { hash: 'sound-lab', title: 'Sound lab', url: 'sound-lab.html',
+        description: 'Twenty-nine synthesized chimes for success, partly repaired and failure. The three in use are marked: marimba, dull mallet and low bell (chosen 2026-10-05).' },
+      { hash: 'error-states', title: 'Error states', url: 'error-states.html',
+        description: 'Every way a file can be refused, with the exact words the tool shows, produced by the real code. Also the upload card while a file is held over the page.' },
+    ];
+    const list = document.getElementById('list'), frame = document.getElementById('frame');
+    pages.forEach((page, i) => {
+      const item = document.createElement('li');
+      item.innerHTML = `<a href="#${page.hash}"><span>${String(i + 1).padStart(2, '0')}</span><span>${page.title}</span></a>`;
+      list.append(item);
+    });
+    function show() {
+      const page = pages.find(entry => '#' + entry.hash === location.hash) || pages[0];
+      for (const link of list.querySelectorAll('a')) link.toggleAttribute('aria-current', link.getAttribute('href') === '#' + page.hash), link.getAttribute('href') === '#' + page.hash && link.setAttribute('aria-current', 'page');
+      document.getElementById('title').textContent = page.title;
+      document.getElementById('description').textContent = page.description;
+      document.getElementById('open').href = page.url;
+      frame.title = page.title + ' preview';
+      if (frame.dataset.url !== page.url) { frame.src = page.url; frame.dataset.url = page.url; }
+      document.title = `${page.title} · Polymend library`;
+    }
+    addEventListener('hashchange', show);
+    document.getElementById('reload').addEventListener('click', () => frame.contentWindow.location.reload());
+    show();
+  </script>
+</body>
+</html>

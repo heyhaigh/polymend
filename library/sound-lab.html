@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Polymend sound lab</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="../app/style.css">
+  <script src="../app/theme.js"></script>
+  <style>
+    .lab { max-width: 960px; margin: 0 auto; padding: 72px 24px 80px; }
+    .lab h1 { font-size: 32px; font-weight: 400; margin-bottom: 12px; }
+    .lab > p { opacity: 0.7; max-width: 46em; }
+    .lab h2 { margin: 44px 0 6px; display: flex; align-items: center; gap: 12px; }
+    .lab h2::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--tone); }
+    .group-note { font-size: 12px; opacity: 0.7; margin-bottom: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+    .sound { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: center; text-align: left; padding: 14px 16px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--tone) 30%, transparent); background: color-mix(in srgb, var(--tone) 6%, transparent); transition: background-color 0.2s ease-out, transform 0.2s ease-out; }
+    .sound:hover { background: color-mix(in srgb, var(--tone) 14%, transparent); transform: translateY(-2px); }
+    .sound.playing { background: color-mix(in srgb, var(--tone) 26%, transparent); }
+    .sound .id { grid-row: span 2; font-size: 13px; font-weight: 600; min-width: 2.6em; padding: 6px 0; text-align: center; border-radius: 8px; background: color-mix(in srgb, var(--tone) 22%, transparent); }
+    .sound .name { font-weight: 500; }
+    .sound .what { font-size: 11px; line-height: 1.5; opacity: 0.7; }
+    .sound .now { font-size: 10px; margin-left: 8px; padding: 1px 6px; border-radius: 4px; background: color-mix(in srgb, currentColor 14%, transparent); }
+    .volume { margin-top: 20px; display: flex; align-items: center; gap: 12px; font-size: 13px; }
+    .volume input { width: 200px; accent-color: var(--orange); }
+  </style>
+</head>
+<body>
+  <div class="controls-group">
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode"></button>
+  </div>
+  <main class="lab">
+    <h1>Polymend sound lab</h1>
+    <p>Click any card to hear it. Each one has a short code (S3, F2, and so on): tell me the codes you like for success, partly repaired, and failure, and I will put them in the tool. The three marked "in the tool" were chosen on Oct 5, 2026. This page is only on your machine; it is not part of the published site.</p>
+    <label class="volume">Volume <input id="volume" type="range" min="0.03" max="0.4" step="0.01" value="0.16"> <span id="volume-value"></span></label>
+    <div id="groups"></div>
+  </main>
+
+  <script type="module">
+    // One small synthesizer. A sound is a list of notes; each note can slide in pitch, carry
+    // extra partials (for bell and mallet tones), and the whole sound can have an echo.
+    const SOUNDS = {
+      success: { tone: 'var(--tone-good)', title: 'Success: repaired', note: 'Plays when a model comes out fully repaired.', list: [
+        ['S1', 'Two up', 'The first version. Triangle wave, E to B.', { notes: [{ f: 659.25, d: 0.22, wave: 'triangle' }, { f: 987.77, t: 0.11, d: 0.42, wave: 'triangle' }] }],
+        ['S2', 'Soft third', 'Two pure sine tones a third apart. Gentle.', { notes: [{ f: 1046.5, d: 0.25 }, { f: 1318.5, t: 0.12, d: 0.5 }] }],
+        ['S3', 'Arpeggio', 'Four quick rising notes of a major chord.', { notes: [523.25, 659.25, 783.99, 1046.5].map((f, i) => ({ f, t: i * 0.07, d: i === 3 ? 0.5 : 0.16, wave: 'triangle' })) }],
+        ['S4', 'Glass', 'One struck-glass tone that rings out.', { notes: [{ f: 1174.7, d: 1.1, gain: 0.8, partials: [[2.76, 0.35, 0.5], [5.4, 0.15, 0.25]] }] }],
+        ['S5', 'Marimba', 'Two warm mallet notes, low to high.', { now: true, notes: [{ f: 392, d: 0.3, partials: [[4, 0.25, 0.3]] }, { f: 523.25, t: 0.13, d: 0.5, partials: [[4, 0.25, 0.3]] }] }],
+        ['S6', 'Coin', 'Game-console coin pickup. Square wave.', { notes: [{ f: 987.77, d: 0.08, wave: 'square', gain: 0.5 }, { f: 1318.5, t: 0.08, d: 0.4, wave: 'square', gain: 0.5 }] }],
+        ['S7', 'Level up', 'A quick square-wave fanfare.', { notes: [392, 523.25, 659.25, 783.99, 1046.5].map((f, i) => ({ f, t: i * 0.06, d: i === 4 ? 0.4 : 0.09, wave: 'square', gain: 0.45 })) }],
+        ['S8', 'Warm chord', 'Two notes together with a slow, soft start.', { notes: [{ f: 523.25, d: 0.9, attack: 0.09 }, { f: 783.99, d: 0.9, attack: 0.09, gain: 0.7 }, { f: 1046.5, t: 0.05, d: 0.8, attack: 0.09, gain: 0.4 }] }],
+        ['S9', 'Pop', 'A short rising blip, like a bubble.', { notes: [{ f: 320, slideTo: 980, d: 0.14 }] }],
+        ['S10', 'Ding with echo', 'One clear ding that repeats and fades.', { echo: { time: 0.16, feedback: 0.38 }, notes: [{ f: 1318.5, d: 0.35 }] }],
+        ['S11', 'Three up', 'Three steps up, unhurried.', { notes: [587.33, 739.99, 880].map((f, i) => ({ f, t: i * 0.11, d: i === 2 ? 0.5 : 0.2, wave: 'triangle' })) }],
+        ['S12', 'Sparkle', 'Three very high, quiet notes.', { notes: [2093, 2637, 3136].map((f, i) => ({ f, t: i * 0.06, d: 0.3, gain: 0.55 })) }],
+        ['S13', 'Bell pair', 'Two small bells, the second higher.', { echo: { time: 0.21, feedback: 0.22 }, notes: [{ f: 880, d: 0.6, partials: [[2.76, 0.3, 0.5]] }, { f: 1318.5, t: 0.16, d: 0.9, partials: [[2.76, 0.3, 0.5]] }] }],
+        ['S14', 'Swell', 'A soft tone that rises into a note.', { notes: [{ f: 440, slideTo: 880, d: 0.5, attack: 0.12, wave: 'triangle' }] }],
+      ] },
+      partial: { tone: 'var(--tone-warn)', title: 'Partly repaired', note: 'Plays when some faults remain. Should sound finished but not triumphant.', list: [
+        ['P1', 'Ease down', 'The first version. Two close notes, the second a little lower.', { notes: [{ f: 587.33, d: 0.2, wave: 'triangle' }, { f: 554.37, t: 0.16, d: 0.4, wave: 'triangle' }] }],
+        ['P2', 'Single blip', 'One plain note. Neutral.', { notes: [{ f: 880, d: 0.3, wave: 'triangle' }] }],
+        ['P3', 'Up and back', 'Up a step and back down again.', { notes: [659.25, 783.99, 659.25].map((f, i) => ({ f, t: i * 0.1, d: i === 2 ? 0.4 : 0.14, wave: 'triangle' })) }],
+        ['P4', 'Double tap', 'The same soft note twice.', { notes: [{ f: 698.46, d: 0.14 }, { f: 698.46, t: 0.18, d: 0.3 }] }],
+        ['P5', 'Question', 'Two notes that end unresolved.', { notes: [{ f: 523.25, d: 0.18, wave: 'triangle' }, { f: 622.25, t: 0.14, d: 0.45, wave: 'triangle' }] }],
+        ['P6', 'Dull mallet', 'One low, soft mallet tone.', { now: true, notes: [{ f: 330, d: 0.5, partials: [[4, 0.2, 0.3]] }] }],
+      ] },
+      fail: { tone: 'var(--tone-bad)', title: 'Failure: could not read, or stopped', note: 'Plays when a file cannot be read or a repair is stopped. Clear, but not harsh.', list: [
+        ['F1', 'Two down', 'The first version. Low sine, falling.', { notes: [{ f: 311.13, d: 0.24 }, { f: 233.08, t: 0.18, d: 0.5 }] }],
+        ['F2', 'Buzz', 'Two short low buzzes. Game-console wrong answer.', { notes: [{ f: 110, d: 0.14, wave: 'square', gain: 0.5 }, { f: 110, t: 0.2, d: 0.22, wave: 'square', gain: 0.5 }] }],
+        ['F3', 'Minor drop', 'Three notes stepping down in a minor key.', { notes: [659.25, 523.25, 440].map((f, i) => ({ f, t: i * 0.11, d: i === 2 ? 0.5 : 0.16, wave: 'triangle' })) }],
+        ['F4', 'Thud', 'A single low thump that sinks.', { notes: [{ f: 200, slideTo: 60, d: 0.28, gain: 1.4 }] }],
+        ['F5', 'Uh-oh', 'Two notes, high then low, like the phrase.', { notes: [{ f: 392, d: 0.16, wave: 'square', gain: 0.4 }, { f: 311.13, t: 0.2, d: 0.36, wave: 'square', gain: 0.4 }] }],
+        ['F6', 'Wobble', 'Two close low tones that beat against each other.', { notes: [{ f: 220, d: 0.6 }, { f: 233.08, d: 0.6 }] }],
+        ['F7', 'Low bell', 'One low bell. Sombre but soft.', { now: true, notes: [{ f: 196, d: 1.1, gain: 1.1, partials: [[2.76, 0.4, 0.5], [5.4, 0.15, 0.25]] }] }],
+        ['F8', 'Slide down', 'One note that droops.', { notes: [{ f: 520, slideTo: 180, d: 0.4, wave: 'triangle' }] }],
+        ['F9', 'Soft knock', 'Two dull knocks.', { notes: [{ f: 160, slideTo: 90, d: 0.1, gain: 1.4 }, { f: 160, t: 0.17, slideTo: 90, d: 0.14, gain: 1.4 }] }],
+      ] },
+    };
+
+    let context = null;
+    let volume = 0.16;
+
+    function play(recipe) {
+      context ??= new AudioContext();
+      context.resume();
+      const now = context.currentTime + 0.03;
+      const out = context.createGain();
+      out.gain.value = volume;
+      out.connect(context.destination);
+      if (recipe.echo) {
+        const delay = context.createDelay(1), feedback = context.createGain();
+        delay.delayTime.value = recipe.echo.time;
+        feedback.gain.value = recipe.echo.feedback;
+        out.connect(delay); delay.connect(feedback); feedback.connect(delay); delay.connect(context.destination);
+      }
+      let end = 0;
+      for (const note of recipe.notes) {
+        const { f, t = 0, d = 0.3, wave = 'sine', gain = 1, attack = 0.012, slideTo, partials = [] } = note;
+        for (const [ratio, level, life] of [[1, 1, 1], ...partials]) {
+          const oscillator = context.createOscillator(), envelope = context.createGain();
+          oscillator.type = ratio === 1 ? wave : 'sine';
+          oscillator.frequency.setValueAtTime(f * ratio, now + t);
+          if (slideTo) oscillator.frequency.exponentialRampToValueAtTime(slideTo * ratio, now + t + d);
+          envelope.gain.setValueAtTime(0.0001, now + t);
+          envelope.gain.exponentialRampToValueAtTime(gain * level, now + t + attack);
+          envelope.gain.exponentialRampToValueAtTime(0.0001, now + t + Math.max(attack + 0.02, d * life));
+          oscillator.connect(envelope).connect(out);
+          oscillator.start(now + t);
+          oscillator.stop(now + t + d + 0.05);
+        }
+        end = Math.max(end, t + d);
+      }
+      return end + (recipe.echo ? 0.8 : 0);
+    }
+
+    const groups = document.getElementById('groups');
+    for (const group of Object.values(SOUNDS)) {
+      const section = document.createElement('section');
+      section.style.setProperty('--tone', group.tone);
+      section.innerHTML = `<h2>${group.title}</h2><p class="group-note">${group.note}</p><div class="grid"></div>`;
+      for (const [id, name, what, recipe] of group.list) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'sound';
+        button.innerHTML = `<span class="id">${id}</span><span class="name">${name}${recipe.now ? '<span class="now">in the tool</span>' : ''}</span><span class="what">${what}</span>`;
+        button.addEventListener('click', () => {
+          const seconds = play(recipe);
+          button.classList.add('playing');
+          setTimeout(() => button.classList.remove('playing'), seconds * 1000);
+        });
+        section.querySelector('.grid').append(button);
+      }
+      groups.append(section);
+    }
+    const slider = document.getElementById('volume'), label = document.getElementById('volume-value');
+    const showVolume = () => { volume = Number(slider.value); label.textContent = Math.round(volume * 100) + '%'; };
+    slider.addEventListener('input', showVolume);
+    showVolume();
+  </script>
+</body>
+</html>

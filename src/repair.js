@@ -1,0 +1,471 @@
+// Repair the small mesh defects that stop a model slicing cleanly, changing as little as possible.
+//
+// The surface is assumed to be mostly sound, with three kinds of fault:
+//   - stray pieces: a triangle, flap or tiny pocket stuck to the surface along an edge
+//     that already has its two proper faces;
+//   - pinches: two parts of the real surface touching along one edge;
+//   - small holes.
+// Stray pieces are deleted whole, pinches are cut out and patched on each side, holes
+// are patched. Original vertices are never moved.
+
+import { analyze, EdgeTable, volume } from './mesh.js';
+import { trianglesCross } from './intersect.js';
+
+const DEFAULTS = {
+  maxHoleEdges: 100,    // larger holes are left open and reported
+  strayFaces: 24,       // an attached or loose open scrap up to this size is deleted
+  speckFaces: 32,       // a closed shell up to this size is deleted, if it is also tiny...
+  speckSize: 0.02,      // ...measured against the whole model (fraction of its diagonal)
+  removeStray: true,    // delete stray pieces attached along an already-complete edge
+  removeSpecks: true,   // delete tiny closed shells
+  patchHoles: true,     // close small holes
+  fixFacing: true,      // turn faces so neighbours agree and shells face outward
+  separatePinches: false, // cut apart surfaces that touch along an edge; off because it can part things meant to touch
+  maxPasses: 40,
+};
+
+export function repair(inputPositions, inputTris, options = {}) {
+  const opts = { ...DEFAULTS, ...options };
+  if (!opts.removeStray) opts.strayFaces = 0;
+  if (!opts.removeSpecks) opts.speckFaces = 0;
+  const positions = Array.from(inputPositions);
+  const tris = Array.from(inputTris);
+  // The edge table is the costly thing to build, so it is built once and kept until a
+  // face is deleted or added (`version` counts those changes).
+  const firstEdges = new EdgeTable(inputTris);
+  const state = { positions, tris, dead: new Uint8Array(tris.length / 3), version: 0, edges: firstEdges, edgesVersion: 0 };
+  const report = {
+    before: analyze(inputPositions, inputTris, firstEdges),
+    degenerateRemoved: 0, duplicateRemoved: 0, strayFacesRemoved: 0, pinchedEdgesCut: 0, pinchedEdgesLeft: 0,
+    specksRemoved: 0, holesFilled: [], holesLeftOpen: [], trianglesAdded: 0, patchCrossings: 0, facesFlipped: 0,
+  };
+
+  dropDegenerateAndDuplicate(state, report);
+  // Patching can, rarely, expose a new bad edge, so allow a few rounds.
+  for (let round = 0; round < 4; round++) {
+    removeStrayPiecesAndCutPinches(state, report, opts);
+    removeLooseJunk(state, report, opts);
+    if (opts.patchHoles) fillHoles(state, report, opts);
+    if (!opts.separatePinches || !hasOverSharedEdge(edgeUse(state))) break;
+  }
+
+  const packed = compact(state, inputTris.length / 3);
+  // Turning faces does not change which faces share an edge, so one table serves both steps.
+  const packedEdges = new EdgeTable(packed.tris);
+  const facing = opts.fixFacing ? orient(packed.positions, packed.tris, packedEdges) : { count: 0, flags: new Uint8Array(packed.tris.length / 3) };
+  report.facesFlipped = facing.count;
+  report.after = analyze(packed.positions, packed.tris, packedEdges);
+  report.pinchedEdgesLeft = report.after.nonManifoldEdges;
+  report.clean = report.after.openEdges === 0 && report.after.nonManifoldEdges === 0 && report.after.inconsistentEdges === 0;
+  const changed = report.degenerateRemoved + report.duplicateRemoved + report.strayFacesRemoved + report.specksRemoved
+    + report.pinchedEdgesCut + report.trianglesAdded + report.facesFlipped;
+  // sound: nothing needed doing. repaired: faults found and all fixed. partial: some remain.
+  report.status = !report.clean ? 'partial' : changed ? 'repaired' : 'sound';
+  return { positions: packed.positions, tris: packed.tris, report, origin: packed.origin, flipped: facing.flags };
+}
+
+function edgeUse(state) {
+  if (state.edgesVersion !== state.version) {
+    state.edges = new EdgeTable(state.tris, state.dead);
+    state.edgesVersion = state.version;
+  }
+  return state.edges;
+}
+
+function hasOverSharedEdge(edges) {
+  for (let i = 0; i < edges.size; i++) if (edges.count[edges.order[i]] > 2) return true;
+  return false;
+}
+
+function dropDegenerateAndDuplicate(state, report) {
+  const { tris, dead } = state;
+  const faceCount = tris.length / 3;
+  // A small hash table of faces by their three vertices in sorted order, to spot repeats.
+  let capacity = 1024;
+  while (capacity < faceCount * 2) capacity *= 2;
+  const mask = capacity - 1;
+  const table = new Int32Array(capacity).fill(-1);
+  const sorted = new Int32Array(faceCount * 3);
+  for (let f = 0; f < faceCount; f++) {
+    let a = tris[f * 3], b = tris[f * 3 + 1], c = tris[f * 3 + 2];
+    if (a === b || b === c || c === a) { dead[f] = 1; report.degenerateRemoved++; continue; }
+    if (a > b) { const t = a; a = b; b = t; }
+    if (b > c) { const t = b; b = c; c = t; }
+    if (a > b) { const t = a; a = b; b = t; }
+    sorted[f * 3] = a; sorted[f * 3 + 1] = b; sorted[f * 3 + 2] = c;
+    const hash = Math.imul(Math.imul(a, 0x9e3779b1) ^ Math.imul(b, 0x85ebca6b) ^ c, 0xc2b2ae35);
+    let slot = (hash ^ (hash >>> 15)) & mask;
+    for (;;) {
+      const g = table[slot];
+      if (g < 0) { table[slot] = f; break; }
+      if (sorted[g * 3] === a && sorted[g * 3 + 1] === b && sorted[g * 3 + 2] === c) { dead[f] = 1; report.duplicateRemoved++; break; }
+      slot = (slot + 1) & mask;
+    }
+  }
+  if (report.degenerateRemoved + report.duplicateRemoved) state.version++;
+}
+
+/** Groups of faces joined across ordinary (two-face) edges, with what each group touches. */
+function components(state, edges) {
+  const { tris, dead, positions } = state;
+  const faceCount = tris.length / 3;
+  const parent = new Int32Array(faceCount);
+  for (let f = 0; f < faceCount; f++) parent[f] = f;
+  const find = x => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
+  for (let i = 0; i < edges.size; i++) {
+    const slot = edges.order[i];
+    if (edges.count[slot] === 2) parent[find(edges.first[slot])] = find(edges.second[slot]);
+  }
+  const groups = new Map();
+  for (let f = 0; f < faceCount; f++) {
+    if (dead[f]) continue;
+    const root = find(f);
+    if (!groups.has(root)) groups.set(root, { faces: [], open: 0, attached: false });
+    groups.get(root).faces.push(f);
+  }
+  for (let i = 0; i < edges.size; i++) {
+    const slot = edges.order[i], used = edges.count[slot];
+    if (used === 1) groups.get(find(edges.first[slot])).open++;
+    else if (used > 2) for (const f of edges.faces(slot)) groups.get(find(f)).attached = true;
+  }
+  const span = faces => {
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (const f of faces) for (let k = 0; k < 3; k++) for (let c = 0; c < 3; c++) {
+      const value = positions[tris[f * 3 + k] * 3 + c];
+      if (value < lo[c]) lo[c] = value;
+      if (value > hi[c]) hi[c] = value;
+    }
+    return Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
+  };
+  const list = [...groups.values()];
+  // A loop, not Math.max(...list): a model made of loose triangles has one group per face,
+  // and spreading that many arguments overflows the call stack.
+  let largest = 0;
+  for (const group of list) if (group.faces.length > largest) largest = group.faces.length;
+  let modelSpan = 0;
+  for (const group of list) if (group.faces.length === largest) modelSpan = Math.max(modelSpan, span(group.faces));
+  return { groups: list, largest, modelSpan, span };
+}
+
+/** Is this group junk rather than part of the model? */
+function isJunk(group, info, opts) {
+  if (group.faces.length >= info.largest) return false;
+  if (group.open > 0) {
+    // An open scrap hanging off a bad edge cannot be part of a printable surface.
+    if (group.attached) return group.faces.length <= opts.strayFaces;
+    return group.faces.length <= opts.strayFaces && info.span(group.faces) < opts.speckSize * info.modelSpan;
+  }
+  // A closed shell might be a real small part, so it must be tiny in size as well.
+  return group.faces.length <= opts.speckFaces && info.span(group.faces) < opts.speckSize * info.modelSpan;
+}
+
+/**
+ * While any edge has more than two faces: delete the small stray pieces attached along
+ * such edges. If none are left to delete, the remaining over-shared edges are pinches
+ * between parts of the real surface; cut their faces out so each side can be patched.
+ */
+function removeStrayPiecesAndCutPinches(state, report, opts) {
+  for (let pass = 0; pass < opts.maxPasses; pass++) {
+    const edges = edgeUse(state);
+    const bad = [];
+    for (let i = 0; i < edges.size; i++) if (edges.count[edges.order[i]] > 2) bad.push(edges.faces(edges.order[i]));
+    if (!bad.length) return;
+    const info = components(state, edges);
+    let removed = 0;
+    for (const group of info.groups) {
+      if (!group.attached || !isJunk(group, info, opts)) continue;
+      for (const f of group.faces) state.dead[f] = 1;
+      if (group.open > 0) report.strayFacesRemoved += group.faces.length; else report.specksRemoved++;
+      removed++;
+    }
+    if (removed) { state.version++; continue; }
+    if (!opts.separatePinches) return;
+    for (const faces of bad) for (const f of faces) state.dead[f] = 1;
+    report.pinchedEdgesCut += bad.length;
+    state.version++;
+  }
+}
+
+/** Loose scraps and specks that are not attached to anything. */
+function removeLooseJunk(state, report, opts) {
+  const info = components(state, edgeUse(state));
+  for (const group of info.groups) {
+    if (group.attached || !isJunk(group, info, opts)) continue;
+    for (const f of group.faces) state.dead[f] = 1;
+    if (group.open > 0) report.strayFacesRemoved += group.faces.length; else report.specksRemoved++;
+    state.version++;
+  }
+}
+
+/**
+ * Walk each hole's rim. At a vertex where several rims meet, the walk stays on one
+ * part of the surface by rotating through that part's faces, so pinched surfaces are
+ * patched one side at a time.
+ */
+function holeLoops(state, edges) {
+  const { tris } = state;
+  const other = (f, u, v) => { for (let k = 0; k < 3; k++) { const w = tris[f * 3 + k]; if (w !== u && w !== v) return w; } return -1; };
+  const visited = new Uint8Array(edges.mask + 1);
+  const loops = [];
+  let blockedRims = 0;
+  for (let i = 0; i < edges.size; i++) {
+    const start = edges.order[i];
+    if (edges.count[start] !== 1 || visited[start]) continue;
+    const loop = [];
+    let u = edges.lo[start], v = edges.hi[start], f = edges.first[start];
+    let blocked = false, closed = false;
+    for (let guard = 0; guard < 1e6; guard++) {
+      visited[edges.find(u, v)] = 1;
+      loop.push(u);
+      // rotate around v, starting in face f, to the next open edge
+      let w = other(f, u, v), from = u, spin = 0;
+      for (;;) {
+        const slot = edges.find(v, w);
+        if (slot < 0) { blocked = true; break; }
+        const used = edges.count[slot];
+        if (used === 1) break;
+        if (used > 2) { blocked = true; break; }
+        const next = edges.first[slot] === f ? edges.second[slot] : edges.first[slot];
+        from = w; f = next; w = other(f, v, from);
+        if (++spin > 1e5) return { loops, broken: true, blockedRims };
+      }
+      if (blocked) break;
+      u = v; v = w;
+      if (edges.find(u, v) === start) { closed = true; break; }
+    }
+    if (blocked || !closed) blockedRims++; else loops.push(loop);
+  }
+  return { loops, broken: false, blockedRims };
+}
+
+/** A rim that passes through the same vertex twice is really two holes. */
+function splitRepeats(loop) {
+  const out = [];
+  const stack = [loop];
+  while (stack.length) {
+    const ring = stack.pop();
+    const first = new Map();
+    let split = false;
+    for (let i = 0; i < ring.length; i++) {
+      if (first.has(ring[i])) {
+        const j = first.get(ring[i]);
+        stack.push(ring.slice(j, i), [...ring.slice(0, j), ...ring.slice(i)]);
+        split = true;
+        break;
+      }
+      first.set(ring[i], i);
+    }
+    if (!split) out.push(ring);
+  }
+  return out;
+}
+
+function fillHoles(state, report, opts) {
+  const { positions, tris } = state;
+  const edges = edgeUse(state);
+  const { loops, broken, blockedRims } = holeLoops(state, edges);
+  if (broken) report.holesLeftOpen.push('rim walk failed');
+  for (let i = 0; i < blockedRims; i++) report.holesLeftOpen.push('beside touching surfaces');
+  // How many faces use an edge: what the table knew, plus what the patches have added since.
+  const extra = new Map();
+  const name = (a, b) => (a < b ? a * 67108864 + b : b * 67108864 + a);
+  const used = (a, b) => edges.uses(a, b) + (extra.get(name(a, b)) || 0);
+  const added = [];
+  const add = (a, b, c) => {
+    tris.push(a, b, c); added.push(1); state.version++;
+    for (const [u, v] of [[a, b], [b, c], [c, a]]) extra.set(name(u, v), (extra.get(name(u, v)) || 0) + 1);
+    report.trianglesAdded++;
+  };
+  const distance = (a, b) => Math.hypot(positions[a * 3] - positions[b * 3], positions[a * 3 + 1] - positions[b * 3 + 1], positions[a * 3 + 2] - positions[b * 3 + 2]);
+
+  // How many existing triangles would a proposed patch cut through? Patches are a few
+  // triangles, so checking each against every face's bounding box is cheap enough.
+  const point = v => [positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]];
+  const crossings = patch => {
+    const corners = patch.map(triangle => triangle.map(v => (Array.isArray(v) ? v : point(v))));
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (const triangle of corners) for (const q of triangle) for (let c = 0; c < 3; c++) { if (q[c] < lo[c]) lo[c] = q[c]; if (q[c] > hi[c]) hi[c] = q[c]; }
+    let count = 0;
+    for (let f = 0; f < tris.length / 3; f++) {
+      if (state.dead[f]) continue;
+      const a = tris[f * 3], b = tris[f * 3 + 1], c = tris[f * 3 + 2];
+      let outside = false;
+      for (let k = 0; k < 3 && !outside; k++) {
+        const x = positions[a * 3 + k], y = positions[b * 3 + k], z = positions[c * 3 + k];
+        outside = Math.min(x, y, z) > hi[k] || Math.max(x, y, z) < lo[k];
+      }
+      if (outside) continue;
+      const face = [point(a), point(b), point(c)];
+      for (let i = 0; i < patch.length; i++) {
+        if (patch[i].some(v => v === a || v === b || v === c)) continue; // neighbours touch by design
+        if (trianglesCross(corners[i], face)) count++;
+      }
+    }
+    return count;
+  };
+
+  for (const whole of loops) {
+    for (const ring of splitRepeats(whole)) {
+      const size = ring.length;
+      if (size < 3) continue;
+      if (size > opts.maxHoleEdges) { report.holesLeftOpen.push(size); continue; }
+      report.holesFilled.push(size);
+      const centre = [0, 0, 0];
+      for (const v of ring) for (let c = 0; c < 3; c++) centre[c] += positions[v * 3 + c] / size;
+      // Candidate patches, simplest first. A diagonal that is already an edge of the
+      // model is not offered: it would become shared by too many faces.
+      const candidates = [];
+      if (size === 3) candidates.push({ flat: [[ring[0], ring[1], ring[2]]] });
+      if (size === 4) {
+        const diagonals = [[0, 2], [1, 3]].filter(([i, j]) => used(ring[i], ring[j]) === 0)
+          .sort((p, q) => distance(ring[p[0]], ring[p[1]]) - distance(ring[q[0]], ring[q[1]]));
+        for (const [i] of diagonals) candidates.push({ flat: [[ring[i], ring[(i + 1) % 4], ring[(i + 2) % 4]], [ring[(i + 2) % 4], ring[(i + 3) % 4], ring[i]]] });
+      }
+      candidates.push({ fan: true });
+      // Take the first candidate that cuts through nothing; failing that, the one that cuts least.
+      let best = null;
+      for (const candidate of candidates) {
+        const patch = candidate.fan ? ring.map((v, i) => [v, ring[(i + 1) % size], centre]) : candidate.flat;
+        const cost = crossings(patch);
+        if (!best || cost < best.cost) best = { candidate, cost };
+        if (cost === 0) break;
+      }
+      report.patchCrossings += best.cost;
+      if (best.candidate.fan) {
+        const id = positions.length / 3;
+        positions.push(centre[0], centre[1], centre[2]);
+        for (let i = 0; i < size; i++) add(ring[i], ring[(i + 1) % size], id);
+      } else {
+        for (const [x, y, z] of best.candidate.flat) add(x, y, z);
+      }
+    }
+  }
+  if (added.length) {
+    const grown = new Uint8Array(tris.length / 3);
+    grown.set(state.dead);
+    state.dead = grown;
+  }
+}
+
+/**
+ * Drop deleted faces and vertices nothing refers to, keeping the original order.
+ * `origin[i]` is the input face that output face i came from, or -1 for a patch.
+ */
+function compact({ positions, tris, dead }, inputFaces) {
+  const used = new Uint8Array(positions.length / 3);
+  for (let f = 0; f < tris.length / 3; f++) {
+    if (!dead[f]) for (let k = 0; k < 3; k++) used[tris[f * 3 + k]] = 1;
+  }
+  const remap = new Int32Array(used.length).fill(-1);
+  const outPositions = [];
+  for (let v = 0; v < used.length; v++) {
+    if (!used[v]) continue;
+    remap[v] = outPositions.length / 3;
+    outPositions.push(positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]);
+  }
+  const outTris = [];
+  const origin = [];
+  for (let f = 0; f < tris.length / 3; f++) {
+    if (dead[f]) continue;
+    for (let k = 0; k < 3; k++) outTris.push(remap[tris[f * 3 + k]]);
+    origin.push(f < inputFaces ? f : -1);
+  }
+  return { positions: Float64Array.from(outPositions), tris: Uint32Array.from(outTris), origin: Int32Array.from(origin) };
+}
+
+/**
+ * Make neighbouring faces agree on which side is out, changing as few faces as possible.
+ * An outermost closed shell is then turned so it faces outward. A closed shell inside
+ * another keeps the sense most of its faces already had: it may be a deliberate cavity
+ * (facing inward) or an inner solid (facing outward), and only the model's author knows.
+ * Returns how many faces were flipped, and which.
+ */
+function orient(positions, tris, edges) {
+  const faceCount = tris.length / 3;
+  const runs = (f, a, b) => { for (let k = 0; k < 3; k++) if (tris[f * 3 + k] === a && tris[f * 3 + (k + 1) % 3] === b) return true; return false; };
+  const flags = new Uint8Array(faceCount);
+  const flip = f => { const t = tris[f * 3 + 1]; tris[f * 3 + 1] = tris[f * 3 + 2]; tris[f * 3 + 2] = t; flags[f] ^= 1; };
+  const seen = new Uint8Array(faceCount);
+  const shells = [];
+  let flipped = 0;
+  for (let start = 0; start < faceCount; start++) {
+    if (seen[start]) continue;
+    const faces = [start];
+    seen[start] = 1;
+    const turnedFaces = [];
+    let closed = true;
+    for (let head = 0; head < faces.length; head++) {
+      const f = faces[head];
+      for (let k = 0; k < 3; k++) {
+        const a = tris[f * 3 + k], b = tris[f * 3 + (k + 1) % 3];
+        const slot = edges.find(a, b);
+        if (edges.count[slot] !== 2) { closed = false; continue; }
+        const g = edges.first[slot] === f ? edges.second[slot] : edges.first[slot];
+        if (seen[g]) continue;
+        seen[g] = 1;
+        if (runs(g, a, b)) { flip(g); turnedFaces.push(g); }
+        faces.push(g);
+      }
+    }
+    // Keep whichever sense most faces started with.
+    let turned = turnedFaces.length;
+    if (turned > faces.length / 2) { for (const f of faces) flip(f); turned = faces.length - turned; }
+    shells.push({ faces, closed, turned });
+    flipped += turned;
+  }
+  const closedShells = shells.filter(shell => shell.closed);
+  for (const shell of closedShells) {
+    const shellTris = new Uint32Array(shell.faces.length * 3);
+    shell.faces.forEach((f, i) => shellTris.set([tris[f * 3], tris[f * 3 + 1], tris[f * 3 + 2]], i * 3));
+    if (volume(positions, shellTris) >= 0) continue;
+    const nested = closedShells.length > 1 && closedShells.some(other => other !== shell && contains(positions, tris, other.faces, shell.faces));
+    if (nested) continue;
+    for (const f of shell.faces) flip(f);
+    flipped += shell.faces.length - 2 * shell.turned;
+  }
+  return { count: flipped, flags };
+}
+
+/**
+ * Is the `inner` shell inside the closed `outer` shell? Casts rays from a point on the
+ * inner shell and counts crossings. A ray that grazes an edge or corner is ambiguous,
+ * so it is thrown away and another direction is tried.
+ */
+const RAYS = [[0.3713, 0.5571, 0.7428], [-0.2857, 0.4286, 0.8571], [0.8729, -0.4364, 0.2182], [-0.6396, -0.4264, 0.6396],
+  [0.1826, 0.9129, -0.3651], [0.7001, 0.1400, -0.7001], [-0.4575, 0.8006, 0.3873], [0.5345, -0.8018, -0.2673]];
+
+function contains(positions, tris, outer, inner) {
+  const f = inner[0];
+  const origin = [0, 1, 2].map(c => (positions[tris[f * 3] * 3 + c] + positions[tris[f * 3 + 1] * 3 + c] + positions[tris[f * 3 + 2] * 3 + c]) / 3);
+  let inside = 0, outside = 0;
+  for (const direction of RAYS) {
+    let hits = 0, ambiguous = false;
+    for (const g of outer) {
+      const hit = rayHits(positions, tris, g, origin, direction);
+      if (hit === 2) { ambiguous = true; break; }
+      hits += hit;
+    }
+    if (ambiguous) continue;
+    if (hits % 2) inside++; else outside++;
+    if (inside + outside === 3) break;
+  }
+  return inside > outside;
+}
+
+/** 0 for a miss, 1 for a clean hit, 2 for a hit too close to an edge to trust. */
+function rayHits(positions, tris, f, o, d) {
+  const a = tris[f * 3] * 3, b = tris[f * 3 + 1] * 3, c = tris[f * 3 + 2] * 3;
+  const e1 = [positions[b] - positions[a], positions[b + 1] - positions[a + 1], positions[b + 2] - positions[a + 2]];
+  const e2 = [positions[c] - positions[a], positions[c + 1] - positions[a + 1], positions[c + 2] - positions[a + 2]];
+  const px = d[1] * e2[2] - d[2] * e2[1], py = d[2] * e2[0] - d[0] * e2[2], pz = d[0] * e2[1] - d[1] * e2[0];
+  const det = e1[0] * px + e1[1] * py + e1[2] * pz;
+  if (Math.abs(det) < 1e-18) return 0;
+  const tx = o[0] - positions[a], ty = o[1] - positions[a + 1], tz = o[2] - positions[a + 2];
+  const u = (tx * px + ty * py + tz * pz) / det;
+  const qx = ty * e1[2] - tz * e1[1], qy = tz * e1[0] - tx * e1[2], qz = tx * e1[1] - ty * e1[0];
+  const w = (d[0] * qx + d[1] * qy + d[2] * qz) / det;
+  const edge = 1e-9;
+  if (u < -edge || w < -edge || u + w > 1 + edge) return 0;
+  if ((e2[0] * qx + e2[1] * qy + e2[2] * qz) / det <= 1e-12) return 0;
+  return u < edge || w < edge || u + w > 1 - edge ? 2 : 1;
+}

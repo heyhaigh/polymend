@@ -1,0 +1,13 @@
+# Sent with every file. `no-transform` stops Cloudflare from adding its analytics script
+# to the page, which would break the promise that the page talks to nobody.
+# The policy repeats the one in index.html and adds what a meta
+# tag cannot: which sites may embed the page in a frame.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+  Content-Security-Policy: default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self' https://heyhaigh.ai https://www.heyhaigh.ai
+  Cache-Control: no-cache, no-transform
+
+/app/fonts/*
+  Cache-Control: public, max-age=31536000, immutable, no-transform

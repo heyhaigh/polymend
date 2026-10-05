@@ -1,0 +1,17 @@
+# Polymend is a static site served by Cloudflare. `node tools/build-site.mjs` fills dist/.
+name = "polymend"
+compatibility_date = "2026-10-01"
+main = "site-worker.js"
+
+routes = [
+  { pattern = "polymend.xyz", custom_domain = true },
+  { pattern = "www.polymend.xyz", custom_domain = true },
+]
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "404-page"
+# Only the Google ownership-check file goes through site-worker.js; everything else is
+# served straight from the files.
+run_worker_first = ["/googleee0bf5595899a072.html"]

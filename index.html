@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Polymend: free STL and GLB mesh repair for 3D printing</title>
+  <meta name="description" content="Free mesh repair for 3D printing. Fix non-manifold and open edges in STL and GLB files so your slicer accepts them. Runs in your browser; your file is never uploaded.">
+  <link rel="canonical" href="https://polymend.xyz/">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon-48.png" type="image/png" sizes="48x48">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Polymend">
+  <meta property="og:title" content="Polymend: free STL and GLB mesh repair for 3D printing">
+  <meta property="og:description" content="Free mesh repair for 3D printing. Fix non-manifold and open edges in STL and GLB files so your slicer accepts them. Runs in your browser; your file is never uploaded.">
+  <meta property="og:url" content="https://polymend.xyz/">
+  <meta property="og:image" content="https://polymend.xyz/og-image.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Polymend. A 3D figure shown before and after repair, with the repaired spots marked.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://polymend.xyz/og-image.jpg">
+  <!-- connect-src 'none' means this page cannot send your file, or anything else, anywhere. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebApplication", "@id": "https://polymend.xyz/#app", "name": "Polymend", "url": "https://polymend.xyz/", "description": "Free mesh repair for 3D printing. Fix non-manifold and open edges in STL and GLB files so your slicer accepts them. Runs in your browser; your file is never uploaded.", "applicationCategory": "UtilitiesApplication", "applicationSubCategory": "3D printing", "operatingSystem": "Any, in a current web browser", "browserRequirements": "Requires JavaScript and WebGL2", "isAccessibleForFree": true, "license": "https://opensource.org/licenses/MIT", "image": "https://polymend.xyz/og-image.jpg", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "featureList": ["STL and GLB mesh repair: fixes non-manifold and open edges", "Converts GLB to STL and 3MF", "Side by side before and after 3D view", "Sets print height in millimeters", "Runs in the browser; files are never uploaded"], "author": {"@type": "Person", "@id": "https://heyhaigh.ai/#person", "name": "Ryan Haigh", "url": "https://heyhaigh.ai"}, "softwareVersion": "0.2.0"}, {"@type": "FAQPage", "@id": "https://polymend.xyz/#faq", "mainEntity": [{"@type": "Question", "name": "What are non-manifold edges and open edges?", "acceptedAnswer": {"@type": "Answer", "text": "A printable model is a closed surface where every edge is shared by exactly two triangles. An open edge belongs to only one triangle, which leaves a gap beside it. A non-manifold edge is shared by three or more triangles, so a slicer cannot tell which side is the inside of the model."}}, {"@type": "Question", "name": "Why does my slicer say my model has errors?", "acceptedAnswer": {"@type": "Answer", "text": "A model can look right and still carry small faults in its mesh: stray triangles stuck to the surface, tiny holes, and triangles facing the wrong way. Bambu Studio reports these on import as open edges, non-manifold edges and reversed faces. In testing, twelve detailed figure models each had 6 to 54 non-manifold edges and 16 to 114 open edges. Polymend brought all twelve to zero, and all twelve then imported into Bambu Studio without the warning."}}, {"@type": "Question", "name": "Is my file uploaded anywhere?", "acceptedAnswer": {"@type": "Answer", "text": "No. The repair runs in your browser, on your device. The page's security policy blocks it from sending data anywhere, and once the page has loaded the repair needs no connection at all."}}, {"@type": "Question", "name": "Which files can I use?", "acceptedAnswer": {"@type": "Answer", "text": "GLB files (binary glTF) and STL files, binary or text, up to 400 MB or 4 million triangles. Compressed GLB files that use Draco or meshopt are not supported yet; export an uncompressed GLB instead."}}, {"@type": "Question", "name": "Can it convert a GLB to an STL?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Drop in a GLB and Polymend turns it upright for printing, lets you set its height in millimeters, repairs it, and gives you an STL, a 3MF, or both in one ZIP. Color and texture are not kept."}}, {"@type": "Question", "name": "Why does Bambu Studio say the 3MF is not from Bambu Lab?", "acceptedAnswer": {"@type": "Answer", "text": "That notice is expected and is not an error. A 3MF file can carry a whole slicer project, with printer and filament settings, or just a model. Polymend's 3MF holds only the model, at the size you set in millimeters, so Bambu Studio tells you it loaded the geometry alone and will use your own current settings. Other slicers show similar notices for 3MF files they did not create."}}, {"@type": "Question", "name": "Does it change the shape of my model?", "acceptedAnswer": {"@type": "Answer", "text": "It changes as little as it can. No existing point of the model is moved. It deletes stray triangles, usually a few dozen out of hundreds of thousands, and adds a few to patch small holes. You can see every change in the side by side view and step through them one at a time."}}, {"@type": "Question", "name": "What does \"Partly repaired\" mean?", "acceptedAnswer": {"@type": "Answer", "text": "Some faults remain and your slicer will probably still warn. Polymend leaves holes of more than 100 edges open, and it does not cut apart surfaces that touch along an edge unless you turn that option on. For a badly damaged model, a general repair tool or a 3D editor such as Blender will do better."}}, {"@type": "Question", "name": "Is it really free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Polymend is free to use and open source under the MIT license."}}]}]}</script>
+  <link rel="preload" href="app/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="app/style.css">
+  <!-- Sets the saved theme before anything is drawn. -->
+  <script src="app/theme.js"></script>
+</head>
+<body>
+  <div class="controls-group">
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode" title="Toggle theme (T)"></button>
+  </div>
+
+  <main class="tool-container">
+    <div class="top-stick" id="top-stick">
+    <header class="tool-header">
+      <h1 class="tool-title">Polymend</h1>
+      <p class="tool-subtitle">Make problematic 3D models printable. Drop in a GLB or STL and get back a file your slicer accepts.</p>
+      <div class="byline-row">
+        <p class="tool-meta"><span class="meta-text">Runs in your browser for free</span><span id="badge" class="badge idle">Nothing is uploaded</span></p>
+      </div>
+    </header>
+
+    <section id="drop" class="cta-box drop" aria-labelledby="drop-title">
+      <div class="drop-faces">
+        <div class="drop-face drop-ready">
+          <h2 id="drop-title">Drop a model here</h2>
+          <p class="drop-copy">A <strong>.glb</strong> or <strong>.stl</strong> file. Anywhere on this page works.</p>
+          <button id="choose" type="button" class="cta-button choose">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 16V4m0 0l-4.5 4.5M12 4l4.5 4.5M5 20h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span id="choose-label" class="cta-button-label">Choose a file</span>
+          </button>
+        </div>
+        <div class="drop-face drop-refuse" id="drop-refuse" aria-hidden="true">
+          <p class="drop-refuse-title">That file cannot be used</p>
+          <p class="drop-copy">Polymend takes <strong>.glb</strong> and <strong>.stl</strong> files.</p>
+        </div>
+      </div>
+      <input id="file" type="file" accept=".glb,.stl,model/gltf-binary,model/stl" hidden>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </section>
+    </div>
+
+    <div id="failure" class="outcome failed" role="alert" hidden>
+      <p class="label">Outcome</p>
+      <h2 id="failure-title"></h2>
+      <p id="failure-detail"></p>
+    </div>
+
+    <section id="results" hidden aria-labelledby="outcome-title">
+
+      <div class="stack">
+        <figure class="view">
+          <div class="toolbar">
+            <div class="segmented" role="group" aria-label="Which version to show">
+              <button id="show-before" type="button" aria-pressed="false">Before</button>
+              <button id="show-after" type="button" aria-pressed="true">After</button>
+              <button id="show-both" type="button" aria-pressed="false">Side by side</button>
+            </div>
+            <div class="stepper" id="stepper" hidden>
+              <button id="prev" type="button" class="round" aria-label="Previous change"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <span id="step-label" aria-live="polite">Changes</span>
+              <button id="next" type="button" class="round" aria-label="Next change"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </div>
+            <div class="download-split" data-split>
+              <button id="download-all" type="button" class="split-main" data-download="zip">
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 4v12m0 0l-4.5-4.5M12 16l4.5-4.5M5 20h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="download-label">Download all</span>
+              </button>
+              <button id="download-menu-button" type="button" class="split-caret" aria-haspopup="menu" aria-expanded="false" aria-label="Download one file type">
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <div class="split-menu" role="menu" hidden>
+                <button type="button" role="menuitem" data-download="zip"><strong>Both, in one ZIP</strong><span>STL and 3MF together</span></button>
+                <button type="button" role="menuitem" data-download="stl"><strong>STL only</strong><span>Works in every slicer</span></button>
+                <button type="button" role="menuitem" data-download="3mf"><strong>3MF only</strong><span>Smaller, and keeps the size in millimeters</span></button>
+              </div>
+            </div>
+          </div>
+          <div class="stage">
+            <canvas id="canvas" tabindex="0" aria-label="3D view of the model. Drag to turn it, scroll or pinch to zoom, hold Shift and drag to move. Arrow keys turn it; plus and minus zoom."></canvas>
+            <button id="back" type="button" class="stage-button stage-back" hidden>
+              <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
+              <span>Back</span>
+            </button>
+            <button id="home" type="button" class="stage-button">Whole model</button>
+            <span class="stage-hint">Drag to turn · scroll to zoom</span>
+            <span class="stage-label left" aria-hidden="true">Before</span>
+            <span class="stage-label right" aria-hidden="true">After</span>
+            <p id="no-webgl" class="no-webgl" hidden>This browser cannot show the 3D view, but the repair and download still work.</p>
+          </div>
+          <figcaption>
+            <ul class="legend" id="legend">
+              <li><span class="swatch removed"></span>Removed</li>
+              <li><span class="swatch added"></span>Added</li>
+              <li><span class="swatch flipped"></span>Turned to face out</li>
+            </ul>
+            <span id="view-hint"></span>
+          </figcaption>
+        </figure>
+
+        <div id="outcome" class="outcome">
+          <p class="label">Outcome</p>
+          <h2 id="outcome-title"></h2>
+          <p id="outcome-detail"></p>
+          <ul id="outcome-reasons"></ul>
+        </div>
+
+        <div class="details">
+          <h3>What a slicer would object to</h3>
+          <div class="ry-table-wrapper">
+            <table class="counts">
+              <thead><tr><th scope="col"><span class="visually-hidden">Fault</span></th><th scope="col">Before</th><th scope="col">After</th></tr></thead>
+              <tbody id="counts"></tbody>
+            </table>
+          </div>
+          <p class="caption">Counted by this page. A slicer may count them a little differently.</p>
+
+          <h3>What changed</h3>
+          <ul id="changes" class="changes"></ul>
+          <p id="crossings" class="caption"></p>
+
+          <details class="options">
+            <summary>Repair options</summary>
+            <p class="caption">If something you wanted has gone missing, turn a step off and compare.</p>
+            <label><input type="checkbox" data-option="removeStray" checked> Remove stray pieces stuck to the surface</label>
+            <label><input type="checkbox" data-option="removeSpecks" checked> Remove tiny loose specks</label>
+            <label><input type="checkbox" data-option="patchHoles" checked> Patch small holes</label>
+            <label><input type="checkbox" data-option="fixFacing" checked> Turn faces to face outward</label>
+            <label><input type="checkbox" data-option="separatePinches"> Separate surfaces that touch along an edge <span class="caption">Off by default: it can part things meant to touch, such as fingers.</span></label>
+          </details>
+
+          <h3>Size</h3>
+          <label class="row"><input id="set-height" type="checkbox"> Set the print height</label>
+          <label class="row" for="height">Height <input id="height" type="number" min="1" max="2000" step="0.1" value="50" inputmode="decimal"> mm</label>
+          <p id="size" class="size"></p>
+          <button id="rotate" type="button" class="pill">Lying down? Turn it upright</button>
+
+          <h3>Download</h3>
+          <div class="download-split" data-split>
+            <button type="button" class="split-main" data-download="zip">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 4v12m0 0l-4.5-4.5M12 16l4.5-4.5M5 20h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span class="download-label">Download all</span>
+            </button>
+            <button type="button" class="split-caret" aria-haspopup="menu" aria-expanded="false" aria-label="Download one file type">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="split-menu" role="menu" hidden>
+              <button type="button" role="menuitem" data-download="zip"><strong>Both, in one ZIP</strong><span>STL and 3MF together</span></button>
+              <button type="button" role="menuitem" data-download="stl"><strong>STL only</strong><span>Works in every slicer</span></button>
+              <button type="button" role="menuitem" data-download="3mf"><strong>3MF only</strong><span>Smaller, and keeps the size in millimeters</span></button>
+            </div>
+          </div>
+          <p class="caption">"Download all" gives a ZIP holding both an STL and a 3MF. Use the arrow to take just one. Color and texture are not kept.</p>
+        </div>
+      </div>
+    </section>
+
+
+    <section class="about" aria-labelledby="about-title">
+      <h2 id="about-title">What Polymend fixes</h2>
+      <p>Polymend is a free mesh repair tool for 3D printing. Some 3D models look finished but are not printable as they are: a slicer such as Bambu Studio flags them with open edges, non-manifold edges or reversed faces. Polymend repairs those faults in an STL or GLB file and gives you back an STL or 3MF your slicer accepts.</p>
+      <ul>
+        <li><strong>Stray triangles</strong> stuck to the surface are removed.</li>
+        <li><strong>Small holes</strong> are patched.</li>
+        <li><strong>Triangles facing the wrong way</strong> are turned to match their neighbors.</li>
+      </ul>
+
+      <h2>How to use it</h2>
+      <ol>
+        <li>Drop a <strong>.glb</strong> or <strong>.stl</strong> file on the page. A typical model takes about a second.</li>
+        <li>Compare before and after side by side, and step through each change.</li>
+        <li>Set a print height in millimeters if you want one.</li>
+        <li>Download an STL, a 3MF, or both.</li>
+      </ol>
+    </section>
+
+    <section class="faq" aria-labelledby="faq-title">
+      <h2 id="faq-title">Frequently Asked Questions</h2>
+      <div class="faq-item">
+        <h3 class="faq-question">What are non-manifold edges and open edges?</h3>
+        <p class="faq-answer">A printable model is a closed surface where every edge is shared by exactly two triangles. An open edge belongs to only one triangle, which leaves a gap beside it. A non-manifold edge is shared by three or more triangles, so a slicer cannot tell which side is the inside of the model.</p>
+      </div>
+      <div class="faq-item">
+        <h3 class="faq-question">Why does my slicer say my model has errors?</h3>
+        <p class="faq-answer">A model can look right and still carry small faults in its mesh: stray triangles stuck to the surface, tiny holes, and triangles facing the wrong way. Bambu Studio reports these on import as open edges, non-manifold edges and reversed faces. In testing, twelve detailed figure models each had 6 to 54 non-manifold edges and 16 to 114 open edges. Polymend brought all twelve to zero, and all twelve then imported into Bambu Studio without the warning.</p>
+      </div>
+      <div class="faq-item">
+        <h3 class="faq-question">Is my file uploaded anywhere?</h3>
+        <p class="faq-answer">No. The repair runs in your browser, on your device. The page's security policy blocks it from sending data anywhere, and once the page has loaded the repair needs no connection at all.</p>
+      </div>
+      <div class="faq-item">
+        <h3 class="faq-question">Which files can I use?</h3>
+        <p class="faq-answer">GLB files (binary glTF) and STL files, binary or text, up to 400 MB or 4 million triangles. Compressed GLB files that use Draco or meshopt are not supported yet; export an uncompressed GLB instead.</p>
+      </div>
+      <div class="faq-item">
+        <h3 class="faq-question">Can it convert a GLB to an STL?</h3>
+        <p class="faq-answer">Yes. Drop in a GLB and Polymend turns it upright for printing, lets you set its height in millimeters, repairs it, and gives you an STL, a 3MF, or both in one ZIP. Color and texture are not kept.</p>
+      </div>
+      <div class="faq-item">
+        <h3 class="faq-question">Why does Bambu Studio say the 3MF is not from Bambu Lab?</h3>
+        <p class="faq-answer">That notice is expected and is not an error. A 3MF file can carry a whole slicer project, with printer and filament settings, or just a model. Polymend's 3MF holds only the model, at the size you set in millimeters, so Bambu Studio tells you it loaded the geometry alone and will use your own current settings. Other slicers show similar notices for 3MF files they did not create.</p>
+      </div>
+      <div class="faq-item">
+        <h3 class="faq-question">Does it change the shape of my model?</h3>
+        <p class="faq-answer">It changes as little as it can. No existing point of the model is moved. It deletes stray triangles, usually a few dozen out of hundreds of thousands, and adds a few to patch small holes. You can see every change in the side by side view and step through them one at a time.</p>
+      </div>
+      <div class="faq-item">
+        <h3 class="faq-question">What does "Partly repaired" mean?</h3>
+        <p class="faq-answer">Some faults remain and your slicer will probably still warn. Polymend leaves holes of more than 100 edges open, and it does not cut apart surfaces that touch along an edge unless you turn that option on. For a badly damaged model, a general repair tool or a 3D editor such as Blender will do better.</p>
+      </div>
+      <div class="faq-item">
+        <h3 class="faq-question">Is it really free?</h3>
+        <p class="faq-answer">Yes. Polymend is free to use and open source under the MIT license. The source is on <a href="https://github.com/heyhaigh/polymend">GitHub</a>.</p>
+      </div>
+    </section>
+
+    <footer class="tool-footer">
+      <p>Tested on detailed figure models of about 300,000 triangles, opened in Bambu Studio. It fixes stray triangles, small holes and wrongly facing surfaces. It does not fix large holes or badly damaged scans, and it tells you when faults remain.</p>
+      <p>A repair normally takes about a second. If one runs for a full minute it is stopped: a model that takes that long is usually very large or far from a closed surface, and is better fixed by hand in a 3D editor.</p>
+      <p>Your privacy is the point: there is no upload, no cookies, and no analytics collected or stored. This page makes no network requests after it loads, and its security policy blocks it from sending data anywhere. Polymend is open source, so anyone can check. <span id="version"></span></p>
+    </footer>
+
+    <nav class="site-links" aria-label="About this site">
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="https://github.com/heyhaigh/polymend">Open source on GitHub</a>
+    </nav>
+    <p class="credit">
+      <a href="https://heyhaigh.ai/">
+        <img src="app/ry-hand-96.webp" alt="" width="32" height="32">
+        <span>Created by Ryan Haigh</span>
+      </a>
+    </p>
+  </main>
+
+  <script type="module" src="app/app.js"></script>
+</body>
+</html>

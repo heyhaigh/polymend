@@ -1,0 +1,20 @@
+# Polymend
+
+> Polymend (https://polymend.xyz) is a free, open-source mesh repair tool for 3D printing. It repairs STL and GLB files so a slicer accepts them. It runs entirely in the browser; files are never uploaded.
+
+## What it does
+
+- Fixes the mesh faults slicers report as open edges, non-manifold edges and reversed faces: it removes stray triangles stuck to the surface, patches small holes (up to 100 edges), and turns wrongly facing triangles.
+- Converts GLB to STL or 3MF, turning the model upright and letting the user set a print height in millimeters.
+- Shows the model before and after, side by side, with every change marked, and reports "Repaired", "Nothing to fix" or "Partly repaired".
+- Leaves original vertices where they are. It does not fix large holes, self-intersections or badly damaged scans, and says so when faults remain.
+
+## Facts
+
+- Input: GLB (uncompressed binary glTF) and STL (binary or text), up to 400 MB or 4 million triangles.
+- Output: binary STL, 3MF in millimeters, or a ZIP of both. Color and texture are not kept.
+- Privacy: no upload, no analytics, no cookies; the page's Content-Security-Policy forbids network connections.
+- Speed: a 300,000-triangle model is repaired in about a second.
+- Evidence: twelve detailed figure models, each with 6 to 54 non-manifold edges and 16 to 114 open edges, were all repaired to zero and imported into Bambu Studio without a mesh warning. Other slicers have not been tested yet.
+- Cost and license: free; MIT license; source at https://github.com/heyhaigh/polymend
+- Made by Ryan Haigh (https://heyhaigh.ai).
