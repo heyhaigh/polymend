@@ -48,7 +48,7 @@ export function repair(inputPositions, inputTris, options = {}) {
   const report = {
     before: analyze(inputPositions, inputTris, firstEdges),
     degenerateRemoved: 0, duplicateRemoved: 0, seamPointsJoined: 0, strayFacesRemoved: 0, sheetsLeft: 0, pinchedEdgesCut: 0, pinchedEdgesLeft: 0,
-    specksRemoved: 0, holesFilled: [], holesLeftOpen: [], trianglesAdded: 0, patchCrossings: 0, patchesCrossing: 0, facesFlipped: 0, flatPieces: 0,
+    specksRemoved: 0, holes: null, holesFilled: [], holesLeftOpen: [], trianglesAdded: 0, patchCrossings: 0, patchesCrossing: 0, facesFlipped: 0, flatPieces: 0,
   };
   // A model with no faults is left exactly as it is. A tiny separate shell in it may be
   // a real part, such as a peg, so specks are only cleared from a model that has faults.
@@ -62,6 +62,7 @@ export function repair(inputPositions, inputTris, options = {}) {
     removeStrayPiecesAndCutPinches(state, report, opts);
     removeLooseJunk(state, report, opts);
     if (opts.patchHoles) fillHoles(state, report, opts);
+    else if (!report.holes) report.holes = describeHoles(holeLoops(state, edgeUse(state)).loops.flatMap(splitRepeats), state.positions);
     if (!opts.separatePinches || !hasOverSharedEdge(edgeUse(state))) break;
   }
 
@@ -470,6 +471,35 @@ function fanFolds(ring, centre, positions) {
   return normals.some(normal => normal[0] * sum[0] + normal[1] * sum[1] + normal[2] * sum[2] < 0);
 }
 
+/**
+ * How many holes there are, and how many are flat. A flat hole has its whole rim in one
+ * plane, like a missing panel, and is simple to close; a curved one wraps around the
+ * surface and is harder, for any tool. Counted before anything is patched.
+ */
+function describeHoles(rings, positions) {
+  const out = { flat: 0, curved: 0 };
+  for (const ring of rings) {
+    if (ring.length < 3) continue;
+    const point = v => [positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]];
+    const pts = ring.map(point);
+    const normal = [0, 0, 0], centre = [0, 0, 0];
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i], q = pts[(i + 1) % pts.length];
+      normal[0] += (p[1] - q[1]) * (p[2] + q[2]); normal[1] += (p[2] - q[2]) * (p[0] + q[0]); normal[2] += (p[0] - q[0]) * (p[1] + q[1]);
+      for (let c = 0; c < 3; c++) centre[c] += p[c] / pts.length;
+    }
+    const length = Math.hypot(...normal);
+    let span = 0, lift = 0;
+    for (const p of pts) {
+      span = Math.max(span, Math.hypot(p[0] - centre[0], p[1] - centre[1], p[2] - centre[2]));
+      if (length > 0) lift = Math.max(lift, Math.abs((p[0] - centre[0]) * normal[0] + (p[1] - centre[1]) * normal[1] + (p[2] - centre[2]) * normal[2]) / length);
+    }
+    // Rim points within 8% of the hole's size from one plane: flat.
+    if (length > 0 && lift <= 0.08 * span) out.flat++; else out.curved++;
+  }
+  return out;
+}
+
 function fillHoles(state, report, opts) {
   const { positions, tris } = state;
   const edges = edgeUse(state);
@@ -481,6 +511,7 @@ function fillHoles(state, report, opts) {
   const name = (a, b) => (a < b ? a * 67108864 + b : b * 67108864 + a);
   const used = (a, b) => edges.uses(a, b) + (extra.get(name(a, b)) || 0);
   const rings = loops.flatMap(splitRepeats);
+  if (!report.holes) report.holes = describeHoles(rings, positions);
   const finder = faceFinder(state, rings.length);
   let grew = false;
   const add = (a, b, c) => {

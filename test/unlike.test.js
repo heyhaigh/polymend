@@ -85,6 +85,18 @@ test('an open-topped vessel keeps its opening unless asked', () => {
   assert.equal(closed.report.status, 'repaired');
 });
 
+test('holes are counted, and told apart as flat or curved, before any is patched', () => {
+  // One square missing from a flat side, and one square missing across a box's corner edge.
+  const part = box(20, [0, 0, 0], 1, (axis, side, i, j) => (axis === 0 && side === 0 && i === 5 && j === 5) || (axis === 1 && side === 1 && i === 0 && j === 3) || (axis === 2 && side === 0 && i === 3 && j === 19));
+  const result = repair(part.positions, part.tris);
+  assert.equal(result.report.holes.flat + result.report.holes.curved, 2, 'two openings: the second and third squares share an edge, so they form one hole');
+  assert.ok(result.report.holes.flat >= 1);
+  assert.ok(result.report.holes.curved >= 1, 'the hole across the corner is not flat');
+  const vase = box(6, [0, 0, 0], 1, (axis, side) => axis === 2 && side === 1);
+  assert.deepEqual(repair(vase.positions, vase.tris).report.holes, { flat: 1, curved: 0 });
+  assert.deepEqual(repair(vase.positions, vase.tris, { patchHoles: false }).report.holes, { flat: 1, curved: 0 }, 'counted even when patching is off');
+});
+
 test('a small hole in the same vessel is still patched', () => {
   const part = box(40, [0, 0, 0], 1, (axis, side, i, j) => axis === 0 && side === 0 && i === 7 && j === 9);
   const result = repair(part.positions, part.tris);

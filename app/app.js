@@ -296,11 +296,14 @@ const OFF_BY_DEFAULT = ['separatePinches', 'patchWide'];
 const list = items => (items.length < 3 ? items.join(' and ') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
 
 function renderCounts() {
-  const { before, after } = state.report;
+  const r = state.report, { before, after } = r;
   const rows = [
     ['Open edges', before.openEdges, after.openEdges, true],
     ['Non-manifold edges', before.nonManifoldEdges, after.nonManifoldEdges, true],
     ['Wrongly facing joins', before.inconsistentEdges, after.inconsistentEdges, true],
+    ['Holes', r.holes ? r.holes.flat + r.holes.curved : 0, r.holesLeftOpen.length, true],
+    ['Duplicate triangles', r.duplicateRemoved, 0, true],
+    ['Collapsed triangles', before.degenerate, after.degenerate, true],
     ['Separate pieces', before.shells, after.shells, false],
     ['Triangles', before.triangles, after.triangles, false],
   ];
@@ -320,7 +323,7 @@ function renderChanges() {
   if (r.strayFacesRemoved) lines.push(`Removed ${plural(r.strayFacesRemoved, 'stray triangle')}: paper-thin scraps stuck to the surface, which cannot print.`);
   if (r.specksRemoved) lines.push(`Removed ${plural(r.specksRemoved, 'small separate piece')}, each closed and under 2% of the model's size.`);
   if (r.duplicateRemoved + r.degenerateRemoved) lines.push(`Removed ${plural(r.duplicateRemoved + r.degenerateRemoved, 'duplicate or collapsed triangle')}.`);
-  if (r.holesFilled.length) lines.push(`Patched ${plural(r.holesFilled.length, 'hole')} with ${plural(r.trianglesAdded, 'new triangle')}.${r.patchesCrossing ? ` ${plural(r.patchesCrossing, 'patch', 'patches')} of them ${r.patchesCrossing === 1 ? 'passes' : 'pass'} through nearby surface.` : ''}`);
+  if (r.holesFilled.length) lines.push(`Patched ${plural(r.holesFilled.length, 'hole')}${r.holes && r.holes.curved ? ` (${r.holes.flat} flat, ${r.holes.curved} curved)` : ''} with ${plural(r.trianglesAdded, 'new triangle')}.${r.patchesCrossing ? ` ${plural(r.patchesCrossing, 'patch', 'patches')} of them ${r.patchesCrossing === 1 ? 'passes' : 'pass'} through nearby surface.` : ''}`);
   if (r.pinchedEdgesCut) lines.push(`Separated surfaces that touched along ${plural(r.pinchedEdgesCut, 'edge')}.`);
   if (r.facesFlipped) lines.push(`Turned ${plural(r.facesFlipped, 'triangle')} to face outward.`);
   if (!lines.length) lines.push('Nothing. The model is exactly as it was.');
