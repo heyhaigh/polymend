@@ -97,6 +97,17 @@ test('holes are counted, and told apart as flat or curved, before any is patched
   assert.deepEqual(repair(vase.positions, vase.tris, { patchHoles: false }).report.holes, { flat: 1, curved: 0 }, 'counted even when patching is off');
 });
 
+test('a flat hole with many edges is closed in its own plane, with no new point', () => {
+  const gone = new Set(['3,3', '4,3', '5,3', '3,4', '4,4', '5,4']); // a 2 x 3 panel missing from a flat side: a 10-edge hole
+  const part = box(40, [0, 0, 0], 1, (axis, side, i, j) => axis === 1 && side === 0 && gone.has(`${i},${j}`));
+  const result = repair(part.positions, part.tris);
+  assert.equal(result.report.status, 'repaired');
+  assert.deepEqual(result.report.holes, { flat: 1, curved: 0 });
+  assert.equal(result.positions.length, part.positions.length, 'no point was added');
+  assert.equal(result.report.trianglesAdded, 8, 'a ten-sided panel takes eight triangles');
+  assert.ok(Math.abs(result.report.after.volume - 1) < 1e-9);
+});
+
 test('a small hole in the same vessel is still patched', () => {
   const part = box(40, [0, 0, 0], 1, (axis, side, i, j) => axis === 0 && side === 0 && i === 7 && j === 9);
   const result = repair(part.positions, part.tris);

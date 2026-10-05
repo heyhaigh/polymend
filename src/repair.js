@@ -567,10 +567,14 @@ function fillHoles(state, report, opts) {
         .sort((p, q) => distance(ring[p[0]], ring[p[1]]) - distance(ring[q[0]], ring[q[1]]));
       for (const [i] of diagonals) candidates.push({ flat: [[ring[i], ring[(i + 1) % 4], ring[(i + 2) % 4]], [ring[(i + 2) % 4], ring[(i + 3) % 4], ring[i]]] });
     }
-    // A fan around the middle suits a roundish hole. Around an L or a crescent it folds
-    // over itself, so there the ring is cut up corner by corner instead.
+    // A flat hole, with its rim in one plane like a missing panel, is closed in that plane
+    // with no new point. A curved hole gets a fan around a new middle point, which caps
+    // it more smoothly; where a fan would fold over itself, as around an L or a crescent,
+    // the rim is cut up corner by corner instead.
+    const isFlat = size > 4 && describeHoles([ring], positions).flat === 1;
+    const ears = size > 4 && (isFlat || fanFolds(ring, centre, positions)) ? clipEars(ring, positions, used) : null;
+    if (ears) candidates.push({ flat: ears });
     if (!fanFolds(ring, centre, positions)) candidates.push({ fan: true });
-    else if (size > 4) { const ears = clipEars(ring, positions, used); if (ears) candidates.push({ flat: ears }); }
     // Take the first candidate that cuts through nothing; failing that, the one that
     // cuts least. Where a model's surface already runs through itself, as sculpted models
     // often do, a patch there cannot avoid grazing a triangle or two; that is accepted
