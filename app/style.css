@@ -120,9 +120,9 @@ strong { font-weight: 600; }
 @media (max-height: 560px) { .top-stick { position: static; } .top-stick::after { display: none; } }
 body.has-results .top-stick::after { height: 24px; }
 /* Every 720px block sits in the middle of the page; text inside stays left-aligned. */
-.tool-header { max-width: 720px; margin: 0 auto 32px; }
+.tool-header { max-width: 720px; margin: 0 auto 16px; }
 /* With a model loaded, the working area matters more than the introduction. */
-body.has-results .tool-header { margin-bottom: 20px; }
+body.has-results .tool-header { margin-bottom: 10px; }
 /* An outcome, good or bad, takes the place of the title and description. The title stays
    in the page for screen readers. */
 body.has-outcome .tool-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
