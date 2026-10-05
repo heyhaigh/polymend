@@ -12,7 +12,7 @@ const problems = [];
 const note = (ok, text) => { if (!ok) problems.push(text); console.log(`${ok ? 'ok  ' : 'FAIL'} ${text}`); };
 const policyOf = text => Object.fromEntries((text || '').split(';').map(part => part.trim().split(/\s+/)).filter(part => part[0]).map(([name, ...values]) => [name, values.join(' ')]));
 
-const pages = { '/': 'index.html', '/embed': 'embed.html', '/privacy': 'privacy.html', '/terms': 'terms.html' };
+const pages = { '/': 'index.html', '/embed': 'embed.html', '/privacy': 'privacy.html', '/terms': 'terms.html', '/changelog': 'changelog.html' };
 for (const [address, file] of Object.entries(pages)) {
   const response = await fetch(site + address, { redirect: 'manual', cache: 'no-store' });
   const body = await response.text();

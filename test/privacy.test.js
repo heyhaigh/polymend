@@ -5,8 +5,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 import { embedPage } from '../tools/make-embed.mjs';
 import { siteFiles } from '../tools/site-files.mjs';
+import { changelogPage } from '../tools/make-changelog.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
@@ -33,7 +35,7 @@ test('the page policy forbids every network connection and all outside code', ()
 });
 
 test('the privacy and terms pages carry the same no-connection policy', () => {
-  for (const file of ['privacy.html', 'terms.html', 'embed.html']) {
+  for (const file of ['privacy.html', 'terms.html', 'embed.html', 'changelog.html']) {
     const meta = read(file).match(/http-equiv="Content-Security-Policy" content="([^"]+)"/);
     assert.ok(meta, `${file} must carry a Content-Security-Policy`);
     const policy = policyOf(meta[1]);
@@ -145,4 +147,27 @@ test('the embed code on the home page points at the embedded copy and nothing el
   const code = read('index.html').match(/<code id="embed-snippet">([^<]+)<\/code>/)[1].replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"');
   assert.match(code, /^<iframe src="https:\/\/polymend\.xyz\/embed" [^>]*><\/iframe>$/);
   assert.ok(!/<script|allow=|sandbox=/.test(code), 'the embed code should be a plain frame: no script, no extra permissions');
+});
+
+test('the Updates page is made from CHANGELOG.md and is up to date', () => {
+  assert.equal(read('changelog.html'), changelogPage(read('CHANGELOG.md')), 'changelog.html is out of date. Run: node tools/make-changelog.mjs');
+  const version = read('src/output.js').match(/VERSION = '([^']+)'/)[1];
+  assert.ok(read('CHANGELOG.md').split('\n').some(line => line.startsWith(`## ${version} `)), `CHANGELOG.md has no entry for version ${version}`);
+  for (const file of ['index.html', 'privacy.html', 'terms.html', 'changelog.html']) assert.match(read(file), /<a href="\/changelog">Updates<\/a>/, `${file} links to the Updates page`);
+});
+
+test('nothing public uses a word the owner has ruled out', () => {
+  // The words are listed in tools/local.json, which is not part of the repository.
+  const local = path.join(root, 'tools/local.json');
+  if (!fs.existsSync(local)) return;
+  const words = (JSON.parse(fs.readFileSync(local, 'utf8')).forbiddenWords || []).map(word => word.toLowerCase());
+  if (!words.length) return;
+  const tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean);
+  for (const file of tracked) {
+    if (/\.(png|jpg|webp|woff2|ico)$/.test(file)) continue;
+    const text = fs.readFileSync(path.join(root, file), 'utf8').toLowerCase();
+    for (const word of words) assert.ok(!text.includes(word), `${file} contains a word that must not appear in anything public`);
+  }
+  const messages = execFileSync('git', ['log', '--format=%B'], { cwd: root, encoding: 'utf8' }).toLowerCase();
+  for (const word of words) assert.ok(!messages.includes(word), 'a commit message contains a word that must not appear in anything public');
 });

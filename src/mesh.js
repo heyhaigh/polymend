@@ -136,13 +136,14 @@ export function analyze(positions, tris, edges = new EdgeTable(tris)) {
   }
   let shells = 0;
   for (let f = 0; f < faceCount; f++) if (find(f) === f) shells++;
-  let degenerate = 0;
+  let degenerate = 0, slivers = 0;
   for (let f = 0; f < faceCount; f++) {
     const a = tris[f * 3], b = tris[f * 3 + 1], c = tris[f * 3 + 2];
     if (a === b || b === c || c === a) degenerate++;
+    else if (isSliver(positions, a, b, c)) slivers++;
   }
   return { vertices: positions.length / 3, triangles: faceCount, openEdges: open, nonManifoldEdges: nonManifold,
-           inconsistentEdges: flipped, degenerate, shells, volume: volume(positions, tris) };
+           inconsistentEdges: flipped, degenerate, slivers, shells, volume: volume(positions, tris) };
 }
 
 /**
@@ -176,6 +177,22 @@ export function pinchedPoints(positions, tris, edges = new EdgeTable(tris)) {
     if (fans[v] < 2) fans[v]++;
   }
   return pinched;
+}
+
+/**
+ * Is this triangle squashed flat: three different corners that lie along one line, so it
+ * has length but no area? "Flat" means thinner than a ten-millionth of its own length,
+ * which is the limit of what an STL file's numbers can express.
+ */
+export function isSliver(positions, a, b, c) {
+  const ax = positions[a * 3], ay = positions[a * 3 + 1], az = positions[a * 3 + 2];
+  const ux = positions[b * 3] - ax, uy = positions[b * 3 + 1] - ay, uz = positions[b * 3 + 2] - az;
+  const vx = positions[c * 3] - ax, vy = positions[c * 3 + 1] - ay, vz = positions[c * 3 + 2] - az;
+  const wx = vx - ux, wy = vy - uy, wz = vz - uz;
+  const longest = Math.max(ux * ux + uy * uy + uz * uz, vx * vx + vy * vy + vz * vz, wx * wx + wy * wy + wz * wz);
+  const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+  // (twice the area) squared, against (longest side) to the fourth: the square of height / length
+  return nx * nx + ny * ny + nz * nz <= 1e-14 * longest * longest;
 }
 
 /** +1 when face f runs a→b, -1 when it runs b→a. */

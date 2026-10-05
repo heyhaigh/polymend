@@ -16,6 +16,7 @@
 - Output: binary STL, 3MF in millimeters, or a ZIP of both. Color and texture are not kept.
 - Privacy: no upload, no analytics, no cookies; the page's Content-Security-Policy forbids network connections.
 - Speed: a 300,000-triangle model is repaired in about a second; a 1-million-triangle model in a few seconds.
-- Evidence: twelve detailed figure models, each with 6 to 54 non-manifold edges and 16 to 114 open edges, were all repaired to zero and imported into Bambu Studio without a mesh warning. Other slicers, real 3D scans and CAD exports have not been tested yet.
+- Evidence: twelve detailed figure models, each with 6 to 54 non-manifold edges and 16 to 114 open edges, were all repaired to zero and then passed the mesh checks of Bambu Studio and a second slicer. Fifteen CAD-exported parts were left untouched or lost only collapsed or stray triangles. Of eight museum 3D scans, two were already sound, two were repaired, and four with heavy damage were reported as "Partly repaired".
+- A rigged or animated GLB is read in its rest pose. Draco-compressed GLB files are not supported yet.
 - Cost and license: free; MIT license; source at https://github.com/heyhaigh/polymend
 - Made by Ryan Haigh (https://heyhaigh.ai).

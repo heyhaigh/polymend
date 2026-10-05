@@ -32,10 +32,11 @@ export function load(bytes, name = '') {
   const format = sniff(bytes, name);
   const tooManyTriangles = total => new Error(`This model has about ${Math.round(total).toLocaleString('en-US')} triangles, more than this page can handle (${LIMITS.triangles.toLocaleString('en-US')}).`);
   let soup;
+  const notes = [];
   try {
     // Positions are rounded to 32-bit floats before welding, because that is what an
     // STL file stores: vertices that will be identical in the output are joined now.
-    soup = format === 'glb' ? Float32Array.from(yUpToZUp(parseGLB(bytes, { maxTriangles: LIMITS.triangles, tooMany })))
+    soup = format === 'glb' ? Float32Array.from(yUpToZUp(parseGLB(bytes, { maxTriangles: LIMITS.triangles, tooMany, notes })))
       : parseSTL(bytes, { maxTriangles: LIMITS.triangles });
   } catch (error) {
     if (error && error.tooMany) throw tooManyTriangles(error.tooMany);
@@ -47,7 +48,8 @@ export function load(bytes, name = '') {
   if (soup.length / 9 > LIMITS.triangles) throw tooManyTriangles(soup.length / 9);
   if (soup.length < 9) throw new Error('No triangles were found in this file.');
   // GLB coordinates are meters by definition; an STL does not say what its numbers mean.
-  return { format, unit: format === 'glb' ? 'meter' : null, ...weld(soup) };
+  // `notes` lists what the file had that was not applied: 'rigged', 'animated', 'morphs'.
+  return { format, unit: format === 'glb' ? 'meter' : null, notes, ...weld(soup) };
 }
 
 /**

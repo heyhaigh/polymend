@@ -64,7 +64,7 @@ function send() {
   // Which way the repaired surface faces at each change, so the viewer can look at it squarely.
   const normalAt = normalFinder(result.positions, result.tris, size, spots.length);
   for (const spot of spots) spot.normal = normalAt(spot.centre, Math.max(spot.radius * 2.5, size * 0.006));
-  postMessage({ type: 'result', format: mesh.format, unit: mesh.unit, report: result.report, extent, before, after, removed, added, flipped, spots },
+  postMessage({ type: 'result', format: mesh.format, unit: mesh.unit, notes: mesh.notes || [], report: result.report, extent, before, after, removed, added, flipped, spots },
     [before.positions.buffer, before.tris.buffer, after.positions.buffer, after.tris.buffer, removed.buffer, added.buffer, flipped.buffer]);
 }
 

@@ -1,8 +1,9 @@
 // Read triangle geometry from a binary glTF (.glb) file. No dependencies.
 //
 // Returns the same "triangle soup" as the STL reader: nine numbers per triangle, with
-// every node's position, rotation and scale applied. Materials, textures, skins and
-// animation are ignored; only the shape is needed for printing.
+// every node's position, rotation and scale applied. Materials and textures are ignored;
+// only the shape is needed for printing. Skeletons, animation and blend shapes are not
+// applied either: the model is read in the pose it is stored in, and `notes` says so.
 
 const COMPONENTS = {
   5120: [Int8Array, 1, 127], 5121: [Uint8Array, 1, 255], 5122: [Int16Array, 2, 32767],
@@ -24,7 +25,7 @@ const count = (value, what) => {
  * GLB is the file's own claim, and a small file can claim to hold billions of points or
  * list one mesh a million times over.
  */
-export function parseGLB(buffer, { maxTriangles = Infinity, tooMany = total => new Error(`Too many triangles (${total})`) } = {}) {
+export function parseGLB(buffer, { maxTriangles = Infinity, tooMany = total => new Error(`Too many triangles (${total})`), notes = [] } = {}) {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (bytes.byteLength < 20 || view.getUint32(0, true) !== 0x46546c67) throw new Error('This does not look like a GLB file.');
@@ -45,6 +46,13 @@ export function parseGLB(buffer, { maxTriangles = Infinity, tooMany = total => n
     if (!HARMLESS.test(String(name))) throw new Error(`This GLB file needs "${String(name).slice(0, 60)}", which this page does not understand.`);
   }
   const maxPoints = maxTriangles * 3;
+  // A model can carry a skeleton, animation clips or blend shapes that move its surface.
+  // None of them is applied: the shape is read as it is stored, which is its rest pose.
+  // The caller is told, so that the page can say which pose was repaired.
+  const some = list => Array.isArray(list) && list.length > 0;
+  if (some(json.skins) || (json.nodes || []).some(node => node && node.skin !== undefined)) notes.push('rigged');
+  if (some(json.animations)) notes.push('animated');
+  if ((json.meshes || []).some(mesh => (mesh?.primitives || []).some(primitive => some(primitive?.targets)))) notes.push('morphs');
 
   const read = index => {
     const accessor = json.accessors?.[index];

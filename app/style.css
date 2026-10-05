@@ -467,6 +467,8 @@ body.outcome-clean :is(.about, .faq) { display: none; }
 .prose p { margin-bottom: 10px; }
 .prose ul { margin: 8px 0 12px 24px; }
 .prose li { margin-bottom: 6px; }
+.prose h3 { margin: 20px 0 6px; font-size: 14px; }
+.prose h2 .when { font-size: 13px; font-weight: 400; opacity: 0.6; margin-left: 8px; }
 
 /* The one link home: the hand and a credit, in the site's glass pill. */
 .credit { max-width: 720px; margin: 20px auto 0; }

@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { embedPage } from './make-embed.mjs';
+import { changelogPage } from './make-changelog.mjs';
 import { root, siteFiles } from './site-files.mjs';
 
 const dist = path.join(root, 'dist');
@@ -10,6 +11,10 @@ const dist = path.join(root, 'dist');
 // embed.html is made from index.html; never publish one that has fallen behind.
 if (fs.readFileSync(path.join(root, 'embed.html'), 'utf8') !== embedPage(fs.readFileSync(path.join(root, 'index.html'), 'utf8'))) {
   throw new Error('embed.html is out of date. Run: node tools/make-embed.mjs');
+}
+
+if (fs.readFileSync(path.join(root, 'changelog.html'), 'utf8') !== changelogPage(fs.readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8'))) {
+  throw new Error('changelog.html is out of date. Run: node tools/make-changelog.mjs');
 }
 
 fs.rmSync(dist, { recursive: true, force: true });

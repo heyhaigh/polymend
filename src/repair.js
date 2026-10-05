@@ -616,13 +616,15 @@ function orient(positions, tris, edges) {
     const faces = [start];
     seen[start] = 1;
     const turnedFaces = [];
-    let closed = true;
+    // `closed`: every edge has exactly two faces. `sealed`: no edge is open. A shell that
+    // touches another along an edge is sealed but not closed, and still has an inside.
+    let closed = true, sealed = true;
     for (let head = 0; head < faces.length; head++) {
       const f = faces[head];
       for (let k = 0; k < 3; k++) {
         const a = tris[f * 3 + k], b = tris[f * 3 + (k + 1) % 3];
         const slot = edges.find(a, b);
-        if (edges.count[slot] !== 2) { closed = false; continue; }
+        if (edges.count[slot] !== 2) { closed = false; if (edges.count[slot] === 1) sealed = false; continue; }
         const g = edges.first[slot] === f ? edges.second[slot] : edges.first[slot];
         if (seen[g]) continue;
         seen[g] = 1;
@@ -633,19 +635,22 @@ function orient(positions, tris, edges) {
     // Keep whichever sense most faces started with.
     let turned = turnedFaces.length;
     if (turned > faces.length / 2) { for (const f of faces) flip(f); turned = faces.length - turned; }
-    shells.push({ faces, closed, turned });
+    shells.push({ faces, closed, sealed, turned });
     flipped += turned;
   }
-  const closedShells = shells.filter(shell => shell.closed);
+  // Anything sealed can hold another shell inside it. That includes a body that touches
+  // a neighbour along an edge: leaving it out once turned a deliberate cavity in such a
+  // body inside out, filling the cavity in.
+  const sealedShells = shells.filter(shell => shell.sealed);
   let flat = 0;
-  for (const shell of closedShells) {
+  for (const shell of sealedShells) {
     const inside = shellVolume(positions, tris, shell.faces);
-    if (isFlat(inside, shellBox(positions, tris, shell))) flat++;
+    if (shell.closed && isFlat(inside, shellBox(positions, tris, shell))) flat++;
     if (inside >= 0) continue;
     // Only a shell whose box lies within another's can be inside it, which rules out
     // nearly every pair before any ray is cast.
     const box = shellBox(positions, tris, shell);
-    const nested = closedShells.length > 1 && closedShells.some(other => other !== shell && boxWithin(box, shellBox(positions, tris, other)) && contains(positions, tris, other.faces, shell.faces));
+    const nested = sealedShells.length > 1 && sealedShells.some(other => other !== shell && boxWithin(box, shellBox(positions, tris, other)) && contains(positions, tris, other.faces, shell.faces));
     if (nested) continue;
     for (const f of shell.faces) flip(f);
     flipped += shell.faces.length - 2 * shell.turned;

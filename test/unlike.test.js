@@ -201,6 +201,29 @@ test('the repair does not depend on the model\'s size or position', () => {
   }
 });
 
+test('a cavity is kept even when the body around it touches another along an edge', () => {
+  // Found on a real printer part: the body had one edge shared with a neighbour, so it
+  // was not counted as able to contain anything, and its cavity was turned inside out.
+  const body = box(6);
+  const hollow = box(2, [0.4, 0.4, 0.4], 0.2);
+  const inward = [];
+  for (let i = 0; i < hollow.tris.length; i += 3) inward.push(hollow.tris[i], hollow.tris[i + 2], hollow.tris[i + 1]);
+  // A second solid sharing the whole edge x = 1, y = 0 with the body, corner for corner.
+  const neighbour = box(6, [1, -1, 0], 1);
+  const all = weld(Float64Array.from([
+    ...[...body.tris].flatMap(v => [...body.positions.slice(v * 3, v * 3 + 3)]),
+    ...inward.flatMap(v => [...hollow.positions.slice(v * 3, v * 3 + 3)]),
+    ...[...neighbour.tris].flatMap(v => [...neighbour.positions.slice(v * 3, v * 3 + 3)]),
+  ]));
+  const before = analyze(all.positions, all.tris);
+  assert.ok(before.nonManifoldEdges > 0, 'the two solids really do share an edge');
+  assert.ok(Math.abs(before.volume - (2 - 0.008)) < 1e-9);
+  const result = repair(all.positions, all.tris);
+  assert.equal(result.report.facesFlipped, 0, 'the cavity is not turned');
+  assert.ok(Math.abs(result.report.after.volume - (2 - 0.008)) < 1e-9, 'the cavity is still a cavity');
+  assert.deepEqual([...result.tris], [...all.tris]);
+});
+
 // ---------------------------------------------------------------- things an edge check cannot see
 
 test('two solids touching at a single point are counted, and left alone', () => {
@@ -313,6 +336,17 @@ test('a GLB that needs something this page does not understand is refused, and b
     try { load(glb(oneTriangle({ nodes }), triangleBytes), 'odd.glb'); } catch (error) { assert.ok(!/is not iterable|undefined|null/.test(error.message), error.message); }
   }
   assert.throws(() => load(glb(oneTriangle({ accessors: [{ bufferView: 0, componentType: 5126, count: -4, type: 'VEC3' }] }), triangleBytes), 'neg.glb'), /impossible|damaged/);
+});
+
+test('a GLB with a rig, animation or blend shapes is read, and says which it had', () => {
+  assert.deepEqual(load(glb(oneTriangle(), triangleBytes), 'plain.glb').notes, []);
+  const rigged = oneTriangle({ nodes: [{ mesh: 0, skin: 0 }, {}], skins: [{ joints: [1] }], animations: [{ channels: [], samplers: [] }] });
+  assert.deepEqual(load(glb(rigged, triangleBytes), 'rigged.glb').notes, ['rigged', 'animated']);
+  const morph = oneTriangle({ meshes: [{ primitives: [{ attributes: { POSITION: 0 }, targets: [{ POSITION: 0 }] }] }] });
+  assert.deepEqual(load(glb(morph, triangleBytes), 'morph.glb').notes, ['morphs']);
+  // The shape read is the one stored in the file: nothing is moved by the rig.
+  assert.deepEqual([...load(glb(rigged, triangleBytes), 'rigged.glb').positions], [...load(glb(oneTriangle(), triangleBytes), 'plain.glb').positions]);
+  assert.deepEqual(load(writeSTL(Float64Array.from(corners), Uint32Array.from(tetra)), 't.stl').notes, []);
 });
 
 test('an STL that claims more triangles than it holds, or than allowed, is refused cheaply', () => {

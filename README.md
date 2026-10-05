@@ -91,6 +91,13 @@ node tools/browser-shots.mjs       # screenshots in both themes, desktop and pho
 
 The real-model tools look for `.stl` and `.glb` files in `./corpus` (ignored by git), or wherever `POLYMEND_CORPUS` points. The browser tools need Playwright: run `npm i -D playwright`, or point `POLYMEND_PLAYWRIGHT` at a folder that already has it. `tools/local.mjs` explains both settings.
 
-Results on 2026-10-05: all twelve models go from 16–114 open edges and 6–54 non-manifold edges to zero of each, as one closed surface, confirmed by trimesh. Volume changes by less than 0.004%. A 312,000-triangle model is repaired in under half a second in Node, and goes from file chosen to result on screen in about 0.7 seconds in Chromium.
+Results on 2026-10-05, version 0.3.0:
 
-Confirmed in the slicer on 2026-10-05: the author imported all twelve repaired files into Bambu Studio and none showed a warning. The unrepaired originals all did. Other slicers are untested.
+- **Twelve dense sculpted figures** (about 312,000 triangles each) go from 16–114 open edges and 6–54 non-manifold edges to zero of each, as one closed surface, confirmed by trimesh. Volume changes by less than 0.004%. Repair takes under half a second in Node and about a second from file chosen to result on screen.
+- **Two slicers.** The author imported all twelve repaired files into Bambu Studio and none showed a warning; the originals all did. A second slicer's own mesh check (`node tools/slicer-check.mjs`) says the same: every original fails, every repaired file passes.
+- **Fifteen CAD-exported printer parts** (and the 3DBenchy). Twelve were sound and came back untouched. From the Benchy, 552 collapsed triangles were removed, exactly the ones a slicer discards on import. One part lost two duplicate and two stray triangles. One part showed a real bug, now fixed and tested: a deliberate cavity was being turned inside out.
+- **Eight museum 3D scans.** Two were sound, two were repaired and then passed the second slicer's check, and four with hundreds or thousands of faults came out `partial`, which that slicer agrees with for three of them. Turning on every optional switch does not rescue those: heavily damaged scans need a general repair tool.
+- **Not supported yet:** Draco-compressed GLB, which is what several museums publish. Rigged or animated GLB files are read in their rest pose only.
+- **Flat sliver triangles** (three corners in a line) are counted in the analysis but left alone: the second slicer accepts files that contain them.
+
+Other slicers and a real phone are still untested. `node tools/run-folder.mjs <folder>` runs the repair over any folder of models and prints one line each.

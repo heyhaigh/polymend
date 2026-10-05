@@ -9,7 +9,7 @@ const $ = id => document.getElementById(id);
 const number = value => value.toLocaleString('en-US');
 const plural = (count, one, many = one + 's') => `${number(count)} ${count === 1 ? one : many}`;
 
-const state = { name: '', format: '', unit: null, report: null, extent: [0, 0, 0], spots: [], spot: -1, busy: false, which: 'after', turns: 0 };
+const state = { name: '', format: '', unit: null, notes: [], report: null, extent: [0, 0, 0], spots: [], spot: -1, busy: false, which: 'after', turns: 0 };
 const viewer = createViewer($('canvas'));
 if (!viewer) { $('canvas').hidden = true; $('no-webgl').hidden = false; }
 if ($('version')) $('version').textContent = `Version ${VERSION}.`; // absent from the embedded page
@@ -192,7 +192,7 @@ function onMessage(event) {
 function showResult(message) {
   const fresh = state.fresh;
   state.fresh = false;
-  Object.assign(state, { format: message.format, unit: message.unit, report: message.report, extent: message.extent, spots: message.spots, spot: -1, reloading: false });
+  Object.assign(state, { format: message.format, unit: message.unit, notes: message.notes || [], report: message.report, extent: message.extent, spots: message.spots, spot: -1, reloading: false });
   if (fresh) { state.shown = state.name; state.file = state.pendingFile; state.turns = 0; }
   state.goodOptions = options();
   $('failure').hidden = true;
@@ -232,6 +232,7 @@ function renderOutcome() {
   const notes = [];
   // What was taken away or added is said here, beside the verdict, not only further down.
   const did = [
+    r.degenerateRemoved + r.duplicateRemoved && `removed ${plural(r.degenerateRemoved + r.duplicateRemoved, 'collapsed or duplicate triangle')}`,
     r.strayFacesRemoved && `removed ${plural(r.strayFacesRemoved, 'stray triangle')}`,
     r.specksRemoved && `removed ${plural(r.specksRemoved, 'small separate piece')}`,
     r.holesFilled.length && `patched ${plural(r.holesFilled.length, 'hole')}`,
@@ -241,11 +242,16 @@ function renderOutcome() {
   ].filter(Boolean);
   if (did.length) notes.push(`Polymend ${list(did)}. The markers in the view show where.`);
   if (r.specksRemoved) notes.push(`${r.specksRemoved === 1 ? 'The small separate piece was' : 'The small separate pieces were'} closed and under 2% of the model's size, which is usually debris. If ${r.specksRemoved === 1 ? 'it was' : 'they were'} part of your design, turn off "Remove tiny loose specks" under Repair options.`);
-  if (r.patchesCrossing) notes.push(`${plural(r.patchesCrossing, 'patch', 'patches')} had no clean way to close ${r.patchesCrossing === 1 ? 'its' : 'their'} hole and ${r.patchesCrossing === 1 ? 'passes' : 'pass'} through surface that runs close by. Step through the changes to look.`);
+  // A rigged or animated model has many poses; say which one this is.
+  if (state.notes.length) {
+    const has = [state.notes.includes('rigged') && 'a rig', state.notes.includes('animated') && 'animation', state.notes.includes('morphs') && 'blend shapes'].filter(Boolean);
+    notes.push(`This GLB has ${list(has)}. It was read in its rest pose: the shape stored in the file, before ${state.notes.includes('animated') ? 'any animation plays' : 'anything moves it'}. That one pose is what was checked here and what you will download.`);
+  }
+  if (r.patchesCrossing) notes.push(`${plural(r.patchesCrossing, 'patch', 'patches')} had no clean way to close ${r.patchesCrossing === 1 ? 'its' : 'their'} hole and ${r.patchesCrossing === 1 ? 'grazes' : 'graze'} surface that runs close by. This is common where a sculpted model already overlaps itself, and slicers accept it. Step through the changes to look.`);
 
   if (r.status === 'repaired') {
     $('outcome-title').textContent = 'Repaired';
-    $('outcome-detail').textContent = 'No open or non-manifold edges remain, and neighboring faces agree on which way is out. In testing, figure models repaired this way imported into Bambu Studio without a mesh warning.';
+    $('outcome-detail').textContent = 'No open or non-manifold edges remain, and neighboring faces agree on which way is out. In testing, every model that reached this result passed a second slicer\'s mesh check, and the figure models also imported into Bambu Studio without a warning.';
   } else if (r.status === 'sound') {
     $('outcome-title').textContent = 'Nothing to fix';
     $('outcome-detail').textContent = 'This model has no open or non-manifold edges, and its faces already agree on which way is out. It was left exactly as it is.';
