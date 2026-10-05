@@ -153,7 +153,10 @@ test('the Updates page is made from CHANGELOG.md and is up to date', () => {
   assert.equal(read('changelog.html'), changelogPage(read('CHANGELOG.md')), 'changelog.html is out of date. Run: node tools/make-changelog.mjs');
   const version = read('src/output.js').match(/VERSION = '([^']+)'/)[1];
   assert.ok(read('CHANGELOG.md').split('\n').some(line => line.startsWith(`## ${version} `)), `CHANGELOG.md has no entry for version ${version}`);
-  for (const file of ['index.html', 'privacy.html', 'terms.html', 'changelog.html']) assert.match(read(file), /<a href="\/changelog">Updates<\/a>/, `${file} links to the Updates page`);
+  for (const file of ['index.html', 'privacy.html', 'terms.html', 'changelog.html']) {
+    assert.match(read(file), /<a href="\/changelog">Updates<\/a>/, `${file} links to the Updates page`);
+    assert.match(read(file), /<a href="mailto:feedback@polymend\.xyz\?subject=[^"]+">Send feedback<\/a>/, `${file} has the feedback link`);
+  }
 });
 
 test('nothing public uses a word the owner has ruled out', () => {
