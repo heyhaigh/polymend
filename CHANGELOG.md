@@ -35,6 +35,8 @@ Safer on models unlike the ones it was first built for, and tested on far more o
 - The check for places where the surface passes through itself shows when it is still running or was skipped, and can no longer stall the page.
 - If a second file fails, the model already on the page keeps its name and stays usable.
 - New questions and answers about testing, grazing patches, and rigged models.
+- Polymend can be placed in another website with one line of code: see "Add it to your site" on the home page, or "Embed on your site" in the footer.
+- Every footer has an Updates page, a feedback link and a contact address.
 
 **Wording**
 
