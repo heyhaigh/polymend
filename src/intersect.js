@@ -2,12 +2,18 @@
 //
 // Two triangles are counted when an edge of one pierces the inside of the other.
 // Triangles that share a corner are skipped (neighbours always touch), and contact
-// exactly along an edge or at a corner is not counted, so the count is conservative.
+// exactly along an edge or at a corner is not counted, so the count is conservative:
+// it is a count of crossing pairs found, not a proof that there are no others.
+//
+// The work is bounded. One huge triangle among many tiny ones, or thousands of triangles
+// stacked in one spot, would otherwise take minutes or exhaust memory, and this count is
+// only for information. Past the budget the check stops and says it was skipped.
 
-export function selfIntersections(positions, tris) {
+export function selfIntersections(positions, tris, { budget } = {}) {
   const faceCount = tris.length / 3;
   const flagged = new Uint8Array(faceCount);
   if (faceCount < 2) return { pairs: 0, flagged };
+  const limit = budget ?? Math.max(4_000_000, faceCount * 64);
   const lo = new Float64Array(faceCount * 3), hi = new Float64Array(faceCount * 3);
   const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
   let sizeSum = 0;
@@ -25,8 +31,21 @@ export function selfIntersections(positions, tris) {
   const cell = Math.max((sizeSum / (faceCount * 3)) * 2, diagonal / 1024);
   const dims = [0, 1, 2].map(c => Math.max(1, Math.ceil((max[c] - min[c]) / cell) + 1));
   const cellOf = (value, c) => Math.min(dims[c] - 1, Math.max(0, Math.floor((value - min[c]) / cell)));
+  // A few triangles far larger than the rest, such as the two halves of a flat base under
+  // a detailed figure, would each fill thousands of grid cells. They are kept out of the
+  // grid and compared with every other triangle directly instead.
+  const large = [];
+  const isLarge = new Uint8Array(faceCount);
+  let cover = 0;
+  for (let f = 0; f < faceCount; f++) {
+    const cells = (cellOf(hi[f * 3], 0) - cellOf(lo[f * 3], 0) + 1) * (cellOf(hi[f * 3 + 1], 1) - cellOf(lo[f * 3 + 1], 1) + 1) * (cellOf(hi[f * 3 + 2], 2) - cellOf(lo[f * 3 + 2], 2) + 1);
+    if (cells > 4096) { large.push(f); isLarge[f] = 1; } else cover += cells;
+    // Too much to do, before any memory has been spent on it.
+    if (cover > limit || large.length * faceCount > limit * 16) return { pairs: null, flagged, skipped: true };
+  }
   const grid = new Map();
   for (let f = 0; f < faceCount; f++) {
+    if (isLarge[f]) continue;
     const x0 = cellOf(lo[f * 3], 0), x1 = cellOf(hi[f * 3], 0);
     const y0 = cellOf(lo[f * 3 + 1], 1), y1 = cellOf(hi[f * 3 + 1], 1);
     const z0 = cellOf(lo[f * 3 + 2], 2), z1 = cellOf(hi[f * 3 + 2], 2);
@@ -37,9 +56,11 @@ export function selfIntersections(positions, tris) {
     }
   }
   const point = v => [positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]];
-  let pairs = 0;
+  let pairs = 0, compared = 0;
   for (const [key, list] of grid) {
     if (list.length < 2) continue;
+    compared += list.length * (list.length - 1) / 2;
+    if (compared > limit * 16) return { pairs: null, flagged, skipped: true };
     const z = key % dims[2], y = Math.floor(key / dims[2]) % dims[1], x = Math.floor(key / (dims[1] * dims[2]));
     for (let i = 0; i < list.length; i++) {
       const f = list[i];
@@ -55,6 +76,17 @@ export function selfIntersections(positions, tris) {
         const A = [point(fa), point(fb), point(fc)], B = [point(ga), point(gb), point(gc)];
         if (trianglesCross(A, B)) { pairs++; flagged[f] = 1; flagged[g] = 1; }
       }
+    }
+  }
+  for (const f of large) {
+    const fa = tris[f * 3], fb = tris[f * 3 + 1], fc = tris[f * 3 + 2];
+    const A = [point(fa), point(fb), point(fc)];
+    for (let g = 0; g < faceCount; g++) {
+      if (g === f || (isLarge[g] && g < f)) continue; // two large triangles are compared once
+      const ga = tris[g * 3], gb = tris[g * 3 + 1], gc = tris[g * 3 + 2];
+      if (fa === ga || fa === gb || fa === gc || fb === ga || fb === gb || fb === gc || fc === ga || fc === gb || fc === gc) continue;
+      if (lo[f * 3] > hi[g * 3] || hi[f * 3] < lo[g * 3] || lo[f * 3 + 1] > hi[g * 3 + 1] || hi[f * 3 + 1] < lo[g * 3 + 1] || lo[f * 3 + 2] > hi[g * 3 + 2] || hi[f * 3 + 2] < lo[g * 3 + 2]) continue;
+      if (trianglesCross(A, [point(ga), point(gb), point(gc)])) { pairs++; flagged[f] = 1; flagged[g] = 1; }
     }
   }
   return { pairs, flagged };

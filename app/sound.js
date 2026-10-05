@@ -51,8 +51,10 @@ function schedule(kind) {
   document.documentElement.dataset.lastSound = kind; // lets tests see that a chime was sent
 }
 
-// A page that embeds the tool can end its address with ?sound=off to keep it quiet.
-const SILENT = typeof location !== 'undefined' && new URLSearchParams(location.search).get('sound') === 'off';
+// A site that embeds the tool can end the frame's address with ?sound=off to keep it quiet.
+// That applies to the embedded copy only; on Polymend's own site the chime always plays.
+const SILENT = typeof document !== 'undefined' && document.documentElement.hasAttribute('data-embed')
+  && new URLSearchParams(location.search).get('sound') === 'off';
 
 export function play(kind) {
   if (SILENT || !CHIMES[kind] || !ensure()) return;

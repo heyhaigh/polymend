@@ -10,8 +10,21 @@ const COMPONENTS = {
 };
 const WIDTHS = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
 const UNSUPPORTED = { KHR_draco_mesh_compression: 'Draco-compressed', EXT_meshopt_compression: 'meshopt-compressed' };
+// Extensions a file may insist on that do not change its shape, so they are safe to ignore.
+const HARMLESS = /^(KHR_materials_|KHR_texture_|KHR_lights_|KHR_mesh_quantization$|KHR_xmp|EXT_texture_|KHR_animation_pointer$)/;
+const INDEX_TYPES = new Set([5121, 5123, 5125]);
 
-export function parseGLB(buffer) {
+const count = (value, what) => {
+  if (!Number.isSafeInteger(value) || value < 0) throw new Error(`This GLB file gives an impossible ${what}.`);
+  return value;
+};
+
+/**
+ * `maxTriangles` is enforced while reading, before memory is set aside: every size in a
+ * GLB is the file's own claim, and a small file can claim to hold billions of points or
+ * list one mesh a million times over.
+ */
+export function parseGLB(buffer, { maxTriangles = Infinity, tooMany = total => new Error(`Too many triangles (${total})`) } = {}) {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (bytes.byteLength < 20 || view.getUint32(0, true) !== 0x46546c67) throw new Error('This does not look like a GLB file.');
@@ -28,7 +41,10 @@ export function parseGLB(buffer) {
   if (!json) throw new Error('This GLB file has no scene description.');
   for (const name of json.extensionsRequired || []) {
     if (UNSUPPORTED[name]) throw new Error(`This file is ${UNSUPPORTED[name]}, which is not supported yet. Re-export it without compression.`);
+    // Anything else the file says it cannot be read without might change its shape.
+    if (!HARMLESS.test(String(name))) throw new Error(`This GLB file needs "${String(name).slice(0, 60)}", which this page does not understand.`);
   }
+  const maxPoints = maxTriangles * 3;
 
   const read = index => {
     const accessor = json.accessors?.[index];
@@ -37,38 +53,58 @@ export function parseGLB(buffer) {
     const [Type, size, max] = COMPONENTS[accessor.componentType] || [];
     const width = WIDTHS[accessor.type];
     if (!Type || !width) throw new Error('GLB file uses an unknown data type');
-    const out = new Float64Array(accessor.count * width);
-    if (accessor.bufferView === undefined) return { values: out, width };
+    // Check every size the file claims before setting memory aside for it.
+    const total = count(accessor.count, 'number of points');
+    if (total > maxPoints) throw tooMany(Math.ceil(total / 3));
+    if (accessor.bufferView === undefined) return { values: new Float64Array(total * width), width, type: accessor.componentType };
     const bufferView = json.bufferViews?.[accessor.bufferView];
     if (!bufferView || (bufferView.buffer || 0) !== 0 || !bin || json.buffers?.[0]?.uri) throw new Error('Only GLB files with their data embedded are supported');
-    const start = (bufferView.byteOffset || 0) + (accessor.byteOffset || 0);
-    const stride = bufferView.byteStride || size * width;
-    if (start + stride * (accessor.count - 1) + size * width > bin.byteLength) throw new Error('GLB geometry data runs past the end of the file');
+    const viewStart = count(bufferView.byteOffset || 0, 'data position'), viewLength = count(bufferView.byteLength ?? 0, 'data length');
+    const start = viewStart + count(accessor.byteOffset || 0, 'data position');
+    const stride = count(bufferView.byteStride || size * width, 'data spacing');
+    if (stride < size * width) throw new Error('GLB geometry data overlaps itself');
+    const end = total ? start + stride * (total - 1) + size * width : start;
+    if (end > viewStart + viewLength || end > bin.byteLength) throw new Error('GLB geometry data runs past the end of the file');
+    const out = new Float64Array(total * width);
     const data = new DataView(bin.buffer, bin.byteOffset, bin.byteLength);
     const get = { 5120: 'getInt8', 5121: 'getUint8', 5122: 'getInt16', 5123: 'getUint16', 5125: 'getUint32', 5126: 'getFloat32' }[accessor.componentType];
-    for (let i = 0; i < accessor.count; i++) {
+    for (let i = 0; i < total; i++) {
       for (let k = 0; k < width; k++) {
         const raw = data[get](start + i * stride + k * size, true);
         out[i * width + k] = accessor.normalized ? Math.max(raw / max, -1) : raw;
       }
     }
-    return { values: out, width };
+    return { values: out, width, type: accessor.componentType };
   };
 
   const soup = [];
+  let emitted = 0;
+  // The same mesh is often used by several nodes; read its data once.
+  const cache = new Map();
+  const readOnce = index => { if (!cache.has(index)) cache.set(index, read(index)); return cache.get(index); };
   const emit = (meshIndex, matrix) => {
     for (const primitive of json.meshes?.[meshIndex]?.primitives || []) {
       const mode = primitive.mode ?? 4;
       if (mode < 4) continue; // points and lines have no surface
       if (primitive.extensions && Object.keys(primitive.extensions).some(name => UNSUPPORTED[name])) throw new Error('This file uses compressed geometry, which is not supported yet. Re-export it without compression.');
       if (primitive.attributes?.POSITION === undefined) continue;
-      const { values: p, width } = read(primitive.attributes.POSITION);
+      const { values: p, width } = readOnce(primitive.attributes.POSITION);
       if (width !== 3) throw new Error('GLB vertex positions must have three coordinates');
-      const count = p.length / 3;
-      const order = primitive.indices !== undefined ? read(primitive.indices).values : Float64Array.from({ length: count }, (_, i) => i);
+      const points = p.length / 3;
+      let order;
+      if (primitive.indices !== undefined) {
+        const indices = readOnce(primitive.indices);
+        if (indices.width !== 1 || !INDEX_TYPES.has(indices.type)) throw new Error('GLB triangle lists must be whole numbers');
+        order = indices.values;
+      } else {
+        order = Float64Array.from({ length: points }, (_, i) => i);
+      }
+      // Stop before building more triangles than the page will accept.
+      emitted += mode === 4 ? Math.floor(order.length / 3) : Math.max(0, order.length - 2);
+      if (emitted > maxTriangles) throw tooMany(emitted);
       const corner = i => {
         const v = order[i];
-        if (!(v >= 0 && v < count)) throw new Error('GLB file refers to a vertex that does not exist');
+        if (!(v >= 0 && v < points)) throw new Error('GLB file refers to a vertex that does not exist');
         const x = p[v * 3], y = p[v * 3 + 1], z = p[v * 3 + 2];
         soup.push(matrix[0] * x + matrix[4] * y + matrix[8] * z + matrix[12],
                   matrix[1] * x + matrix[5] * y + matrix[9] * z + matrix[13],
@@ -83,16 +119,23 @@ export function parseGLB(buffer) {
     }
   };
 
-  const visit = (index, parent, depth) => {
+  // A scene is a tree. A file whose nodes loop back on themselves, or that lists a node
+  // thousands of times, is refused rather than followed.
+  const path = new Set();
+  let visits = 0;
+  const visit = (index, parent) => {
     const node = json.nodes?.[index];
-    if (!node || depth > 64) return;
+    if (!node) return;
+    if (path.has(index) || path.size > 64 || ++visits > 100_000) throw new Error('This GLB file has a scene that loops back on itself or is nested too deeply to read.');
+    path.add(index);
     const matrix = multiply(parent, localMatrix(node));
     if (node.mesh !== undefined) emit(node.mesh, matrix);
-    for (const child of node.children || []) visit(child, matrix, depth + 1);
+    for (const child of Array.isArray(node.children) ? node.children : []) visit(child, matrix);
+    path.delete(index);
   };
   const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
   const scene = json.scenes?.[json.scene ?? 0];
-  if (scene) for (const root of scene.nodes || []) visit(root, identity, 0);
+  if (scene) for (const root of Array.isArray(scene.nodes) ? scene.nodes : []) visit(root, identity);
   else (json.meshes || []).forEach((_, index) => emit(index, identity));
   if (!soup.length) throw new Error('No triangles were found in this GLB file.');
   return Float64Array.from(soup);
@@ -109,7 +152,7 @@ export function yUpToZUp(soup) {
 }
 
 function localMatrix(node) {
-  if (node.matrix) return node.matrix;
+  if (Array.isArray(node.matrix) && node.matrix.length === 16) return node.matrix;
   const [x, y, z, w] = node.rotation || [0, 0, 0, 1];
   const [sx, sy, sz] = node.scale || [1, 1, 1];
   const [tx, ty, tz] = node.translation || [0, 0, 0];

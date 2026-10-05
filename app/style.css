@@ -126,9 +126,11 @@ body.has-results .tool-header { margin-bottom: 10px; }
 /* An outcome, good or bad, takes the place of the title and description. The title stays
    in the page for screen readers. */
 body.has-outcome .tool-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-body.has-outcome .tool-subtitle { display: none; }
+body.has-outcome :is(.tool-subtitle, .tool-scope) { display: none; }
 .tool-title { font-size: 32px; font-weight: 400; line-height: 1.3; margin-bottom: 16px; }
 .tool-subtitle { opacity: 0.7; margin-bottom: 28px; }
+/* What it is for and what it was tested on, said once, right under the promise. */
+.tool-scope { font-size: 13px; opacity: 0.6; margin: -18px 0 28px; }
 .tool-meta { font-size: 13px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 .meta-text { opacity: 0.7; }
 /* A small status badge. Faint while nothing is loaded, coloured once there is news. */
@@ -318,7 +320,7 @@ body.dragging.drag-wrong .cta-box {
 }
 @media (prefers-reduced-motion: reduce) { .outcome h2::before { animation: none; } }
 .outcome h2:focus { outline: none; }
-.outcome ul { margin: 10px 0 0 24px; }
+.outcome ul { margin: 10px 0 0 22px; font-size: 13px; opacity: 0.85; }
 .outcome ul:empty { display: none; }
 .outcome li { margin-bottom: 5px; }
 
@@ -522,7 +524,7 @@ body.embed:not(.has-results) .top-stick::after { display: none; }
 body.embed .tool-header { width: 100%; }
 body.embed:not(.has-results) .cta-box { flex: 1; width: 100%; display: flex; flex-direction: column; justify-content: center; }
 body.embed .tool-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-body.embed .tool-subtitle { display: none; }
+body.embed :is(.tool-subtitle, .tool-scope) { display: none; }
 .embed-credit { width: 100%; max-width: 720px; margin: 12px auto 0; display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
 .embed-credit a { opacity: 0.65; text-decoration: none; }
 .embed-credit a:is(:hover, :focus-visible) { opacity: 1; text-decoration: underline; }

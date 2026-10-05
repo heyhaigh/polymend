@@ -9,6 +9,10 @@ const corners = [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1];
 const tetra = [0, 2, 1, 0, 1, 3, 1, 2, 3, 0, 3, 2];
 const mesh = (positions, tris) => [Float64Array.from(positions), Uint32Array.from(tris)];
 const defects = stats => [stats.openEdges, stats.nonManifoldEdges, stats.inconsistentEdges];
+// Most of these meshes are toys: a tetrahedron, where a single missing face or a fin is
+// as big as the whole model. The size limits that protect real models would refuse to
+// touch them, so the tests that are about something else lift those limits.
+const toy = { patchWide: true, straySpan: Infinity };
 
 /** A closed, finely divided box, used where a model must dwarf a defect. */
 function box(divisions = 6, offset = [0, 0, 0], size = 1) {
@@ -48,7 +52,7 @@ test('the test box is closed and positive', () => {
 test('a fin on a good edge is removed and nothing else changes', () => {
   const [positions, tris] = mesh([...corners, 2, 2, 2], [...tetra, 0, 1, 4]);
   assert.deepEqual(defects(analyze(positions, tris)).slice(0, 2), [2, 1]);
-  const result = repair(positions, tris);
+  const result = repair(positions, tris, toy);
   assert.equal(result.report.clean, true);
   assert.equal(result.report.strayFacesRemoved, 1);
   assert.equal(result.tris.length / 3, 4);
@@ -57,14 +61,14 @@ test('a fin on a good edge is removed and nothing else changes', () => {
 
 test('a flap of two triangles is removed entirely', () => {
   const [positions, tris] = mesh([...corners, 2, 2, 2, 3, 3, 3], [...tetra, 0, 1, 4, 1, 5, 4]);
-  const result = repair(positions, tris);
+  const result = repair(positions, tris, toy);
   assert.equal(result.report.clean, true);
   assert.equal(result.tris.length / 3, 4);
 });
 
 test('a missing triangle is filled', () => {
   const [positions, tris] = mesh(corners, tetra.slice(0, 9));
-  const result = repair(positions, tris);
+  const result = repair(positions, tris, toy);
   assert.equal(result.report.clean, true);
   assert.deepEqual(result.report.holesFilled, [3]);
   assert.ok(Math.abs(result.report.after.volume - 1 / 6) < 1e-12);
@@ -72,7 +76,7 @@ test('a missing triangle is filled', () => {
 
 test('a four-edge hole is filled with two triangles and no new vertex', () => {
   const { positions, tris } = box();
-  const result = repair(positions, tris.slice(6)); // drop one square of the grid
+  const result = repair(positions, tris.slice(6), toy); // drop one square of the grid
   assert.equal(result.report.clean, true);
   assert.deepEqual(result.report.holesFilled, [4]);
   assert.equal(result.report.trianglesAdded, 2);
@@ -83,10 +87,10 @@ test('a four-edge hole is filled with two triangles and no new vertex', () => {
 test('a larger hole is filled with a fan, and holes over the limit are reported', () => {
   const { positions, tris } = box(6);
   const holed = tris.slice(6 * 2 * 3 * 2); // drop two strips of one side
-  const filled = repair(positions, holed);
+  const filled = repair(positions, holed, toy);
   assert.equal(filled.report.clean, true);
   assert.ok(filled.report.holesFilled[0] > 4);
-  const left = repair(positions, holed, { maxHoleEdges: 4 });
+  const left = repair(positions, holed, { ...toy, maxHoleEdges: 4 });
   assert.equal(left.report.clean, false);
   assert.equal(left.report.holesLeftOpen.length, 1);
   assert.ok(left.report.after.openEdges > 0);
@@ -122,7 +126,7 @@ test('touching solids are left touching unless separation is asked for', () => {
   assert.equal(kept.report.pinchedEdgesLeft, 1);
   assert.equal(kept.report.pinchedEdgesCut, 0);
   assert.deepEqual([...kept.tris], [...t], 'nothing is cut');
-  const result = repair(p, t, { separatePinches: true });
+  const result = repair(p, t, { separatePinches: true }); // the openings the cut leaves are closed whatever their size
   assert.equal(result.report.clean, true);
   assert.equal(result.report.pinchedEdgesCut, 1);
   assert.equal(result.report.specksRemoved, 0);
@@ -140,7 +144,7 @@ test('a small pocket glued along an edge of a larger model is deleted whole', ()
   const mid = at(a).map((value, c) => (value + at(b)[c]) / 2);
   const positions = Float64Array.from([...big.positions, mid[0] - 0.01, mid[1] - 0.01, mid[2] - 0.01, mid[0] - 0.02, mid[1] - 0.005, mid[2] - 0.005]);
   const pocket = [a, b, count, b, count + 1, count, count + 1, a, count]; // the face a-b-(count+1) is missing
-  const result = repair(positions, Uint32Array.from([...big.tris, ...pocket]));
+  const result = repair(positions, Uint32Array.from([...big.tris, ...pocket]), toy);
   assert.equal(result.report.clean, true);
   assert.equal(result.report.strayFacesRemoved, 3);
   assert.equal(result.report.pinchedEdgesCut, 0);
@@ -151,7 +155,7 @@ test('a small pocket glued along an edge of a larger model is deleted whole', ()
 test('a pinch with one face missing is repaired', () => {
   const positions = [...corners, 0, -1, 0, 0, 0, -1];
   const second = [0, 5, 4, 4, 5, 1, 0, 1, 5]; // the face 0-4-1 is missing
-  const result = repair(...mesh(positions, [...tetra, ...second]));
+  const result = repair(...mesh(positions, [...tetra, ...second]), toy);
   assert.equal(result.report.clean, true);
 });
 
@@ -163,24 +167,40 @@ test('exact duplicate and degenerate faces are dropped', () => {
   assert.equal(result.tris.length / 3, 4);
 });
 
-test('a tiny closed speck beside a model is removed, a real second part is kept', () => {
+test('a tiny closed speck is cleared from a faulty model, and a real second part is kept', () => {
   const big = box(6);
   const count = big.positions.length / 3;
   const speck = [...corners].map((value, i) => value * 0.01 + 5);
-  const withSpeck = repair(Float64Array.from([...big.positions, ...speck]), Uint32Array.from([...big.tris, ...tetra.map(v => v + count)]));
+  const faulty = big.tris.slice(6); // the model has a hole, so it is being repaired anyway
+  const withSpeck = repair(Float64Array.from([...big.positions, ...speck]), Uint32Array.from([...faulty, ...tetra.map(v => v + count)]), toy);
   assert.equal(withSpeck.report.specksRemoved, 1);
   assert.equal(withSpeck.report.after.shells, 1);
   const part = box(6, [3, 0, 0], 0.2);
-  const twoParts = repair(Float64Array.from([...big.positions, ...part.positions]), Uint32Array.from([...big.tris, ...[...part.tris].map(v => v + count)]));
+  const twoParts = repair(Float64Array.from([...big.positions, ...part.positions]), Uint32Array.from([...faulty, ...[...part.tris].map(v => v + count)]), toy);
   assert.equal(twoParts.report.specksRemoved, 0);
   assert.equal(twoParts.report.after.shells, 2);
   assert.equal(twoParts.report.clean, true);
 });
 
+test('a sound model with a tiny separate part is left exactly as it is', () => {
+  // A peg or a bolt head on a large part is tiny and closed, just like debris. In a model
+  // with no faults there is no reason to think it is debris, so nothing is touched.
+  const big = box(6);
+  const count = big.positions.length / 3;
+  const peg = box(1, [5, 5, 5], 0.01);
+  const positions = Float64Array.from([...big.positions, ...peg.positions]);
+  const tris = Uint32Array.from([...big.tris, ...[...peg.tris].map(v => v + count)]);
+  const result = repair(positions, tris);
+  assert.equal(result.report.status, 'sound');
+  assert.equal(result.report.specksRemoved, 0);
+  assert.deepEqual([...result.tris], [...tris]);
+  assert.deepEqual([...result.positions], [...positions]);
+});
+
 test('repaired output survives a round trip through binary STL', () => {
   const { positions, tris } = box();
   const broken = Uint32Array.from([...tris.slice(6), 0, 1, positions.length / 3]);
-  const result = repair(Float64Array.from([...positions, 9, 9, 9]), broken);
+  const result = repair(Float64Array.from([...positions, 9, 9, 9]), broken, toy);
   const again = weld(parseSTL(writeSTL(result.positions, result.tris)));
   assert.deepEqual(defects(analyze(again.positions, again.tris)), [0, 0, 0]);
 });
@@ -193,7 +213,7 @@ test('ASCII STL is read', () => {
 
 test('the outcome is named: sound, repaired or partial', () => {
   assert.equal(repair(...mesh(corners, tetra)).report.status, 'sound');
-  assert.equal(repair(...mesh(corners, tetra.slice(0, 9))).report.status, 'repaired');
+  assert.equal(repair(...mesh(corners, tetra.slice(0, 9)), toy).report.status, 'repaired');
   const { positions, tris } = box(6);
   assert.equal(repair(positions, tris.slice(6 * 2 * 3 * 2), { maxHoleEdges: 4 }).report.status, 'partial');
 });
@@ -236,7 +256,7 @@ test('an inner solid keeps facing outward, and an inside-out outer shell is stil
 
 test('each output face reports the input face it came from', () => {
   const [positions, tris] = mesh([...corners, 2, 2, 2], [0, 1, 4, ...tetra.slice(0, 9)]);
-  const result = repair(positions, tris);
+  const result = repair(positions, tris, toy);
   assert.equal(result.report.clean, true);
   assert.deepEqual([...result.origin], [1, 2, 3, -1], 'the fin (face 0) is gone and the patch is marked -1');
 });

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Polymend: free STL and GLB mesh repair for 3D printing</title>
-  <meta name="description" content="Free mesh repair for 3D printing. Fix non-manifold and open edges in STL and GLB files so your slicer accepts them. Runs in your browser; your file is never uploaded.">
+  <meta name="description" content="Free mesh repair for 3D printing. Fix the non-manifold and open edges that slicers flag in STL and GLB files. Runs in your browser; your file is never uploaded.">
   <link rel="canonical" href="https://polymend.xyz/">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="icon" href="favicon-48.png" type="image/png" sizes="48x48">
@@ -12,7 +12,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Polymend">
   <meta property="og:title" content="Polymend: free STL and GLB mesh repair for 3D printing">
-  <meta property="og:description" content="Free mesh repair for 3D printing. Fix non-manifold and open edges in STL and GLB files so your slicer accepts them. Runs in your browser; your file is never uploaded.">
+  <meta property="og:description" content="Free mesh repair for 3D printing. Fix the non-manifold and open edges that slicers flag in STL and GLB files. Runs in your browser; your file is never uploaded.">
   <meta property="og:url" content="https://polymend.xyz/">
   <meta property="og:image" content="https://polymend.xyz/og-image.jpg">
   <meta property="og:image:width" content="1200">
@@ -23,7 +23,7 @@
   <!-- connect-src 'none' means this page cannot send your file, or anything else, anywhere. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
   <!-- embed:cut -->
-  <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebApplication", "@id": "https://polymend.xyz/#app", "name": "Polymend", "url": "https://polymend.xyz/", "description": "Free mesh repair for 3D printing. Fix non-manifold and open edges in STL and GLB files so your slicer accepts them. Runs in your browser; your file is never uploaded.", "applicationCategory": "UtilitiesApplication", "applicationSubCategory": "3D printing", "operatingSystem": "Any, in a current web browser", "browserRequirements": "Requires JavaScript and WebGL2", "isAccessibleForFree": true, "license": "https://opensource.org/licenses/MIT", "image": "https://polymend.xyz/og-image.jpg", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "featureList": ["STL and GLB mesh repair: fixes non-manifold and open edges", "Converts GLB to STL and 3MF", "Side by side before and after 3D view", "Sets print height in millimeters", "Runs in the browser; files are never uploaded"], "author": {"@type": "Person", "@id": "https://heyhaigh.ai/#person", "name": "Ryan Haigh", "url": "https://heyhaigh.ai"}, "softwareVersion": "0.2.0"}, {"@type": "FAQPage", "@id": "https://polymend.xyz/#faq", "mainEntity": [{"@type": "Question", "name": "What are non-manifold edges and open edges?", "acceptedAnswer": {"@type": "Answer", "text": "A printable model is a closed surface where every edge is shared by exactly two triangles. An open edge belongs to only one triangle, which leaves a gap beside it. A non-manifold edge is shared by three or more triangles, so a slicer cannot tell which side is the inside of the model."}}, {"@type": "Question", "name": "Why does my slicer say my model has errors?", "acceptedAnswer": {"@type": "Answer", "text": "A model can look right and still carry small faults in its mesh: stray triangles stuck to the surface, tiny holes, and triangles facing the wrong way. Bambu Studio reports these on import as open edges, non-manifold edges and reversed faces. In testing, twelve detailed figure models each had 6 to 54 non-manifold edges and 16 to 114 open edges. Polymend brought all twelve to zero, and all twelve then imported into Bambu Studio without the warning."}}, {"@type": "Question", "name": "Is my file uploaded anywhere?", "acceptedAnswer": {"@type": "Answer", "text": "No. The repair runs in your browser, on your device. The page's security policy blocks it from sending data anywhere, and once the page has loaded the repair needs no connection at all."}}, {"@type": "Question", "name": "Which files can I use?", "acceptedAnswer": {"@type": "Answer", "text": "GLB files (binary glTF) and STL files, binary or text, up to 400 MB or 4 million triangles. Compressed GLB files that use Draco or meshopt are not supported yet; export an uncompressed GLB instead."}}, {"@type": "Question", "name": "Can it convert a GLB to an STL?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Drop in a GLB and Polymend turns it upright for printing, lets you set its height in millimeters, repairs it, and gives you an STL, a 3MF, or both in one ZIP. Color and texture are not kept."}}, {"@type": "Question", "name": "Why does Bambu Studio say the 3MF is not from Bambu Lab?", "acceptedAnswer": {"@type": "Answer", "text": "That notice is expected and is not an error. A 3MF file can carry a whole slicer project, with printer and filament settings, or just a model. Polymend's 3MF holds only the model, at the size you set in millimeters, so Bambu Studio tells you it loaded the geometry alone and will use your own current settings. Other slicers show similar notices for 3MF files they did not create."}}, {"@type": "Question", "name": "Does it change the shape of my model?", "acceptedAnswer": {"@type": "Answer", "text": "It changes as little as it can. No existing point of the model is moved. It deletes stray triangles, usually a few dozen out of hundreds of thousands, and adds a few to patch small holes. You can see every change in the side by side view and step through them one at a time."}}, {"@type": "Question", "name": "What does \"Partly repaired\" mean?", "acceptedAnswer": {"@type": "Answer", "text": "Some faults remain and your slicer will probably still warn. Polymend leaves holes of more than 100 edges open, and it does not cut apart surfaces that touch along an edge unless you turn that option on. For a badly damaged model, a general repair tool or a 3D editor such as Blender will do better."}}, {"@type": "Question", "name": "Is it really free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Polymend is free to use and open source under the MIT license."}}]}]}</script>
+  <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebApplication", "@id": "https://polymend.xyz/#app", "name": "Polymend", "url": "https://polymend.xyz/", "description": "Free mesh repair for 3D printing. Fix the non-manifold and open edges that slicers flag in STL and GLB files. Runs in your browser; your file is never uploaded.", "applicationCategory": "UtilitiesApplication", "applicationSubCategory": "3D printing", "operatingSystem": "Any, in a current web browser", "browserRequirements": "Requires JavaScript and WebGL2", "isAccessibleForFree": true, "license": "https://opensource.org/licenses/MIT", "image": "https://polymend.xyz/og-image.jpg", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "featureList": ["STL and GLB mesh repair: fixes small faults such as non-manifold and open edges", "Converts GLB to STL and 3MF", "Side by side before and after 3D view", "Sets print height in millimeters", "Runs in the browser; files are never uploaded"], "author": {"@type": "Person", "@id": "https://heyhaigh.ai/#person", "name": "Ryan Haigh", "url": "https://heyhaigh.ai"}, "softwareVersion": "0.3.0"}, {"@type": "FAQPage", "@id": "https://polymend.xyz/#faq", "mainEntity": [{"@type": "Question", "name": "What are non-manifold edges and open edges?", "acceptedAnswer": {"@type": "Answer", "text": "A slicer expects a closed surface where every edge is shared by exactly two triangles. An open edge belongs to only one triangle, which leaves a gap beside it. A non-manifold edge is shared by three or more triangles, so a slicer cannot tell which side is the inside of the model."}}, {"@type": "Question", "name": "Why does my slicer say my model has errors?", "acceptedAnswer": {"@type": "Answer", "text": "A model can look right and still carry small faults in its mesh: stray triangles stuck to the surface, tiny holes, and triangles facing the wrong way. Bambu Studio reports these on import as open edges, non-manifold edges and reversed faces. In testing, twelve detailed figure models each had 6 to 54 non-manifold edges and 16 to 114 open edges. Polymend brought all twelve to zero, and all twelve then imported into Bambu Studio without the warning."}}, {"@type": "Question", "name": "Is my file uploaded anywhere?", "acceptedAnswer": {"@type": "Answer", "text": "No. The repair runs in your browser, on your device, and once the page has loaded it needs no connection at all. The page's security policy tells your browser to block it from opening any connection, and the code is public so that can be checked."}}, {"@type": "Question", "name": "Which files can I use?", "acceptedAnswer": {"@type": "Answer", "text": "GLB files (binary glTF) and STL files, binary or text, up to 200 MB or 1 million triangles. That limit was measured on a laptop; a phone may manage less. Compressed GLB files that use Draco or meshopt are not supported yet; export an uncompressed GLB instead."}}, {"@type": "Question", "name": "Can it convert a GLB to an STL?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Drop in a GLB and Polymend turns it upright for printing, lets you set its height in millimeters, repairs it, and gives you an STL, a 3MF, or both in one ZIP. Color and texture are not kept."}}, {"@type": "Question", "name": "Why does Bambu Studio say the 3MF is not from Bambu Lab?", "acceptedAnswer": {"@type": "Answer", "text": "That notice is expected and is not an error. A 3MF file can carry a whole slicer project, with printer and filament settings, or just a model. Polymend's 3MF holds only the model, at the size you set in millimeters, so Bambu Studio tells you it loaded the geometry alone and will use your own current settings. Other slicers show similar notices for 3MF files they did not create."}}, {"@type": "Question", "name": "Does it change the shape of my model?", "acceptedAnswer": {"@type": "Answer", "text": "It changes as little as it can. It deletes stray triangles, usually a few dozen out of hundreds of thousands, and adds a few to patch small holes. No existing point is moved, with one exception: points that sit a hair apart on the two sides of a seam are joined into one. Turning the model upright or setting a height moves and scales the whole model without changing its shape. A model with no faults is left exactly as it is. You can see every change in the side by side view and step through them one at a time."}}, {"@type": "Question", "name": "What does \"Partly repaired\" mean?", "acceptedAnswer": {"@type": "Answer", "text": "Some faults remain and your slicer will probably still warn. Polymend is built for small faults and leaves the rest alone on purpose: holes of more than 100 edges, wide openings that may be meant (like the top of a vase), thin sheets with no thickness, and surfaces that touch along an edge. Switches under Repair options let you ask for some of these. For a badly damaged model, a scan with large missing areas, or a design with walls inside it, a general repair tool or a 3D editor such as Blender will do better."}}, {"@type": "Question", "name": "What has it been tested on?", "acceptedAnswer": {"@type": "Answer", "text": "Twelve dense sculpted figure models of about 300,000 triangles each, checked in Bambu Studio, and a set of hand-built test shapes: low-poly parts, open vessels, thin sheets and split seams. It has not yet been tested with other slicers, real 3D scans or CAD exports. On those, treat a result with more care and step through the markers before you print."}}, {"@type": "Question", "name": "Is it really free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Polymend is free to use and open source under the MIT license."}}]}]}</script>
   <!-- /embed:cut -->
   <link rel="preload" href="app/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="app/style.css">
@@ -41,7 +41,8 @@
     <div class="top-stick" id="top-stick">
     <header class="tool-header">
       <h1 class="tool-title">Polymend</h1>
-      <p class="tool-subtitle">Make problematic 3D models printable. Drop in a GLB or STL and get back a file your slicer accepts.</p>
+      <p class="tool-subtitle">Make problematic 3D models printable. Drop in a GLB or STL and Polymend fixes the small mesh faults that make a slicer complain.</p>
+      <p class="tool-scope">Built for small faults: stray triangles, pinholes and reversed faces. Tested on dense sculpted figures in Bambu Studio.</p>
       <!-- Once there is an outcome, it takes the place of the title and description. -->
       <div id="failure" class="outcome failed" role="alert" hidden>
         <p class="label">Outcome</p>
@@ -104,7 +105,7 @@
               </button>
               <div class="split-menu" role="menu" hidden>
                 <button type="button" role="menuitem" data-download="zip"><strong>Both, in one ZIP</strong><span>STL and 3MF together</span></button>
-                <button type="button" role="menuitem" data-download="stl"><strong>STL only</strong><span>Works in every slicer</span></button>
+                <button type="button" role="menuitem" data-download="stl"><strong>STL only</strong><span>The most widely supported format</span></button>
                 <button type="button" role="menuitem" data-download="3mf"><strong>3MF only</strong><span>Smaller, and keeps the size in millimeters</span></button>
               </div>
             </div>
@@ -132,14 +133,14 @@
         </figure>
 
         <div class="details">
-          <h3>What a slicer would object to</h3>
+          <h3>Mesh faults, before and after</h3>
           <div class="ry-table-wrapper">
             <table class="counts">
               <thead><tr><th scope="col"><span class="visually-hidden">Fault</span></th><th scope="col">Before</th><th scope="col">After</th></tr></thead>
               <tbody id="counts"></tbody>
             </table>
           </div>
-          <p class="caption">Counted by this page. A slicer may count them a little differently.</p>
+          <p class="caption">These are the faults this page checks for, counted its own way. A slicer may count them a little differently, and may check for other things.</p>
 
           <h3>What changed</h3>
           <ul id="changes" class="changes"></ul>
@@ -148,9 +149,11 @@
           <details class="options">
             <summary>Repair options</summary>
             <p class="caption">If something you wanted has gone missing, turn a step off and compare.</p>
+            <label><input type="checkbox" data-option="joinSeams" checked> Join points that sit a hair apart along a seam</label>
             <label><input type="checkbox" data-option="removeStray" checked> Remove stray pieces stuck to the surface</label>
-            <label><input type="checkbox" data-option="removeSpecks" checked> Remove tiny loose specks</label>
+            <label><input type="checkbox" data-option="removeSpecks" checked> Remove tiny loose specks <span class="caption">Only from a model that has faults. A sound model is never changed.</span></label>
             <label><input type="checkbox" data-option="patchHoles" checked> Patch small holes</label>
+            <label><input type="checkbox" data-option="patchWide"> Close wide openings too <span class="caption">Off by default: a wide opening may be meant, like the top of a vase.</span></label>
             <label><input type="checkbox" data-option="fixFacing" checked> Turn faces to face outward</label>
             <label><input type="checkbox" data-option="separatePinches"> Separate surfaces that touch along an edge <span class="caption">Off by default: it can part things meant to touch, such as fingers.</span></label>
           </details>
@@ -172,7 +175,7 @@
             </button>
             <div class="split-menu" role="menu" hidden>
               <button type="button" role="menuitem" data-download="zip"><strong>Both, in one ZIP</strong><span>STL and 3MF together</span></button>
-              <button type="button" role="menuitem" data-download="stl"><strong>STL only</strong><span>Works in every slicer</span></button>
+              <button type="button" role="menuitem" data-download="stl"><strong>STL only</strong><span>The most widely supported format</span></button>
               <button type="button" role="menuitem" data-download="3mf"><strong>3MF only</strong><span>Smaller, and keeps the size in millimeters</span></button>
             </div>
           </div>
@@ -185,7 +188,7 @@
     <!-- embed:cut -->
     <section class="about" aria-labelledby="about-title">
       <h2 id="about-title">What Polymend fixes</h2>
-      <p>Polymend is a free mesh repair tool for 3D printing. Some 3D models look finished but are not printable as they are: a slicer such as Bambu Studio flags them with open edges, non-manifold edges or reversed faces. Polymend repairs those faults in an STL or GLB file and gives you back an STL or 3MF your slicer accepts.</p>
+      <p>Polymend is a free mesh repair tool for 3D printing. Some 3D models look finished but are not printable as they are: a slicer such as Bambu Studio flags them with open edges, non-manifold edges or reversed faces. Polymend repairs those faults in an STL or GLB file and gives you back an STL or 3MF. It is built for small faults, and it tells you plainly when it could not fix everything.</p>
       <ul>
         <li><strong>Stray triangles</strong> stuck to the surface are removed.</li>
         <li><strong>Small holes</strong> are patched.</li>
@@ -194,7 +197,7 @@
 
       <h2>How to use it</h2>
       <ol>
-        <li>Drop a <strong>.glb</strong> or <strong>.stl</strong> file on the page. A typical model takes about a second.</li>
+        <li>Drop a <strong>.glb</strong> or <strong>.stl</strong> file on the page. A detailed figure of 300,000 triangles takes about a second.</li>
         <li>Compare before and after side by side, and step through each change.</li>
         <li>Set a print height in millimeters if you want one.</li>
         <li>Download an STL, a 3MF, or both.</li>
@@ -213,7 +216,7 @@
       <h2 id="faq-title">Frequently Asked Questions</h2>
       <div class="faq-item">
         <h3 class="faq-question">What are non-manifold edges and open edges?</h3>
-        <p class="faq-answer">A printable model is a closed surface where every edge is shared by exactly two triangles. An open edge belongs to only one triangle, which leaves a gap beside it. A non-manifold edge is shared by three or more triangles, so a slicer cannot tell which side is the inside of the model.</p>
+        <p class="faq-answer">A slicer expects a closed surface where every edge is shared by exactly two triangles. An open edge belongs to only one triangle, which leaves a gap beside it. A non-manifold edge is shared by three or more triangles, so a slicer cannot tell which side is the inside of the model.</p>
       </div>
       <div class="faq-item">
         <h3 class="faq-question">Why does my slicer say my model has errors?</h3>
@@ -221,11 +224,11 @@
       </div>
       <div class="faq-item">
         <h3 class="faq-question">Is my file uploaded anywhere?</h3>
-        <p class="faq-answer">No. The repair runs in your browser, on your device. The page's security policy blocks it from sending data anywhere, and once the page has loaded the repair needs no connection at all.</p>
+        <p class="faq-answer">No. The repair runs in your browser, on your device, and once the page has loaded it needs no connection at all. The page's security policy tells your browser to block it from opening any connection, and the code is public so that can be checked.</p>
       </div>
       <div class="faq-item">
         <h3 class="faq-question">Which files can I use?</h3>
-        <p class="faq-answer">GLB files (binary glTF) and STL files, binary or text, up to 400 MB or 4 million triangles. Compressed GLB files that use Draco or meshopt are not supported yet; export an uncompressed GLB instead.</p>
+        <p class="faq-answer">GLB files (binary glTF) and STL files, binary or text, up to 200 MB or 1 million triangles. That limit was measured on a laptop; a phone may manage less. Compressed GLB files that use Draco or meshopt are not supported yet; export an uncompressed GLB instead.</p>
       </div>
       <div class="faq-item">
         <h3 class="faq-question">Can it convert a GLB to an STL?</h3>
@@ -237,11 +240,15 @@
       </div>
       <div class="faq-item">
         <h3 class="faq-question">Does it change the shape of my model?</h3>
-        <p class="faq-answer">It changes as little as it can. No existing point of the model is moved. It deletes stray triangles, usually a few dozen out of hundreds of thousands, and adds a few to patch small holes. You can see every change in the side by side view and step through them one at a time.</p>
+        <p class="faq-answer">It changes as little as it can. It deletes stray triangles, usually a few dozen out of hundreds of thousands, and adds a few to patch small holes. No existing point is moved, with one exception: points that sit a hair apart on the two sides of a seam are joined into one. Turning the model upright or setting a height moves and scales the whole model without changing its shape. A model with no faults is left exactly as it is. You can see every change in the side by side view and step through them one at a time.</p>
       </div>
       <div class="faq-item">
         <h3 class="faq-question">What does "Partly repaired" mean?</h3>
-        <p class="faq-answer">Some faults remain and your slicer will probably still warn. Polymend leaves holes of more than 100 edges open, and it does not cut apart surfaces that touch along an edge unless you turn that option on. For a badly damaged model, a general repair tool or a 3D editor such as Blender will do better.</p>
+        <p class="faq-answer">Some faults remain and your slicer will probably still warn. Polymend is built for small faults and leaves the rest alone on purpose: holes of more than 100 edges, wide openings that may be meant (like the top of a vase), thin sheets with no thickness, and surfaces that touch along an edge. Switches under Repair options let you ask for some of these. For a badly damaged model, a scan with large missing areas, or a design with walls inside it, a general repair tool or a 3D editor such as Blender will do better.</p>
+      </div>
+      <div class="faq-item">
+        <h3 class="faq-question">What has it been tested on?</h3>
+        <p class="faq-answer">Twelve dense sculpted figure models of about 300,000 triangles each, checked in Bambu Studio, and a set of hand-built test shapes: low-poly parts, open vessels, thin sheets and split seams. It has not yet been tested with other slicers, real 3D scans or CAD exports. On those, treat a result with more care and step through the markers before you print.</p>
       </div>
       <div class="faq-item">
         <h3 class="faq-question">Is it really free?</h3>
@@ -251,8 +258,8 @@
 
     <footer class="tool-footer">
       <p>Tested on detailed figure models of about 300,000 triangles, opened in Bambu Studio. It fixes stray triangles, small holes and wrongly facing surfaces. It does not fix large holes or badly damaged scans, and it tells you when faults remain.</p>
-      <p>A repair normally takes about a second. If one runs for a full minute it is stopped: a model that takes that long is usually very large or far from a closed surface, and is better fixed by hand in a 3D editor.</p>
-      <p>Your privacy is the point: there is no upload, no cookies, and no analytics collected or stored. This page makes no network requests after it loads, and its security policy blocks it from sending data anywhere. Polymend is open source, so anyone can check. <span id="version"></span></p>
+      <p>On the models it was built for, a repair takes about a second. If one runs for a full minute it is stopped: a model that takes that long is usually very large, or has damage of a kind this page was not built for.</p>
+      <p>Your privacy is the point: there is no upload, no cookies, and no analytics collected or stored. This page makes no network requests after it loads, and its security policy tells your browser to block it from opening any connection. Polymend is open source, so anyone can check. <span id="version"></span></p>
     </footer>
 
     <nav class="site-links" aria-label="About this site">

@@ -145,6 +145,39 @@ export function analyze(positions, tris, edges = new EdgeTable(tris)) {
            inconsistentEdges: flipped, degenerate, shells, volume: volume(positions, tris) };
 }
 
+/**
+ * How many points the surface pinches down to: places where two sheets of surface meet
+ * at a single vertex, like the middle of an hourglass or the tip where two cones touch.
+ * Every edge there can still have exactly two faces, so an edge check sees nothing.
+ * Counted on a mesh whose edges are otherwise sound; rims and over-shared edges are skipped.
+ */
+export function pinchedPoints(positions, tris, edges = new EdgeTable(tris)) {
+  const corners = tris.length;
+  const parent = new Uint32Array(corners);
+  for (let i = 0; i < corners; i++) parent[i] = i;
+  const find = x => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
+  const cornerOf = (f, v) => (tris[f * 3] === v ? f * 3 : tris[f * 3 + 1] === v ? f * 3 + 1 : f * 3 + 2);
+  const skip = new Uint8Array(positions.length / 3); // vertices on a rim or an over-shared edge
+  for (let i = 0; i < edges.size; i++) {
+    const slot = edges.order[i], a = edges.lo[slot], b = edges.hi[slot];
+    if (edges.count[slot] !== 2) { skip[a] = 1; skip[b] = 1; continue; }
+    const f = edges.first[slot], g = edges.second[slot];
+    parent[find(cornerOf(f, a))] = find(cornerOf(g, a));
+    parent[find(cornerOf(f, b))] = find(cornerOf(g, b));
+  }
+  // Around an ordinary vertex all the faces join into one fan. More than one fan is a pinch.
+  const fans = new Uint8Array(positions.length / 3);
+  let pinched = 0;
+  for (let i = 0; i < corners; i++) {
+    if (find(i) !== i) continue;
+    const v = tris[i];
+    if (skip[v]) continue;
+    if (fans[v] === 1) pinched++;
+    if (fans[v] < 2) fans[v]++;
+  }
+  return pinched;
+}
+
 /** +1 when face f runs a→b, -1 when it runs b→a. */
 export function direction(tris, f, a, b) {
   for (let k = 0; k < 3; k++) {

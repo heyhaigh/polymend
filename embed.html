@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Polymend mesh repair</title>
   <meta name="robots" content="noindex">
-  <meta name="description" content="Free mesh repair for 3D printing. Fix non-manifold and open edges in STL and GLB files so your slicer accepts them. Runs in your browser; your file is never uploaded.">
+  <meta name="description" content="Free mesh repair for 3D printing. Fix the non-manifold and open edges that slicers flag in STL and GLB files. Runs in your browser; your file is never uploaded.">
   <link rel="canonical" href="https://polymend.xyz/">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="icon" href="favicon-48.png" type="image/png" sizes="48x48">
@@ -14,7 +14,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Polymend">
   <meta property="og:title" content="Polymend: free STL and GLB mesh repair for 3D printing">
-  <meta property="og:description" content="Free mesh repair for 3D printing. Fix non-manifold and open edges in STL and GLB files so your slicer accepts them. Runs in your browser; your file is never uploaded.">
+  <meta property="og:description" content="Free mesh repair for 3D printing. Fix the non-manifold and open edges that slicers flag in STL and GLB files. Runs in your browser; your file is never uploaded.">
   <meta property="og:url" content="https://polymend.xyz/">
   <meta property="og:image" content="https://polymend.xyz/og-image.jpg">
   <meta property="og:image:width" content="1200">
@@ -35,7 +35,8 @@
     <div class="top-stick" id="top-stick">
     <header class="tool-header">
       <h1 class="tool-title">Polymend</h1>
-      <p class="tool-subtitle">Make problematic 3D models printable. Drop in a GLB or STL and get back a file your slicer accepts.</p>
+      <p class="tool-subtitle">Make problematic 3D models printable. Drop in a GLB or STL and Polymend fixes the small mesh faults that make a slicer complain.</p>
+      <p class="tool-scope">Built for small faults: stray triangles, pinholes and reversed faces. Tested on dense sculpted figures in Bambu Studio.</p>
       <!-- Once there is an outcome, it takes the place of the title and description. -->
       <div id="failure" class="outcome failed" role="alert" hidden>
         <p class="label">Outcome</p>
@@ -98,7 +99,7 @@
               </button>
               <div class="split-menu" role="menu" hidden>
                 <button type="button" role="menuitem" data-download="zip"><strong>Both, in one ZIP</strong><span>STL and 3MF together</span></button>
-                <button type="button" role="menuitem" data-download="stl"><strong>STL only</strong><span>Works in every slicer</span></button>
+                <button type="button" role="menuitem" data-download="stl"><strong>STL only</strong><span>The most widely supported format</span></button>
                 <button type="button" role="menuitem" data-download="3mf"><strong>3MF only</strong><span>Smaller, and keeps the size in millimeters</span></button>
               </div>
             </div>
@@ -126,14 +127,14 @@
         </figure>
 
         <div class="details">
-          <h3>What a slicer would object to</h3>
+          <h3>Mesh faults, before and after</h3>
           <div class="ry-table-wrapper">
             <table class="counts">
               <thead><tr><th scope="col"><span class="visually-hidden">Fault</span></th><th scope="col">Before</th><th scope="col">After</th></tr></thead>
               <tbody id="counts"></tbody>
             </table>
           </div>
-          <p class="caption">Counted by this page. A slicer may count them a little differently.</p>
+          <p class="caption">These are the faults this page checks for, counted its own way. A slicer may count them a little differently, and may check for other things.</p>
 
           <h3>What changed</h3>
           <ul id="changes" class="changes"></ul>
@@ -142,9 +143,11 @@
           <details class="options">
             <summary>Repair options</summary>
             <p class="caption">If something you wanted has gone missing, turn a step off and compare.</p>
+            <label><input type="checkbox" data-option="joinSeams" checked> Join points that sit a hair apart along a seam</label>
             <label><input type="checkbox" data-option="removeStray" checked> Remove stray pieces stuck to the surface</label>
-            <label><input type="checkbox" data-option="removeSpecks" checked> Remove tiny loose specks</label>
+            <label><input type="checkbox" data-option="removeSpecks" checked> Remove tiny loose specks <span class="caption">Only from a model that has faults. A sound model is never changed.</span></label>
             <label><input type="checkbox" data-option="patchHoles" checked> Patch small holes</label>
+            <label><input type="checkbox" data-option="patchWide"> Close wide openings too <span class="caption">Off by default: a wide opening may be meant, like the top of a vase.</span></label>
             <label><input type="checkbox" data-option="fixFacing" checked> Turn faces to face outward</label>
             <label><input type="checkbox" data-option="separatePinches"> Separate surfaces that touch along an edge <span class="caption">Off by default: it can part things meant to touch, such as fingers.</span></label>
           </details>
@@ -166,7 +169,7 @@
             </button>
             <div class="split-menu" role="menu" hidden>
               <button type="button" role="menuitem" data-download="zip"><strong>Both, in one ZIP</strong><span>STL and 3MF together</span></button>
-              <button type="button" role="menuitem" data-download="stl"><strong>STL only</strong><span>Works in every slicer</span></button>
+              <button type="button" role="menuitem" data-download="stl"><strong>STL only</strong><span>The most widely supported format</span></button>
               <button type="button" role="menuitem" data-download="3mf"><strong>3MF only</strong><span>Smaller, and keeps the size in millimeters</span></button>
             </div>
           </div>

@@ -4,6 +4,9 @@ import { load, mend, countCrossings } from '../src/pipeline.js';
 import { writeSTL } from '../src/stl.js';
 import { layout, write3MF, zip, VERSION } from '../src/output.js';
 
+// The model in hand. These three change together, and only once a whole job has
+// succeeded: if a new file cannot be read or repaired, the one before it is still here,
+// whole, and the page goes on showing and downloading that.
 let mesh = null;    // the loaded input
 let result = null;  // the latest repair of it
 let options = {};
@@ -48,36 +51,66 @@ function send() {
   const removed = soupOf(mesh.positions, mesh.tris, f => !result.kept[f]);
   const added = soupOf(result.positions, result.tris, f => result.origin[f] < 0);
   const flipped = soupOf(result.positions, result.tris, f => result.flipped[f] === 1);
-  let lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
-  for (let i = 0; i < mesh.positions.length; i++) { const c = i % 3, value = mesh.positions[i]; if (value < lo[c]) lo[c] = value; if (value > hi[c]) hi[c] = value; }
-  const extent = [0, 1, 2].map(c => hi[c] - lo[c]);
-  const size = Math.hypot(...extent);
+  // The size shown is the size of what will be downloaded: the repaired model.
+  const boxOf = positions => {
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < positions.length; i++) { const c = i % 3, value = positions[i]; if (value < lo[c]) lo[c] = value; if (value > hi[c]) hi[c] = value; }
+    return [0, 1, 2].map(c => hi[c] - lo[c]);
+  };
+  const extent = boxOf(result.positions);
+  const size = Math.hypot(...boxOf(mesh.positions));
   // Turned triangles get places to visit too, unless a whole shell was turned.
   const spots = [...spotsOf(removed, 'removed', size), ...spotsOf(added, 'added', size), ...(flipped.length / 9 <= 2000 ? spotsOf(flipped, 'flipped', size) : [])];
   // Which way the repaired surface faces at each change, so the viewer can look at it squarely.
-  for (const spot of spots) spot.normal = surfaceNormal(result.positions, result.tris, spot.centre, Math.max(spot.radius * 2.5, size * 0.006));
-  postMessage({ type: 'result', format: mesh.format, report: result.report, extent, before, after, removed, added, flipped, spots },
+  const normalAt = normalFinder(result.positions, result.tris, size, spots.length);
+  for (const spot of spots) spot.normal = normalAt(spot.centre, Math.max(spot.radius * 2.5, size * 0.006));
+  postMessage({ type: 'result', format: mesh.format, unit: mesh.unit, report: result.report, extent, before, after, removed, added, flipped, spots },
     [before.positions.buffer, before.tris.buffer, after.positions.buffer, after.tris.buffer, removed.buffer, added.buffer, flipped.buffer]);
 }
 
 /**
- * The average outward direction of the faces near a point, weighted by their area.
- * Returns null where the faces nearby cancel out, such as inside a deep crease.
+ * Gives the average outward direction of the faces near a point, weighted by their area,
+ * or null where the faces nearby cancel out, such as inside a deep crease. For a few
+ * places every face is looked at each time. For many (a scan can have thousands of
+ * pinholes) the faces are sorted into a grid first, so each place looks only nearby.
  */
-function surfaceNormal(positions, tris, centre, reach) {
-  const sum = [0, 0, 0];
-  const limit = reach * reach;
-  for (let i = 0; i < tris.length; i += 3) {
-    const a = tris[i] * 3;
-    const dx = positions[a] - centre[0], dy = positions[a + 1] - centre[1], dz = positions[a + 2] - centre[2];
-    if (dx * dx + dy * dy + dz * dz > limit) continue;
-    const b = tris[i + 1] * 3, c = tris[i + 2] * 3;
+function normalFinder(positions, tris, size, places) {
+  const add = (sum, i) => {
+    const a = tris[i] * 3, b = tris[i + 1] * 3, c = tris[i + 2] * 3;
     const ux = positions[b] - positions[a], uy = positions[b + 1] - positions[a + 1], uz = positions[b + 2] - positions[a + 2];
     const vx = positions[c] - positions[a], vy = positions[c + 1] - positions[a + 1], vz = positions[c + 2] - positions[a + 2];
     sum[0] += uy * vz - uz * vy; sum[1] += uz * vx - ux * vz; sum[2] += ux * vy - uy * vx; // the cross product is already area-weighted
+  };
+  const near = (i, centre, limit) => {
+    const a = tris[i] * 3;
+    const dx = positions[a] - centre[0], dy = positions[a + 1] - centre[1], dz = positions[a + 2] - centre[2];
+    return dx * dx + dy * dy + dz * dz <= limit;
+  };
+  const finish = sum => { const length = Math.hypot(...sum); return length > 1e-12 ? sum.map(value => value / length) : null; };
+  const scan = (centre, reach) => {
+    const sum = [0, 0, 0], limit = reach * reach;
+    for (let i = 0; i < tris.length; i += 3) if (near(i, centre, limit)) add(sum, i);
+    return finish(sum);
+  };
+  if (places <= 32 || !(size > 0)) return scan;
+  const cell = size * 0.02;
+  const at = value => Math.floor(value / cell);
+  const key = (x, y, z) => `${x},${y},${z}`;
+  const grid = new Map();
+  for (let i = 0; i < tris.length; i += 3) {
+    const a = tris[i] * 3, k = key(at(positions[a]), at(positions[a + 1]), at(positions[a + 2]));
+    const list = grid.get(k);
+    if (list) list.push(i); else grid.set(k, [i]);
   }
-  const length = Math.hypot(...sum);
-  return length > 1e-12 ? sum.map(value => value / length) : null;
+  return (centre, reach) => {
+    const lo = centre.map(value => at(value - reach)), hi = centre.map(value => at(value + reach));
+    if ((hi[0] - lo[0] + 1) * (hi[1] - lo[1] + 1) * (hi[2] - lo[2] + 1) > 512) return scan(centre, reach);
+    const sum = [0, 0, 0], limit = reach * reach;
+    for (let x = lo[0]; x <= hi[0]; x++) for (let y = lo[1]; y <= hi[1]; y++) for (let z = lo[2]; z <= hi[2]; z++) {
+      for (const i of grid.get(key(x, y, z)) || []) if (near(i, centre, limit)) add(sum, i);
+    }
+    return finish(sum);
+  };
 }
 
 /** A file name with nothing in it that could escape a folder or upset an unzip tool. */
@@ -86,9 +119,12 @@ const safeName = name => String(name).replace(/[^A-Za-z0-9 ._()+-]/g, '_').repla
 /**
  * After the result is on screen: count the places the surface passes through itself.
  * It is information only, and waiting for it would roughly double the time to a result.
+ * The count is bounded, and if it cannot be made the page is told so; nothing here can
+ * turn a finished repair into a failure.
  */
 function later() {
-  const counts = countCrossings(mesh, result);
+  let counts;
+  try { counts = countCrossings(mesh, result); } catch { counts = { crossingsBefore: null, crossingsAfter: null, crossingsSkipped: true }; }
   Object.assign(result.report, counts);
   postMessage({ type: 'crossings', ...counts });
 }
@@ -103,14 +139,17 @@ onmessage = async event => {
   try {
     if (message.type === 'load') {
       progress('Reading the file');
-      mesh = load(new Uint8Array(message.buffer), message.name);
-      options = message.options || {};
-      result = mend(mesh, options, progress, { crossings: false });
+      const loaded = load(new Uint8Array(message.buffer), message.name);
+      // A model reloaded after a stopped job is turned the way it was before.
+      for (let i = 0; i < (message.turns || 0) % 4; i++) turn(loaded.positions);
+      const wanted = message.options || {};
+      const mended = mend(loaded, wanted, progress, { crossings: false });
+      mesh = loaded; options = wanted; result = mended; // all three, and only now
       send();
       later();
     } else if (message.type === 'options' && mesh) {
-      options = message.options;
-      result = mend(mesh, options, progress, { crossings: false });
+      const mended = mend(mesh, message.options, progress, { crossings: false });
+      options = message.options; result = mended;
       send();
       later();
     } else if (message.type === 'rotate' && mesh) {
@@ -119,7 +158,8 @@ onmessage = async event => {
       send();
     } else if (message.type === 'export' && result) {
       progress('Writing the file');
-      const sized = layout(result.positions, { heightMm: message.heightMm });
+      // A GLB's numbers are meters; with no height chosen they are written as millimeters.
+      const sized = layout(result.positions, { heightMm: message.heightMm, unitMm: mesh.unit === 'meter' ? 1000 : 1 });
       const stl = () => writeSTL(sized.positions, result.tris, 1, `polymend ${VERSION}`);
       const threeMF = () => write3MF(sized.positions, result.tris, { title: message.title });
       const bytes = message.format === 'zip'

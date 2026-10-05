@@ -5,6 +5,8 @@ import { writeSTL } from '../src/stl.js';
 
 const corners = Float64Array.from([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 2, 2]);
 const withFin = Uint32Array.from([0, 2, 1, 0, 1, 3, 1, 2, 3, 0, 3, 2, 0, 1, 4]);
+// A tetrahedron's faults are as big as the model, so the limits that protect real models are lifted.
+const toy = { patchWide: true, straySpan: Infinity };
 
 test('format is taken from the contents, then the name', () => {
   assert.equal(sniff(Uint8Array.from([0x67, 0x6c, 0x54, 0x46]), 'model.stl'), 'glb');
@@ -18,7 +20,7 @@ test('format is taken from the contents, then the name', () => {
 test('an STL goes in broken and comes out repaired, with the changes marked', () => {
   const mesh = load(writeSTL(corners, withFin), 'tetra.stl');
   assert.equal(mesh.format, 'stl');
-  const result = mend(mesh);
+  const result = mend(mesh, toy);
   assert.equal(result.report.status, 'repaired');
   assert.deepEqual([...result.kept], [1, 1, 1, 1, 0]);
   assert.equal(result.report.crossingsBefore, 0);
@@ -27,12 +29,12 @@ test('an STL goes in broken and comes out repaired, with the changes marked', ()
 
 test('switches turn individual repairs off', () => {
   const mesh = load(writeSTL(corners, withFin), 'tetra.stl');
-  const untouched = mend(mesh, { removeStray: false });
+  const untouched = mend(mesh, { ...toy, removeStray: false });
   assert.equal(untouched.report.status, 'partial');
   assert.equal(untouched.report.strayFacesRemoved, 0);
   const holed = load(writeSTL(corners, withFin.slice(0, 9)), 'open.stl');
-  assert.equal(mend(holed, { patchHoles: false }).report.after.openEdges, 3);
-  assert.equal(mend(holed).report.status, 'repaired');
+  assert.equal(mend(holed, { ...toy, patchHoles: false }).report.after.openEdges, 3);
+  assert.equal(mend(holed, toy).report.status, 'repaired');
   const wrong = Uint32Array.from([0, 1, 2, 0, 1, 3, 1, 2, 3, 0, 3, 2]);
   assert.equal(mend(load(writeSTL(corners, wrong), 'w.stl'), { fixFacing: false }).report.facesFlipped, 0);
   assert.equal(mend(load(writeSTL(corners, wrong), 'w.stl')).report.facesFlipped, 1);

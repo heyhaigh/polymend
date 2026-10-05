@@ -2,13 +2,10 @@
 // output stay out, so nothing private can be published by accident.
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { embedPage } from './make-embed.mjs';
+import { root, siteFiles } from './site-files.mjs';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'dist');
-const include = ['index.html', 'embed.html', '404.html', 'privacy.html', 'terms.html', 'favicon.svg', 'favicon-48.png', 'apple-touch-icon.png', 'og-image.jpg', 'robots.txt', 'sitemap.xml', 'llms.txt', '_headers', 'LICENSE', 'app', 'src'];
-const allowed = /\.(html|js|css|svg|txt|xml|woff2|webp|png|jpg)$|^_headers$|^LICENSE$/;
 
 // embed.html is made from index.html; never publish one that has fallen behind.
 if (fs.readFileSync(path.join(root, 'embed.html'), 'utf8') !== embedPage(fs.readFileSync(path.join(root, 'index.html'), 'utf8'))) {
@@ -16,16 +13,11 @@ if (fs.readFileSync(path.join(root, 'embed.html'), 'utf8') !== embedPage(fs.read
 }
 
 fs.rmSync(dist, { recursive: true, force: true });
-const copied = [];
-const copy = relative => {
-  const from = path.join(root, relative);
-  if (fs.statSync(from).isDirectory()) { for (const name of fs.readdirSync(from).sort()) copy(path.join(relative, name)); return; }
-  if (!allowed.test(path.basename(relative))) throw new Error(`Unexpected file type, not published: ${relative}`);
+const copied = siteFiles();
+for (const relative of copied) {
   fs.mkdirSync(path.dirname(path.join(dist, relative)), { recursive: true });
-  fs.copyFileSync(from, path.join(dist, relative));
-  copied.push(relative);
-};
-for (const item of include) copy(item);
+  fs.copyFileSync(path.join(root, relative), path.join(dist, relative));
+}
 const bytes = copied.reduce((sum, file) => sum + fs.statSync(path.join(dist, file)).size, 0);
 console.log(`${copied.length} files, ${(bytes / 1024).toFixed(0)} KB`);
 for (const file of copied) console.log('  ' + file);

@@ -28,14 +28,14 @@
       <ul>
         <li><strong>Your files stay with you.</strong> The repair runs in your browser. Polymend never receives, sees or stores your model.</li>
         <li><strong>No analytics, collected or stored.</strong> Polymend does not measure, record or keep anything about you or how you use it. There are no cookies, no advertising and no accounts.</li>
-        <li><strong>You can check.</strong> The code is open source, and the page is set up so that your browser will refuse to let it send data anywhere.</li>
+        <li><strong>You can check.</strong> The code is open source, and the page carries a security policy that tells your browser to block it from opening any network connection.</li>
       </ul>
 
       <h2>Your files</h2>
       <p>When you choose or drop a file, it is read by the page running in your browser and repaired there. It is not uploaded. The repaired file is created on your device and saved by you. When you close the page, nothing of your model remains with Polymend, because nothing was ever sent.</p>
 
       <h2>No analytics</h2>
-      <p>Polymend has no analytics of any kind. It does not count visits, record what you click, log which files you open, or build any history of how the tool is used. Nothing like that is collected, so nothing like that is stored, by Polymend or by anyone on its behalf.</p>
+      <p>Polymend puts no analytics of any kind in the page. Nothing in it counts visits, records what you click, logs which files you open, or builds any history of how the tool is used. The only record of traffic that exists is the hosting provider's own, described below.</p>
 
       <h2>What the page stores on your device</h2>
       <p>One thing: if you switch between the light and dark themes, your choice is saved in your browser so the page looks the same next time. It never leaves your device, and you can clear it by clearing this site's data in your browser.</p>
@@ -44,10 +44,10 @@
       <p>Other sites can place Polymend inside their own pages. It works the same way there: your model is repaired in your browser and is not sent to that site or to Polymend. Your browser keeps the two apart, so the surrounding page cannot see into Polymend's frame or read the file you give it. That site is still responsible for its own page and has its own privacy practices, so use an embedded copy only on a site you trust. When embedded, Polymend saves nothing on your device, not even a theme choice.</p>
 
       <h2>What the hosting provider sees</h2>
-      <p>One thing is outside Polymend's control. The site is delivered by Cloudflare, and like every web host, Cloudflare's servers receive your IP address and basic details about your browser when your browser asks for the page. Cloudflare may keep those for a time to keep its service secure and reliable, and it keeps its own totals of traffic to every site it serves, such as how many requests arrived. That record belongs to Cloudflare's systems, not to Polymend. Polymend adds nothing to it, puts no measuring script in the page, and does not use it to identify or follow anyone. <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare's privacy policy</a> describes how it handles that data.</p>
+      <p>One thing is outside Polymend's control. The site is delivered by Cloudflare, and like every web host, Cloudflare's servers receive your IP address and basic details about your browser when your browser asks for the page. Cloudflare may keep those for a time to keep its service secure and reliable, and it keeps its own totals of traffic to every site it serves, such as how many requests arrived. Those totals are shown to the site's owner in the hosting dashboard: how many requests arrived, and from which countries. They say nothing about your files or what you did on the page. Polymend adds nothing to them, puts no measuring script in the page, and does not use them to identify or follow anyone. <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare's privacy policy</a> describes how it handles that data.</p>
 
       <h2>How the "no upload" promise is enforced</h2>
-      <p>The page carries a security policy that tells your browser to block it from making any network connection. That is a rule your browser enforces, not just a statement. The project also has automated checks that fail if anyone tries to add analytics, outside scripts or anything else that could send data.</p>
+      <p>The page carries a security policy that tells your browser to block it from making any network connection. That is a rule your browser enforces, not just a statement. It covers the ways a page normally sends data: requests, sockets, beacons and forms. No single rule can rule out every trick, so two more things stand behind the promise: the code is public and small enough to read, and automated checks fail if anyone adds analytics, outside scripts, or code that sends data or opens another address. The same checks are run against the live site.</p>
 
       <h2>Open source</h2>
       <p>All of Polymend's code is public under the MIT license at <a href="https://github.com/heyhaigh/polymend">github.com/heyhaigh/polymend</a>. Anyone can read it to confirm what is written here.</p>
@@ -59,7 +59,7 @@
       <p>Polymend does not knowingly collect information from anyone, including children.</p>
 
       <h2>Changes</h2>
-      <p>If this policy changes, the new version will be posted here with a new date. Because the code is public, its history is too.</p>
+      <p>If this policy changes, the new version will be posted here with a new date. From version 0.3.0 (October 2026) onward, every change to this page and to the code is recorded in the project's public history and changelog on GitHub. Drafts from before that version were not kept in the public history.</p>
 
       <h2>Questions</h2>
       <p>Open an issue on <a href="https://github.com/heyhaigh/polymend/issues">GitHub</a>, or reach Ryan Haigh through <a href="https://heyhaigh.ai/">heyhaigh.ai</a>.</p>

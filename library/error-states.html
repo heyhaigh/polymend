@@ -78,7 +78,7 @@
       ['A GLB that uses Draco compression', FAILURES.unreadable.title, refusal(glb({ extensionsRequired: ['KHR_draco_mesh_compression'], scenes: [{ nodes: [] }] }), 'compressed.glb')],
       ['A GLB with no triangles in it', FAILURES.unreadable.title, refusal(glb({ scene: 0, scenes: [{ nodes: [] }] }), 'empty.glb')],
       ['A file named .glb that is not one', FAILURES.unreadable.title, refusal(new Uint8Array(200), 'not-really.glb')],
-      ['The file is over 400 MB', FAILURES.tooLarge.title, FAILURES.tooLarge.detail],
+      ['The file is over 200 MB', FAILURES.tooLarge.title, FAILURES.tooLarge.detail],
       ['A repair runs for 1 minute', FAILURES.timedOut.title, FAILURES.timedOut.detail],
       ['The repair hits an unexpected fault', FAILURES.crashed.title, FAILURES.crashed.detail],
       ['Any of the above while an earlier model is still on the page', FAILURES.unreadable.title, refusal(new Uint8Array(200), 'figure.obj') + ' The model below is still pink-block-knight.stl.'],

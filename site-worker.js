@@ -12,7 +12,7 @@ export default {
   async fetch(request, env) {
     const { pathname } = new URL(request.url);
     if (VERIFICATION[pathname]) {
-      return new Response(VERIFICATION[pathname], { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Content-Type-Options': 'nosniff' } });
+      return new Response(VERIFICATION[pathname], { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'" } });
     }
     return env.ASSETS.fetch(request);
   },

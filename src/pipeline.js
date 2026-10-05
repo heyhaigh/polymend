@@ -1,13 +1,17 @@
 // The whole job for one file: read, weld, measure, repair, measure again.
 // Used by the browser worker and by the command-line tools, so both do the same thing.
 
-import { parseSTL } from './stl.js';
+import { parseSTL, tooMany } from './stl.js';
 import { parseGLB, yUpToZUp } from './glb.js';
 import { weld, analyze } from './mesh.js';
 import { repair } from './repair.js';
 import { selfIntersections } from './intersect.js';
 
-export const LIMITS = { bytes: 400 * 1024 * 1024, triangles: 4_000_000 };
+// The most this page takes on. Measured, not hoped for: a million triangles needs about
+// 1 GB of memory and six seconds on a laptop, which is near what a browser tab allows.
+// `crossingCheck` is the size above which the for-information self-crossing count is
+// skipped, because it is the most memory-hungry step and changes nothing in the file.
+export const LIMITS = { bytes: 200 * 1024 * 1024, triangles: 1_000_000, crossingCheck: 600_000 };
 
 /** Work out the format from the file's contents first, its name second. */
 export function sniff(bytes, name = '') {
@@ -23,15 +27,27 @@ export function sniff(bytes, name = '') {
 
 /** Read a file into a welded mesh. GLB models are turned from Y-up to Z-up. */
 export function load(bytes, name = '') {
-  if (bytes.length > LIMITS.bytes) throw new Error('This file is larger than 400 MB, which is more than this page can handle.');
+  const megabytes = Math.round(LIMITS.bytes / (1024 * 1024));
+  if (bytes.length > LIMITS.bytes) throw new Error(`This file is larger than ${megabytes} MB, which is more than this page can handle.`);
   const format = sniff(bytes, name);
-  // Positions are rounded to 32-bit floats before welding, because that is what an
-  // STL file stores: vertices that will be identical in the output are joined now.
-  const soup = format === 'glb' ? Float32Array.from(yUpToZUp(parseGLB(bytes))) : parseSTL(bytes);
+  const tooManyTriangles = total => new Error(`This model has about ${Math.round(total).toLocaleString('en-US')} triangles, more than this page can handle (${LIMITS.triangles.toLocaleString('en-US')}).`);
+  let soup;
+  try {
+    // Positions are rounded to 32-bit floats before welding, because that is what an
+    // STL file stores: vertices that will be identical in the output are joined now.
+    soup = format === 'glb' ? Float32Array.from(yUpToZUp(parseGLB(bytes, { maxTriangles: LIMITS.triangles, tooMany })))
+      : parseSTL(bytes, { maxTriangles: LIMITS.triangles });
+  } catch (error) {
+    if (error && error.tooMany) throw tooManyTriangles(error.tooMany);
+    // A reader tripping over nonsense in the file is the file's fault, not a crash to report.
+    if (error instanceof TypeError || error instanceof RangeError || error instanceof SyntaxError) throw new Error(`This file is damaged, or is not laid out as ${format === 'glb' ? 'a GLB' : 'an STL'} file should be.`);
+    throw error;
+  }
   for (let i = 0; i < soup.length; i++) if (!Number.isFinite(soup[i])) throw new Error('This file contains invalid coordinates.');
-  if (soup.length / 9 > LIMITS.triangles) throw new Error(`This model has ${Math.round(soup.length / 9).toLocaleString('en-US')} triangles, more than this page can handle (4,000,000).`);
+  if (soup.length / 9 > LIMITS.triangles) throw tooManyTriangles(soup.length / 9);
   if (soup.length < 9) throw new Error('No triangles were found in this file.');
-  return { format, ...weld(soup) };
+  // GLB coordinates are meters by definition; an STL does not say what its numbers mean.
+  return { format, unit: format === 'glb' ? 'meter' : null, ...weld(soup) };
 }
 
 /**
@@ -54,12 +70,15 @@ export function mend(mesh, options = {}, progress = () => {}, { crossings = true
   return { ...result, kept, report };
 }
 
-/** How many places the surface passes through itself, before and after the repair. */
+/**
+ * How many places the surface passes through itself, before and after the repair. Either
+ * number is null when the count was skipped because it would have taken too long.
+ */
 export function countCrossings(mesh, result) {
-  return {
-    crossingsBefore: selfIntersections(mesh.positions, mesh.tris).pairs,
-    crossingsAfter: selfIntersections(result.positions, result.tris).pairs,
-  };
+  if (mesh.tris.length / 3 > LIMITS.crossingCheck) return { crossingsBefore: null, crossingsAfter: null, crossingsSkipped: true };
+  const before = selfIntersections(mesh.positions, mesh.tris).pairs;
+  const after = before === null ? null : selfIntersections(result.positions, result.tris).pairs;
+  return { crossingsBefore: before, crossingsAfter: after, crossingsSkipped: before === null || after === null };
 }
 
 export { analyze };

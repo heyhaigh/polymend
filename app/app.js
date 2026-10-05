@@ -3,13 +3,13 @@
 import { createViewer } from './viewer.js';
 import { VERSION } from '../src/output.js';
 import * as sound from './sound.js';
-import { FAILURES } from './messages.js';
+import { FAILURES, MAX_BYTES } from './messages.js';
 
 const $ = id => document.getElementById(id);
 const number = value => value.toLocaleString('en-US');
 const plural = (count, one, many = one + 's') => `${number(count)} ${count === 1 ? one : many}`;
 
-const state = { name: '', format: '', report: null, extent: [0, 0, 0], spots: [], spot: -1, busy: false, which: 'after' };
+const state = { name: '', format: '', unit: null, report: null, extent: [0, 0, 0], spots: [], spot: -1, busy: false, which: 'after', turns: 0 };
 const viewer = createViewer($('canvas'));
 if (!viewer) { $('canvas').hidden = true; $('no-webgl').hidden = false; }
 if ($('version')) $('version').textContent = `Version ${VERSION}.`; // absent from the embedded page
@@ -63,7 +63,7 @@ function lostModel() {
   if (state.report && state.file && !state.reloading) {
     state.reloading = true; // one quiet reload only; if that also fails, start over
     for (const input of document.querySelectorAll('[data-option]')) input.checked = state.goodOptions[input.dataset.option];
-    state.file.arrayBuffer().then(buffer => { setBusy(true); ask({ type: 'load', buffer, name: state.shown, options: state.goodOptions }, [buffer]); }).catch(() => {});
+    state.file.arrayBuffer().then(buffer => { setBusy(true); ask({ type: 'load', buffer, name: state.shown, options: state.goodOptions, turns: state.turns }, [buffer]); }).catch(() => {});
     return;
   }
   state.reloading = false;
@@ -129,6 +129,11 @@ function setBusy(busy) {
  */
 function fail(message, title = FAILURES.unreadable.title) {
   setBusy(false);
+  // The file that failed is forgotten. Without this, the next change to the model still
+  // on the page would be taken for that file arriving, and the model would get its name.
+  state.fresh = false;
+  state.pendingFile = null;
+  if (state.report) state.name = state.shown;
   const kept = state.report ? ` The model below is still ${state.shown}.` : '';
   $('failure-title').textContent = title;
   $('failure-detail').textContent = message + kept;
@@ -157,7 +162,7 @@ function options() {
 
 async function openFile(file) {
   if (!file || state.busy) return;
-  if (file.size > 400 * 1024 * 1024) return fail(FAILURES.tooLarge.detail, FAILURES.tooLarge.title);
+  if (file.size > MAX_BYTES) return fail(FAILURES.tooLarge.detail, FAILURES.tooLarge.title);
   state.name = file.name;
   state.pendingFile = file;
   state.fresh = true;
@@ -187,12 +192,12 @@ function onMessage(event) {
 function showResult(message) {
   const fresh = state.fresh;
   state.fresh = false;
-  Object.assign(state, { format: message.format, report: message.report, extent: message.extent, spots: message.spots, spot: -1, reloading: false });
-  if (fresh) { state.shown = state.name; state.file = state.pendingFile; }
+  Object.assign(state, { format: message.format, unit: message.unit, report: message.report, extent: message.extent, spots: message.spots, spot: -1, reloading: false });
+  if (fresh) { state.shown = state.name; state.file = state.pendingFile; state.turns = 0; }
   state.goodOptions = options();
   $('failure').hidden = true;
   setBusy(false);
-  setStatus(`${state.name} · ${number(message.report.before.triangles)} triangles`);
+  setStatus(`${state.shown} · ${number(message.report.before.triangles)} triangles`);
   $('drop').classList.add('compact');
   $('choose-label').textContent = 'Choose another file';
   $('results').hidden = false;
@@ -220,29 +225,56 @@ function showResult(message) {
   if (fresh) { viewer?.home(); $('outcome-title').focus({ preventScroll: true }); toTop(); sound.play(message.report.status); }
 }
 
+/** The outcome card: the verdict, then anything the visitor should know before trusting it. */
 function renderOutcome() {
   const r = state.report, after = r.after;
   $('outcome').className = 'outcome ' + r.status;
-  const reasons = [];
+  const notes = [];
+  // What was taken away or added is said here, beside the verdict, not only further down.
+  const did = [
+    r.strayFacesRemoved && `removed ${plural(r.strayFacesRemoved, 'stray triangle')}`,
+    r.specksRemoved && `removed ${plural(r.specksRemoved, 'small separate piece')}`,
+    r.holesFilled.length && `patched ${plural(r.holesFilled.length, 'hole')}`,
+    r.seamPointsJoined && `joined ${plural(r.seamPointsJoined, 'pair')} of seam points`,
+    r.pinchedEdgesCut && `separated surfaces along ${plural(r.pinchedEdgesCut, 'edge')}`,
+    r.facesFlipped && `turned ${plural(r.facesFlipped, 'triangle')} to face outward`,
+  ].filter(Boolean);
+  if (did.length) notes.push(`Polymend ${list(did)}. The markers in the view show where.`);
+  if (r.specksRemoved) notes.push(`${r.specksRemoved === 1 ? 'The small separate piece was' : 'The small separate pieces were'} closed and under 2% of the model's size, which is usually debris. If ${r.specksRemoved === 1 ? 'it was' : 'they were'} part of your design, turn off "Remove tiny loose specks" under Repair options.`);
+  if (r.patchesCrossing) notes.push(`${plural(r.patchesCrossing, 'patch', 'patches')} had no clean way to close ${r.patchesCrossing === 1 ? 'its' : 'their'} hole and ${r.patchesCrossing === 1 ? 'passes' : 'pass'} through surface that runs close by. Step through the changes to look.`);
+
   if (r.status === 'repaired') {
     $('outcome-title').textContent = 'Repaired';
-    $('outcome-detail').textContent = 'No open or non-manifold edges remain, and neighboring faces agree on which way is out. Models repaired this way have imported into Bambu Studio without a mesh warning.';
+    $('outcome-detail').textContent = 'No open or non-manifold edges remain, and neighboring faces agree on which way is out. In testing, figure models repaired this way imported into Bambu Studio without a mesh warning.';
   } else if (r.status === 'sound') {
     $('outcome-title').textContent = 'Nothing to fix';
-    $('outcome-detail').textContent = 'This model has no open or non-manifold edges, and its faces already agree on which way is out.';
+    $('outcome-detail').textContent = 'This model has no open or non-manifold edges, and its faces already agree on which way is out. It was left exactly as it is.';
   } else {
     $('outcome-title').textContent = 'Partly repaired';
     const left = [after.openEdges && plural(after.openEdges, 'open edge'), after.nonManifoldEdges && plural(after.nonManifoldEdges, 'non-manifold edge'), after.inconsistentEdges && plural(after.inconsistentEdges, 'wrongly facing join')].filter(Boolean);
     const total = after.openEdges + after.nonManifoldEdges + after.inconsistentEdges;
-    $('outcome-detail').textContent = `${left.join(' and ')} remain${total === 1 ? 's' : ''}. Your slicer will probably still warn about this file.`;
+    $('outcome-detail').textContent = left.length
+      ? `${list(left)} remain${total === 1 ? 's' : ''}. Your slicer will probably still warn about this file.`
+      : 'The edge checks pass, but this file is not a printable solid.';
+    const why = [];
+    const count = reason => r.holesLeftOpen.filter(item => item === reason).length;
     const large = r.holesLeftOpen.filter(item => typeof item === 'number');
-    if (large.length) reasons.push(`${plural(large.length, 'hole')} too large to patch safely (${large.map(size => size + ' edges').join(', ')}) ${large.length === 1 ? 'was' : 'were'} left open.`);
-    if (r.pinchedEdgesLeft && !options().separatePinches) reasons.push(`Surfaces touch along ${plural(r.pinchedEdgesLeft, 'edge')} and were left as they are. To cut them apart, turn on "Separate surfaces that touch along an edge" under Repair options.`);
-    const off = Object.entries(options()).filter(([key, on]) => !on && key !== 'separatePinches').length;
-    if (off) reasons.push('Some repair steps are turned off under Repair options.');
-    if (!reasons.length) reasons.push('This model has a kind of damage this page does not repair. A general repair tool may do better.');
+    if (large.length) why.push(`${plural(large.length, 'hole')} too large to patch safely (${large.map(size => size + ' edges').join(', ')}) ${large.length === 1 ? 'was' : 'were'} left open.`);
+    const wide = count('wide');
+    if (wide) why.push(`${plural(wide, 'opening')} ${wide === 1 ? 'is' : 'are'} too wide to count as a small hole and ${wide === 1 ? 'was' : 'were'} left open, in case ${wide === 1 ? 'it is' : 'they are'} meant, like the top of a vase. To close ${wide === 1 ? 'it' : 'them'} anyway, turn on "Close wide openings too" under Repair options.`);
+    const cutting = count('would cut through the surface');
+    if (cutting) why.push(`${plural(cutting, 'hole')} ${cutting === 1 ? 'was' : 'were'} left open because every way of closing ${cutting === 1 ? 'it' : 'them'} would cut through the model.`);
+    const awkward = r.holesLeftOpen.length - large.length - wide - cutting;
+    if (awkward > 0) why.push(`${plural(awkward, 'hole')} ${awkward === 1 ? 'has' : 'have'} a shape this page cannot patch.`);
+    if (r.sheetsLeft) why.push(`${plural(r.sheetsLeft, 'thin sheet')} with no thickness ${r.sheetsLeft === 1 ? 'is' : 'are'} attached to the model. A sheet cannot print as it is, and ${r.sheetsLeft === 1 ? 'this one is' : 'these are'} too large to be a stray scrap, so ${r.sheetsLeft === 1 ? 'it was' : 'they were'} left alone.`);
+    if (r.flatPieces) why.push(`${plural(r.flatPieces, 'piece')} ${r.flatPieces === 1 ? 'is' : 'are'} flat, with no inside, and cannot be printed.`);
+    if (r.pinchedEdgesLeft && !options().separatePinches) why.push(`${plural(r.pinchedEdgesLeft, 'edge')} ${r.pinchedEdgesLeft === 1 ? 'is' : 'are'} shared by more than two surfaces, as happens where two parts touch along an edge or a wall sits inside the model. ${r.pinchedEdgesLeft === 1 ? 'It was' : 'They were'} left as ${r.pinchedEdgesLeft === 1 ? 'it is' : 'they are'}. If parts are only touching, "Separate surfaces that touch along an edge" under Repair options will cut them apart.`);
+    const off = Object.entries(options()).filter(([key, on]) => !on && !OFF_BY_DEFAULT.includes(key)).length;
+    if (off) why.push('Some repair steps are turned off under Repair options.');
+    if (!why.length) why.push('This model has a kind of damage this page does not repair. A general repair tool may do better.');
+    notes.unshift(...why);
   }
-  $('outcome-reasons').replaceChildren(...reasons.map(text => Object.assign(document.createElement('li'), { textContent: text })));
+  $('outcome-reasons').replaceChildren(...notes.map(text => Object.assign(document.createElement('li'), { textContent: text })));
   const anyway = r.status === 'partial';
   // The orange button is a promise that the file is ready, so it steps down when it is not.
   for (const split of document.querySelectorAll('[data-split]')) {
@@ -250,6 +282,12 @@ function renderOutcome() {
     split.querySelector('.download-label').textContent = anyway ? 'Download all anyway' : 'Download all';
   }
 }
+
+// Switches that are off unless the visitor turns them on; being off is not "a step turned off".
+const OFF_BY_DEFAULT = ['separatePinches', 'patchWide'];
+
+/** "a", "a and b", "a, b and c". */
+const list = items => (items.length < 3 ? items.join(' and ') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
 
 function renderCounts() {
   const { before, after } = state.report;
@@ -272,25 +310,38 @@ function renderCounts() {
 function renderChanges() {
   const r = state.report;
   const lines = [];
-  if (r.strayFacesRemoved) lines.push(`Removed ${plural(r.strayFacesRemoved, 'stray triangle')} stuck to the surface.`);
-  if (r.specksRemoved) lines.push(`Removed ${plural(r.specksRemoved, 'tiny loose speck')}.`);
+  if (r.seamPointsJoined) lines.push(`Joined ${plural(r.seamPointsJoined, 'pair')} of points that sat a hair apart along a seam, closing the cut between them.`);
+  if (r.strayFacesRemoved) lines.push(`Removed ${plural(r.strayFacesRemoved, 'stray triangle')}: paper-thin scraps stuck to the surface, which cannot print.`);
+  if (r.specksRemoved) lines.push(`Removed ${plural(r.specksRemoved, 'small separate piece')}, each closed and under 2% of the model's size.`);
   if (r.duplicateRemoved + r.degenerateRemoved) lines.push(`Removed ${plural(r.duplicateRemoved + r.degenerateRemoved, 'duplicate or collapsed triangle')}.`);
-  if (r.holesFilled.length) lines.push(`Patched ${plural(r.holesFilled.length, 'small hole')} with ${plural(r.trianglesAdded, 'new triangle')}.`);
+  if (r.holesFilled.length) lines.push(`Patched ${plural(r.holesFilled.length, 'hole')} with ${plural(r.trianglesAdded, 'new triangle')}.${r.patchesCrossing ? ` ${plural(r.patchesCrossing, 'patch', 'patches')} of them ${r.patchesCrossing === 1 ? 'passes' : 'pass'} through nearby surface.` : ''}`);
   if (r.pinchedEdgesCut) lines.push(`Separated surfaces that touched along ${plural(r.pinchedEdgesCut, 'edge')}.`);
   if (r.facesFlipped) lines.push(`Turned ${plural(r.facesFlipped, 'triangle')} to face outward.`);
   if (!lines.length) lines.push('Nothing. The model is exactly as it was.');
-  else lines.push('No existing point of the model was moved.');
+  else lines.push(r.seamPointsJoined ? 'Apart from the seam points that were joined, no existing point of the model was moved.' : 'No existing point of the model was moved.');
   $('changes').replaceChildren(...lines.map(text => Object.assign(document.createElement('li'), { textContent: text })));
   renderCrossings();
-  const changed = r.strayFacesRemoved + r.trianglesAdded + r.specksRemoved + r.facesFlipped + r.duplicateRemoved + r.degenerateRemoved + r.pinchedEdgesCut > 0;
+  const changed = r.strayFacesRemoved + r.trianglesAdded + r.specksRemoved + r.facesFlipped + r.duplicateRemoved + r.degenerateRemoved + r.pinchedEdgesCut + r.seamPointsJoined > 0;
   $('view-hint').textContent = changed ? 'Solid dots mark changes on the side facing you; faint dots are on the far side. Most changes are too small to see from here, so use the arrows to visit each one, shown with a ring around it.' : '';
 }
 
+/**
+ * Places where the surface passes through itself. The count arrives a moment after the
+ * result, so until then the line says the check is still running rather than saying nothing.
+ */
 function renderCrossings() {
-  const r = state.report, crossing = r.crossingsAfter;
-  $('crossings').textContent = crossing
-    ? `For information: the surface passes through itself in ${plural(crossing, 'place')}${r.crossingsBefore === crossing ? ', as it did before the repair' : ` (${number(r.crossingsBefore)} before the repair)`}. This is common in sculpted and scanned models, and slicers usually accept it.`
-    : '';
+  const r = state.report, now = r.crossingsAfter, was = r.crossingsBefore;
+  let text = '';
+  if (r.crossingsSkipped) text = 'Not checked: whether the surface passes through itself. This model is too large or too tangled for that check to finish quickly. It does not affect the repair.';
+  else if (now === undefined) text = 'Checking whether the surface passes through itself…';
+  else if (now) {
+    text = `The surface passes through itself in ${plural(now, 'place')}${was === now ? ', as it did before the repair' : ` (${number(was)} before the repair)`}. Polymend counts these but does not repair them.`
+      + (now > was ? ' The extra ones are where a patch had to pass close to nearby surface.' : '')
+      + ' Sculpted and scanned models often have them and many slicers cope, but they can cause flawed layers. If a print goes wrong at one, a general repair tool or a 3D editor is the next step.';
+  }
+  // Also for information: places where the surface pinches down to a single point.
+  if (r.pointsTouching) text = `The surface pinches to a single point in ${plural(r.pointsTouching, 'place')}, where two parts just touch. Slicers generally accept this.` + (text ? ' ' + text : '');
+  $('crossings').textContent = text;
 }
 
 function heightMm() {
@@ -308,7 +359,11 @@ function renderSize() {
     const scale = height / z;
     $('size').textContent = `Will be ${fixed(x * scale)} × ${fixed(y * scale)} × ${fixed(z * scale)} mm (width × depth × height).`;
   } else {
-    $('size').textContent = `Stored size ${fixed(x)} × ${fixed(y)} × ${fixed(z)}. ${state.format === 'glb' ? 'A GLB often has no real-world size, so choose a height.' : 'An STL file does not say what unit this is; most slicers read it as millimeters.'}`;
+    // A GLB's numbers are meters by definition, so with no height they become millimeters x 1000.
+    const mm = state.unit === 'meter' ? 1000 : 1;
+    $('size').textContent = state.unit === 'meter'
+      ? `Will be ${number(Math.round(x * mm))} × ${number(Math.round(y * mm))} × ${number(Math.round(z * mm))} mm. With no height set, the file's own size is used, and a GLB is measured in meters. Many GLB files have no real-world size, so a height is usually what you want.`
+      : `Stored size ${fixed(x)} × ${fixed(y)} × ${fixed(z)}. An STL file does not say what unit this is; most slicers read it as millimeters.`;
   }
 }
 
@@ -409,7 +464,7 @@ $('home').addEventListener('click', () => { viewer?.home(); renderStepper(); });
 $('back').addEventListener('click', () => { leaveCloseUp(); $('next').focus(); });
 $('set-height').addEventListener('change', renderSize);
 $('height').addEventListener('input', renderSize);
-$('rotate').addEventListener('click', () => { if (state.report && !state.busy) { setBusy(true); ask({ type: 'rotate' }); } });
+$('rotate').addEventListener('click', () => { if (state.report && !state.busy) { setBusy(true); state.turns++; ask({ type: 'rotate' }); } });
 for (const button of document.querySelectorAll('[data-download]')) button.addEventListener('click', () => { closeMenus(); download(button.dataset.download); });
 
 // The arrow beside "Download all" opens a short menu of single formats.

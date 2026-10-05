@@ -6,12 +6,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { embedPage } from '../tools/make-embed.mjs';
+import { siteFiles } from '../tools/site-files.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
-const walk = dir => fs.readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap(entry =>
-  entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]);
-const shipped = ['index.html', 'embed.html', '404.html', 'privacy.html', 'terms.html', ...walk('app'), ...walk('src')].filter(file => /\.(html|js|css)$/.test(file));
+// Exactly the files the build publishes: a file cannot ship without being checked here.
+const shipped = siteFiles().filter(file => /\.(html|js|css)$/.test(file));
+const pages = shipped.filter(file => file.endsWith('.html'));
+const scripts = shipped.filter(file => file.endsWith('.js'));
 
 const policyOf = text => Object.fromEntries(text.split(';').map(part => part.trim().split(/\s+/)).filter(part => part[0]).map(([name, ...values]) => [name, values]));
 
@@ -69,10 +71,53 @@ test('no shipped code can send data: no fetch, beacons, sockets, forms or analyt
   }
 });
 
+test('no page carries code of its own: no inline scripts, handlers, styles or frames', () => {
+  for (const file of pages) {
+    const text = read(file);
+    for (const tag of text.matchAll(/<script\b[^>]*>/g)) {
+      assert.ok(/\bsrc="[^"]+"/.test(tag[0]) || /type="application\/ld\+json"/.test(tag[0]), `${file} has an inline script: ${tag[0]}`);
+    }
+    assert.ok(!/\son[a-z]+\s*=\s*["']/i.test(text), `${file} has an inline event handler`);
+    assert.ok(!/javascript:/i.test(text), `${file} has a javascript: address`);
+    assert.ok(!/<style\b|\sstyle\s*=\s*"/i.test(text), `${file} has inline styles`);
+    assert.ok(!/<(iframe|object|embed|base|frame|applet)\b/i.test(text), `${file} embeds something`);
+    assert.ok(!/http-equiv="refresh"/i.test(text) && !/\sping\s*=/i.test(text), `${file} redirects or pings`);
+  }
+});
+
+test('no shipped code can leave the page or reach outside it by a side door', () => {
+  // The security policy blocks connections. These are the routes it does not block, so
+  // the code is checked for them instead: sending the visitor to another address with
+  // data in it, building markup or script from text, and talking to a surrounding page.
+  const banned = [
+    [/\blocation\s*\.\s*(href|assign|replace|reload)\b|\blocation\s*=[^=]/, 'changes the address'],
+    [/window\s*\.\s*open|\bopener\b/, 'opens or reaches another window'],
+    [/\beval\s*\(|new\s+Function\b|setTimeout\s*\(\s*["'`]|setInterval\s*\(\s*["'`]/, 'runs text as code'],
+    [/document\s*\.\s*write|innerHTML|outerHTML|insertAdjacentHTML|DOMParser|srcdoc/, 'builds markup from text'],
+    [/\bimport\s*\(/, 'loads code on the fly'],
+    [/new\s+Image\b|\.src\s*=|setAttribute\(\s*["'](src|href|action|formaction)["']/, 'points an element at an address'],
+    [/createElement\(\s*["'](script|iframe|img|link|form|object|embed|video|audio|source|base)["']/, 'creates an element that loads something'],
+    [/window\s*\.\s*(parent|top)\b|\b(parent|top)\s*\.\s*postMessage|BroadcastChannel|SharedWorker|serviceWorker/, 'talks to another page'],
+    [/\.submit\s*\(|navigator\s*\.\s*(sendBeacon|share|clipboard\s*\.\s*read)/, 'sends or reads beyond the page'],
+    [/indexedDB|sessionStorage|caches\s*\.|document\s*\.\s*cookie/, 'stores more than the theme'],
+  ];
+  for (const file of scripts) {
+    const text = read(file);
+    for (const [pattern, what] of banned) assert.ok(!pattern.test(text), `${file} ${what}: ${pattern}`);
+    // A link's address is set in one place only: the download of the visitor's own repaired file.
+    for (const line of text.split('\n')) if (/\.href\s*=/.test(line)) assert.match(line, /URL\.createObjectURL\(/, `${file}: ${line.trim()}`);
+  }
+  // Messages pass only between the page and its own worker.
+  for (const file of scripts) if (/postMessage/.test(read(file))) assert.ok(['app/app.js', 'app/worker.js'].includes(file), `${file} posts messages`);
+  // The theme is the only thing saved, and only on Polymend's own site.
+  for (const file of scripts) if (/localStorage/.test(read(file))) assert.equal(file, 'app/theme.js', `${file} uses localStorage`);
+});
+
 test('the one piece of server code only answers the ownership-check address', () => {
   const worker = read('site-worker.js');
   assert.ok(!/\bfetch\s*\(\s*["'`]https?:/.test(worker), 'site-worker.js must not call out to other sites');
   assert.match(worker, /return env\.ASSETS\.fetch\(request\);/);
+  assert.match(worker, /'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'"/, 'its one response is as closed as the rest of the site');
   assert.match(read('wrangler.toml'), /run_worker_first = \["\/google[0-9a-f]+\.html"\]/);
 });
 
