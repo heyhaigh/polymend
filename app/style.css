@@ -396,10 +396,10 @@ body.dragging.drag-wrong .cta-box {
 /* The model switch above the view, in a batch: arrows, a list of every model, and "2 of 4". */
 .model-switch { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .model-pick { position: relative; display: inline-flex; flex: 0 1 auto; min-width: 0; }
-.model-trigger { display: inline-flex; align-items: center; gap: 10px; min-width: 0; max-width: min(60vw, 280px); padding: 8px 14px 8px 13px; border: 1px solid var(--line-strong); border-radius: 50px; background: var(--glass); color: inherit; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color 0.2s ease-out; }
+.model-trigger { display: inline-flex; align-items: center; gap: 10px; min-width: 0; max-width: 200px; padding: 8px 14px 8px 13px; border: 1px solid var(--line-strong); border-radius: 50px; background: var(--glass); color: inherit; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color 0.2s ease-out; }
 .model-trigger:not([disabled]):is(:hover, :focus-visible), .model-trigger[aria-expanded="true"] { background: var(--glass-hover); }
 .model-trigger[disabled] { cursor: default; opacity: 0.6; }
-.model-current { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-current { min-width: 0; overflow: hidden; white-space: nowrap; } /* shortened in the middle by the page */
 .model-dot { flex-shrink: 0; width: 9px; height: 9px; border-radius: 50%; background: var(--tone-good); }
 .model-dot.sound { background: var(--tone-info); }
 .model-dot.partial { background: var(--tone-warn); }
@@ -419,9 +419,6 @@ body.dragging.drag-wrong .cta-box {
 .model-item-check svg { display: block; }
 .model-menu button[aria-checked="true"] .model-item-check { visibility: visible; }
 .model-count { font-size: 13px; opacity: 0.6; font-variant-numeric: tabular-nums; white-space: nowrap; }
-
-/* On a phone the model switch takes the width it has, so the name is cut as little as possible. */
-@media (max-width: 560px) { .model-pick { flex: 1 1 auto; } .model-trigger { max-width: none; width: 100%; } .model-trigger .model-caret { margin-left: auto; } }
 
 /* On a narrow screen the name gets the whole line and the count sits under it. */
 @media (max-width: 560px) { .batch-open { flex-direction: column; align-items: flex-start; gap: 2px; } .batch-name { max-width: 100%; } }

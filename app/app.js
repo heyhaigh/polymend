@@ -783,11 +783,12 @@ function renderBatch() {
     $('batch-title').textContent = `Repairing ${number(Math.min(done + 1, rows.length))} of ${plural(rows.length, 'model')}`;
     $('batch-detail').textContent = 'Each model is repaired on this device, one at a time. Finished ones can be opened below while the rest carry on.';
   } else {
+    // Each row has its own outcome, so the card says only what the rows cannot.
     $('batch-title').textContent = plural(rows.length, 'model');
-    const parts = ['repaired', 'sound', 'partial', 'failed'].filter(count).map(status => `${number(count(status))} ${STATUS_WORDS[status].toLowerCase()}`);
-    $('batch-detail').textContent = `${list(parts)}.` + (count('partial') ? ' A partly repaired model will probably still bring a warning from your slicer.' : '');
+    $('batch-detail').textContent = count('partial') ? 'A partly repaired model will probably still bring a warning from your slicer.' : '';
   }
-  if (batch.skipped.length) $('batch-detail').textContent += ` Left out, as not .glb or .stl: ${list(batch.skipped)}.`;
+  if (batch.skipped.length) $('batch-detail').textContent = `${$('batch-detail').textContent} Left out, as not .glb or .stl: ${list(batch.skipped)}.`.trim();
+  $('batch-detail').hidden = !$('batch-detail').textContent;
   // The list is drawn afresh as jobs finish; whoever was on a row with the keyboard stays on it.
   const focused = document.activeElement?.closest?.('#batch-list .batch-row')?.dataset.id;
   $('batch-list').replaceChildren(...rows.map((row, i) => {
@@ -829,7 +830,7 @@ function renderModelSwitch() {
   $('model-switch').hidden = !show;
   if (!show) return closeModelMenu();
   const row = batch.rows[batch.at];
-  $('model-current').textContent = clean(row.file.name);
+  fitName($('model-current'), clean(row.file.name), viewable.filter(item => item !== row).map(item => clean(item.file.name)));
   $('model-trigger').setAttribute('aria-label', `Model in view: ${clean(row.file.name)}, ${STATUS_WORDS[row.status]}. Choose another.`);
   $('model-dot').className = 'model-dot ' + row.status;
   $('model-count').textContent = `${viewable.findIndex(item => item.id === batch.at) + 1} of ${viewable.length}`;
@@ -890,6 +891,46 @@ function closeModelMenu(restoreFocus = false, fade = false) {
   } else menu.hidden = true;
 }
 
+/**
+ * Put a file name in a narrow space. Names in a batch often share a long start and differ
+ * after it (figure-front-final.glb, figure-back-final.glb), so a long name first loses the
+ * start it shares with the others, up to a word break, and shows what tells it apart. A
+ * name that is still too long is shortened in the middle, keeping its extension. The full
+ * name shows on hover, and screen readers hear it in the button's label.
+ */
+let measure = null;
+function fitName(holder, name, others = []) {
+  holder.textContent = name;
+  const button = holder.closest('button');
+  button.removeAttribute('data-tooltip');
+  const room = holder.clientWidth;
+  if (!room || holder.scrollWidth <= room) return;
+  measure ??= document.createElement('canvas').getContext('2d');
+  const style = getComputedStyle(holder);
+  measure.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  const ext = (name.match(/\.[^.]{1,5}$/) || [''])[0];
+  let stem = name.slice(0, name.length - ext.length);
+  // The start this name shares with the most similar other name, cut back to a word break:
+  // that is the name it could be mistaken for.
+  let shared = 0;
+  if (others.length) {
+    shared = Math.max(...others.map(other => { let i = 0; while (i < stem.length && stem[i] === other[i]) i++; return i; }));
+    while (shared > 0 && !/[-_ .]/.test(stem[shared - 1])) shared--;
+  }
+  const lead = shared > 3 ? '…' : '';
+  if (lead) stem = stem.slice(shared);
+  let text = lead + '…' + ext;
+  for (let keep = stem.length; keep >= 2; keep--) {
+    const back = lead ? 0 : Math.min(6, Math.floor(keep / 2)); // after a dropped start, the start of the rest matters most
+    const candidate = lead + stem.slice(0, keep - back) + (keep < stem.length ? '…' : '') + (back ? stem.slice(-back) : '') + ext;
+    if (measure.measureText(candidate).width <= room) { text = candidate; break; }
+  }
+  holder.textContent = text;
+  button.dataset.tooltip = name;
+}
+window.addEventListener('resize', () => { if (batch.rows.length && batch.at >= 0) renderModelSwitch(); });
+document.fonts?.ready.then(() => { if (batch.rows.length && batch.at >= 0) renderModelSwitch(); });
+
 /** Step to the previous or next model that can be opened, round the list. */
 function stepModel(direction) {
   const viewable = batch.rows.filter(row => DONE.includes(row.status)).map(row => row.id);
@@ -910,7 +951,7 @@ function remaining(report) {
 function renderBatchNote() {
   if (!$('batch-note') || !batch.rows.length) return;
   const height = heightMm();
-  $('batch-note').textContent = `An STL and a 3MF of every repaired model, ${height ? `each ${height} mm tall` : 'each at its file\'s own size'}, with a summary. Change the height under Size, below any model.`;
+  $('batch-note').textContent = `An STL and a 3MF of every repaired model, ${height ? `each ${height} mm tall` : 'each at its file\'s own size'}, with a summary.`;
 }
 
 /** Put the packed files together. Nothing is made here but the summary and the ZIP's index. */
