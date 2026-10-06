@@ -552,8 +552,12 @@ body.outcome-clean :is(.about, .faq) { display: none; }
 .snippet-note { font-size: 13px; opacity: 0.75; }
 :is(.about, .modal) :is(p, li) code { padding: 1px 5px; background: var(--fill-strong); border-radius: 4px; white-space: nowrap; }
 
-.modal { width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 32px); margin: auto; padding: 0; overflow-y: auto; color: var(--ink); background: var(--paper); border: 1px solid var(--line-strong); border-radius: 16px; box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35); }
-.modal::backdrop { background: rgba(0, 0, 0, 0.5); }
+/* The pop-up as on heyhaigh.ai: the page behind it blurred and dimmed, the box itself in a
+   darker, greyer tone than the page so it reads as a layer of its own. */
+.modal { width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 32px); margin: auto; padding: 0; overflow-y: auto; color: var(--ink); background: var(--modal); border: 1px solid var(--modal-line); border-radius: 16px; box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4); }
+.modal::backdrop { background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+:root { --modal: #e2e2df; --modal-line: rgba(0, 0, 0, 0.12); }
+:root.dark-mode { --modal: #0e1116; --modal-line: rgba(255, 255, 255, 0.1); }
 .modal-body { padding: 24px; }
 .modal h2 { margin-bottom: 8px; }
 .modal ul { margin: 16px 0 20px 20px; font-size: 14px; }
