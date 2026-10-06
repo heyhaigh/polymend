@@ -99,9 +99,10 @@ check(changed.length === 1, `only the turned model changed (${changed.join(', ')
 
 // 6. Quick switching ends on the right model, ready to download under its own name.
 await page.evaluate(() => { for (let i = 0; i < 5; i++) document.getElementById('model-next').click(); });
-await page.waitForFunction(() => !document.getElementById('download-all').disabled, null, { timeout: 60000 });
+await page.waitForFunction(() => !document.getElementById('download-menu-button').disabled, null, { timeout: 60000 });
 const last = (await page.evaluate(() => document.getElementById('model-trigger').dataset.tooltip || document.getElementById('model-current').textContent)).replace(/\.glb$/, '');
-[download] = await Promise.all([page.waitForEvent('download'), page.click('#download-all')]);
+await page.click('#download-menu-button'); // in a batch the main button is the whole batch; the menu is the model in view
+[download] = await Promise.all([page.waitForEvent('download'), page.click('.toolbar .split-menu [data-download="zip"]')]);
 check(download.suggestedFilename() === `${last}-mended.zip`, `after quick switching the download is the model in view (${download.suggestedFilename()} for ${last})`);
 
 // 7. A single file chosen while the ZIP is being built ends the batch; nothing arrives later.
@@ -132,6 +133,10 @@ for (const delay of [100, 400, 900]) {
   if (crashed) break;
 }
 check(!crashed, 'a new batch dropped while models are being packed does not crash the page');
+
+// 9. In a batch the main download button gives every model; it waits while the ZIP is built.
+const main = await page.evaluate(() => document.querySelector('#download-all .download-label').textContent);
+check(/^(Download all \d+|Building ZIP)/.test(main), `the main download button is for the whole batch ("${main}")`);
 
 check(!errors.length, `no page errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
 await browser.close();

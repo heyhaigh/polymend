@@ -138,6 +138,7 @@ function setBusy(busy) {
   const locked = busy || !!state.unsynced;
   $('rotate').disabled = locked;
   for (const control of document.querySelectorAll('[data-option], [data-download], .split-caret')) control.disabled = locked;
+  if (typeof lockDownloads === 'function' && batch.rows.length) lockDownloads();
   if (busy) closeMenus();
   if (batch.rows.length && $('model-switch')) renderModelSwitch();
 }
@@ -332,13 +333,39 @@ function renderOutcome() {
     notes.unshift(...why);
   }
   $('outcome-reasons').replaceChildren(...notes.map(text => Object.assign(document.createElement('li'), { textContent: text })));
-  const anyway = r.status === 'partial';
-  // The orange button is a promise that the file is ready, so it steps down when it is not.
+  renderDownloads();
+}
+
+/**
+ * The download buttons. For one model, the main button gives its STL and 3MF together. In
+ * a batch it gives every model in one ZIP, and the menu beside it, headed by the name of
+ * the model in view, gives that model alone in each format.
+ */
+function renderDownloads() {
+  const inBatch = state.quietShown && batch.rows.length > 0;
+  const zip = inBatch ? batchZipState() : null;
+  // The orange button is a promise that the files are ready, so it steps down when they are not.
+  const anyway = inBatch ? batch.rows.some(row => row.status === 'partial') : state.report?.status === 'partial';
   for (const split of document.querySelectorAll('[data-split]')) {
     split.classList.toggle('anyway', anyway);
-    // In a batch, "all" would sound like every model; this button is for the one in view.
-    const one = state.quietShown;
-    split.querySelector('.download-label').textContent = one ? (anyway ? 'Download this one anyway' : 'Download this one') : (anyway ? 'Download all anyway' : 'Download all');
+    const main = split.querySelector('.split-main');
+    main.classList.toggle('building', !!zip?.building);
+    main.dataset.batch = String(inBatch);
+    split.querySelector('.download-label').textContent = inBatch
+      ? (zip.building ? `Building ZIP… ${zip.ready} of ${zip.total}` : `Download all ${zip.ready}`)
+      : (anyway ? 'Download all anyway' : 'Download all');
+    const title = split.querySelector('.split-menu-title');
+    title.hidden = !inBatch;
+    if (inBatch) title.textContent = clean(state.shown);
+  }
+  lockDownloads();
+}
+
+/** The main button waits for the batch ZIP; the menu's single-model choices do not. */
+function lockDownloads() {
+  const locked = state.busy || !!state.unsynced;
+  for (const main of document.querySelectorAll('[data-split] .split-main')) {
+    main.disabled = main.dataset.batch === 'true' ? (batchZipState().building || !batchZipState().ready) : locked;
   }
 }
 
@@ -823,15 +850,21 @@ function renderBatch() {
   $('batch-toggle').setAttribute('aria-expanded', String(open));
   $('batch-toggle-label').textContent = batch.expanded ? 'Hide list' : 'Show list';
   // The ZIP is put together from each model's packed files, made in the background.
-  const done = rows.filter(row => DONE.includes(row.status) && !row.buildError);
-  const ready = done.filter(current).length;
-  const building = batch.running || ready < done.length;
+  const { ready, building, total } = batchZipState();
   const button = $('batch-download');
   button.disabled = building || !ready;
   button.classList.toggle('building', building);
   button.setAttribute('aria-busy', String(building));
-  $('batch-download-label').textContent = building ? `Building ZIP… ${ready} of ${batch.running ? rows.length : done.length}` : `Download all ${ready} (ZIP)`;
+  $('batch-download-label').textContent = building ? `Building ZIP… ${ready} of ${total}` : `Download all ${ready} (ZIP)`;
+  if (state.quietShown) renderDownloads();
   renderBatchNote();
+}
+
+/** How far the batch ZIP's parts are made: ready of total, and whether any are still to come. */
+function batchZipState() {
+  const done = batch.rows.filter(row => DONE.includes(row.status) && !row.buildError);
+  const ready = done.filter(current).length;
+  return { ready, total: batch.running ? batch.rows.length : done.length, building: batch.running || ready < done.length };
 }
 
 /** The switch above the view: which model is in it, and the way to the others. */
@@ -1066,7 +1099,14 @@ $('rotate').addEventListener('click', () => {
   state.pendingEdit = true;
   ask({ type: 'rotate' });
 });
-for (const button of document.querySelectorAll('[data-download]')) button.addEventListener('click', () => { closeMenus(); download(button.dataset.download); });
+for (const button of document.querySelectorAll('[data-download]')) {
+  button.addEventListener('click', () => {
+    closeMenus();
+    // In a batch the main button is the whole batch; the menu's choices are the model in view.
+    if (button.classList.contains('split-main') && button.dataset.batch === 'true') return downloadBatch();
+    download(button.dataset.download);
+  });
+}
 
 // The arrow beside "Download all" opens a short menu of single formats.
 function closeMenus(focusCaret = false) {

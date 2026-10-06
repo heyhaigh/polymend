@@ -414,10 +414,10 @@ body.dragging.drag-wrong .cta-box {
 .batch-download svg { display: block; }
 .batch-download[disabled] { opacity: 0.5; cursor: default; }
 /* While the ZIP is being built: a pulsing dot in place of the arrow, at full strength. */
-.batch-download.building[disabled] { opacity: 0.85; }
-.batch-download.building svg { display: none; }
-.batch-download.building::before { content: ""; width: 9px; height: 9px; margin: 0 3px; border-radius: 50%; background: var(--orange); animation: pulse 1s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) { .batch-download.building::before { animation: none; } }
+.batch-download.building[disabled], .split-main.building[disabled] { opacity: 0.85; }
+.batch-download.building svg, .split-main.building svg { display: none; }
+.split-main.building::before, .batch-download.building::before { content: ""; width: 9px; height: 9px; margin: 0 3px; border-radius: 50%; background: var(--orange); animation: pulse 1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .batch-download.building::before, .split-main.building::before { animation: none; } }
 /* The model switch above the view, in a batch: arrows, a list of every model, and "2 of 4". */
 .model-switch { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .model-pick { position: relative; display: inline-flex; flex: 0 1 auto; min-width: 0; }
@@ -575,6 +575,8 @@ input[type="checkbox"] { width: 14px; height: 14px; margin-right: 8px; accent-co
 .split-menu button:is(:hover, :focus-visible) { background: color-mix(in srgb, currentColor 10%, transparent); outline: none; }
 .split-menu strong { display: block; font-weight: 500; }
 .split-menu span { display: block; font-size: 11px; opacity: 0.7; }
+/* In a batch the menu's choices are for the model in view; its name heads them. */
+.split-menu-title { margin: 2px 12px 4px; font-size: 11px; opacity: 0.6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
 @media (prefers-reduced-motion: reduce) { .download-split { transition: none; transform: none !important; } }
 
 /* After a clean repair there is nothing to explain, so the explanation and questions are
