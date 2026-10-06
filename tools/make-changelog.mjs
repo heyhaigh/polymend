@@ -1,4 +1,4 @@
-// Make changelog.html, the "Change log" page, from CHANGELOG.md, so the page and the file in
+// Make changelog.html, the "Changelog" page, from CHANGELOG.md, so the page and the file in
 // the repository always say the same thing. A test fails if the page is out of date.
 // Usage: node tools/make-changelog.mjs
 import fs from 'node:fs';
@@ -12,7 +12,7 @@ const inline = text => escape(text).replace(/`([^`]+)`/g, '<code>$1</code>');
 export function changelogPage(markdown) {
   const lines = markdown.replace(/\r/g, '').split('\n');
   const body = [];
-  let title = 'Change log', lede = '', list = false;
+  let title = 'Changelog', lede = '', list = false;
   const closeList = () => { if (list) { body.push('      </ul>'); list = false; } };
   for (const raw of lines) {
     const line = raw.trim();
@@ -66,7 +66,7 @@ ${body.join('\n')}
     <nav class="site-links" aria-label="About this site">
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
-      <a href="/changelog">Change log</a>
+      <a href="/changelog">Changelog</a>
       <a href="mailto:feedback@polymend.xyz?subject=Polymend%20feedback">Send feedback</a>
       <a href="https://github.com/heyhaigh/polymend">GitHub</a>
       <a href="/#embed">Embed on your site</a>

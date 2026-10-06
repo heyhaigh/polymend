@@ -1,4 +1,4 @@
-# Change log
+# Changelog
 
 What has changed in Polymend, newest first. Each version is marked with the moment it was published. From version 0.3.0 on, every change is listed here and recorded in the project's public history.
 

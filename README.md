@@ -13,7 +13,7 @@ node tools/build-site.mjs     # copy only the public files into dist/
 npx wrangler deploy           # publish dist/ to Cloudflare (polymend.xyz)
 ```
 
-The site is a Cloudflare Worker with static assets (`wrangler.toml`). `_headers` sets its security policy. Only `/embed`, the tool on its own, may be placed in a frame by other sites; `embed.html` is made from `index.html` by `node tools/make-embed.mjs` and is never edited by hand. After a deploy, `node tools/check-live.mjs` checks the live site's headers and pages. Changes are listed in `CHANGELOG.md`, each version with the moment it was published; `node tools/make-changelog.mjs` makes the Change log page from it.
+The site is a Cloudflare Worker with static assets (`wrangler.toml`). `_headers` sets its security policy. Only `/embed`, the tool on its own, may be placed in a frame by other sites; `embed.html` is made from `index.html` by `node tools/make-embed.mjs` and is never edited by hand. After a deploy, `node tools/check-live.mjs` checks the live site's headers and pages. Changes are listed in `CHANGELOG.md`, each version with the moment it was published; `node tools/make-changelog.mjs` makes the Changelog page from it.
 
 ## Privacy
 
