@@ -29,7 +29,6 @@ export function embedPage(home) {
   // Inside a frame, only the frame itself can take a dropped file.
   page = replaceOnce(page, 'Anywhere on this page works.', 'Anywhere in this box works.');
   // The embed takes one model at a time.
-  page = replaceOnce(page, ' file, or up to 20 at once.', ' file.');
   page = replaceOnce(page, ' multiple hidden>', ' hidden>');
   page = replaceOnce(page, '    <!-- embed:credit -->', CREDIT);
   return page;
