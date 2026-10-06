@@ -391,8 +391,6 @@ figcaption { font-size: 11px; line-height: 1.6; opacity: 0.8; margin-top: 10px; 
 .counts td.zero { color: var(--good); font-weight: 600; }
 .counts td.left { font-weight: 600; }
 
-.changes { margin: 8px 0 0 24px; }
-.changes li { margin-bottom: 5px; }
 
 /* Options sit in the same box the site uses for a contents list. */
 .options { margin-top: 28px; padding: 16px 20px; background: var(--fill); border: 1px solid var(--line); border-radius: 12px; }

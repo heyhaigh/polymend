@@ -33,7 +33,7 @@ const read = () => page.evaluate(() => ({
   outcome: document.getElementById('outcome-title').textContent,
   cls: document.getElementById('outcome').className,
   counts: [...document.querySelectorAll('#counts tr')].map(row => [...row.children].map(cell => cell.textContent).join(' | ')),
-  changes: [...document.querySelectorAll('#changes li')].map(li => li.textContent),
+  notes: [...document.querySelectorAll('#outcome-reasons li')].map(li => li.textContent),
   crossings: document.getElementById('crossings').textContent,
   size: document.getElementById('size').textContent,
   step: document.getElementById('step-label').textContent,

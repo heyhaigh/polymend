@@ -252,7 +252,7 @@ function renderOutcome() {
     r.pinchedEdgesCut && `separated surfaces along ${plural(r.pinchedEdgesCut, 'edge')}`,
     r.facesFlipped && `turned ${plural(r.facesFlipped, 'triangle')} to face outward`,
   ].filter(Boolean);
-  if (did.length) notes.push(`Polymend ${list(did)}. The markers in the view show where.`);
+  if (did.length) notes.push(`Polymend ${list(did)}. ${r.seamPointsJoined ? 'Apart from the joined seam points, no' : 'No'} existing point of the model was moved. The markers in the view show where.`);
   if (r.specksRemoved) notes.push(`${r.specksRemoved === 1 ? 'The small separate piece was' : 'The small separate pieces were'} closed and under 2% of the model's size, which is usually debris. If ${r.specksRemoved === 1 ? 'it was' : 'they were'} part of your design, turn off "Remove tiny loose specks" under Repair options.`);
   // A rigged or animated model has many poses; say which one this is.
   if (state.notes.length) {
@@ -328,28 +328,14 @@ function renderCounts() {
   }));
 }
 
+/** The hint under the view, and the information lines. What changed is said on the outcome card. */
 function renderChanges() {
   const r = state.report;
-  const lines = [];
-  if (r.seamPointsJoined) lines.push(`Joined ${plural(r.seamPointsJoined, 'pair')} of points that sat a hair apart along a seam, closing the cut between them.`);
-  if (r.strayFacesRemoved) lines.push(`Removed ${plural(r.strayFacesRemoved, 'stray triangle')}: paper-thin scraps stuck to the surface, which cannot print.`);
-  if (r.specksRemoved) lines.push(`Removed ${plural(r.specksRemoved, 'small separate piece')}, each closed and under 2% of the model's size.`);
-  if (r.duplicateRemoved + r.degenerateRemoved) lines.push(`Removed ${plural(r.duplicateRemoved + r.degenerateRemoved, 'duplicate or collapsed triangle')}.`);
-  if (r.holesFilled.length) lines.push(`Patched ${plural(r.holesFilled.length, 'hole')}${r.holes && r.holes.curved ? ` (${r.holes.flat} flat, ${r.holes.curved} curved)` : ''} with ${plural(r.trianglesAdded, 'new triangle')}.${r.patchesCrossing ? ` ${plural(r.patchesCrossing, 'patch', 'patches')} of them ${r.patchesCrossing === 1 ? 'passes' : 'pass'} through nearby surface.` : ''}`);
-  if (r.pinchedEdgesCut) lines.push(`Separated surfaces that touched along ${plural(r.pinchedEdgesCut, 'edge')}.`);
-  if (r.facesFlipped) lines.push(`Turned ${plural(r.facesFlipped, 'triangle')} to face outward.`);
-  if (!lines.length) lines.push('Nothing. The model is exactly as it was.');
-  else lines.push(r.seamPointsJoined ? 'Apart from the seam points that were joined, no existing point of the model was moved.' : 'No existing point of the model was moved.');
-  $('changes').replaceChildren(...lines.map(text => Object.assign(document.createElement('li'), { textContent: text })));
   renderCrossings();
   const changed = r.strayFacesRemoved + r.trianglesAdded + r.specksRemoved + r.facesFlipped + r.duplicateRemoved + r.degenerateRemoved + r.pinchedEdgesCut + r.seamPointsJoined > 0;
   $('view-hint').textContent = changed ? 'Solid dots mark changes on the side facing you; faint dots are on the far side. Most changes are too small to see from here, so use the arrows to visit each one, shown with a ring around it.' : '';
 }
 
-/**
- * Places where the surface passes through itself. The count arrives a moment after the
- * result, so until then the line says the check is still running rather than saying nothing.
- */
 function renderCrossings() {
   const r = state.report, now = r.crossingsAfter, was = r.crossingsBefore;
   let text = '';
