@@ -170,31 +170,32 @@ h3 { font-size: 18px; font-weight: 400; margin: 28px 0 8px; }
   margin-inline: auto;
   overflow: hidden; /* the pulse below is clipped to the card */
 }
-/* Every five seconds, while the card is left alone, a ring runs out from the middle to the
-   corners: a quick ripple, then quiet. It stops the moment the pointer arrives, while a
-   file is held over the page, and once a model is loaded. Transform and opacity only, so
-   it costs nothing to run. */
+/* Every five seconds, while the card is left alone, the same halftone dots the pointer
+   reveals spread out from the middle until they fill the card, then fade away. The spread
+   is a mask whose radius is an animated custom property; the card is small, so repainting
+   it for a second every five costs nothing noticeable. Stops the moment the pointer
+   arrives, while a file is held over the page, and once a model is loaded. */
+@property --spread { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
 .cta-box::after {
   content: "";
   position: absolute;
-  left: 50%;
-  top: 50%;
+  inset: 0;
   z-index: -1;
-  width: 110%;
-  aspect-ratio: 1;
-  border-radius: 50%;
+  border-radius: inherit;
   pointer-events: none;
-  border: 2px solid color-mix(in srgb, var(--orange) 80%, transparent);
-  box-shadow: 0 0 22px color-mix(in srgb, var(--orange) 35%, transparent), inset 0 0 22px color-mix(in srgb, var(--orange) 22%, transparent);
+  background: radial-gradient(circle, var(--orange-dot) 1px, transparent 1.5px) 0 0 / 9px 9px;
+  --spread: 0%;
+  mask-image: radial-gradient(circle farthest-corner at 50% 50%, #000 calc(var(--spread) - 18%), transparent var(--spread));
+  -webkit-mask-image: radial-gradient(circle farthest-corner at 50% 50%, #000 calc(var(--spread) - 18%), transparent var(--spread));
   opacity: 0;
-  transform: translate(-50%, -50%) scale(0.02);
-  animation: ripple 5s cubic-bezier(0.16, 0.84, 0.3, 1) 1.2s infinite;
+  animation: spread-dots 5s cubic-bezier(0.2, 0.7, 0.3, 1) 1.2s infinite;
 }
-@keyframes ripple {
-  0% { transform: translate(-50%, -50%) scale(0.02); opacity: 0; }
-  3% { opacity: 0.7; }
-  24% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
-  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+@keyframes spread-dots {
+  0% { --spread: 0%; opacity: 0; }
+  5% { opacity: 0.26; }
+  28% { --spread: 120%; opacity: 0.26; }
+  44% { --spread: 120%; opacity: 0; }
+  100% { --spread: 120%; opacity: 0; }
 }
 .cta-box:hover::after, .cta-box.has-pointer-trail::after, body.dragging .cta-box::after, .cta-box.compact::after { animation: none; }
 @media (prefers-reduced-motion: reduce) { .cta-box::after { animation: none; } }
