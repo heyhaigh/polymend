@@ -45,7 +45,8 @@ function spotsOf(soup, kind, size) {
   }));
 }
 
-function send() {
+/** Everything the view needs to show a repair: both models, the changes, and where they are. */
+function viewOf(mesh, result) {
   const before = { positions: new Float32Array(mesh.positions), tris: new Uint32Array(mesh.tris) };
   const after = { positions: new Float32Array(result.positions), tris: new Uint32Array(result.tris) };
   const removed = soupOf(mesh.positions, mesh.tris, f => !result.kept[f]);
@@ -64,8 +65,15 @@ function send() {
   // Which way the repaired surface faces at each change, so the viewer can look at it squarely.
   const normalAt = normalFinder(result.positions, result.tris, size, spots.length);
   for (const spot of spots) spot.normal = normalAt(spot.centre, Math.max(spot.radius * 2.5, size * 0.006));
-  postMessage({ type: 'result', format: mesh.format, unit: mesh.unit, notes: mesh.notes || [], report: result.report, extent, before, after, removed, added, flipped, spots },
-    [before.positions.buffer, before.tris.buffer, after.positions.buffer, after.tris.buffer, removed.buffer, added.buffer, flipped.buffer]);
+  return {
+    message: { format: mesh.format, unit: mesh.unit, notes: mesh.notes || [], report: result.report, extent, before, after, removed, added, flipped, spots },
+    transfer: [before.positions.buffer, before.tris.buffer, after.positions.buffer, after.tris.buffer, removed.buffer, added.buffer, flipped.buffer],
+  };
+}
+
+function send() {
+  const { message, transfer } = viewOf(mesh, result);
+  postMessage({ type: 'result', ...message }, transfer);
 }
 
 /**
@@ -122,11 +130,11 @@ const safeName = name => String(name).replace(/[^A-Za-z0-9 ._()+-]/g, '_').repla
  * The count is bounded, and if it cannot be made the page is told so; nothing here can
  * turn a finished repair into a failure.
  */
-function later() {
+function later(sync) {
   let counts;
   try { counts = countCrossings(mesh, result); } catch { counts = { crossingsBefore: null, crossingsAfter: null, crossingsSkipped: true }; }
   Object.assign(result.report, counts);
-  postMessage({ type: 'crossings', ...counts });
+  postMessage({ type: 'crossings', sync, ...counts });
 }
 
 /** Quarter turn about X, for a model that arrives lying down. Shape and faults are unchanged. */
@@ -145,8 +153,10 @@ onmessage = async event => {
       const wanted = message.options || {};
       const mended = mend(loaded, wanted, progress, { crossings: false });
       mesh = loaded; options = wanted; result = mended; // all three, and only now
-      send();
-      later();
+      // A batch model already on screen only needs to be here for downloads and options.
+      if (message.sync) postMessage({ type: 'ready', sync: message.sync });
+      else send();
+      later(message.sync);
     } else if (message.type === 'options' && mesh) {
       const mended = mend(mesh, message.options, progress, { crossings: false });
       options = message.options; result = mended;
@@ -161,8 +171,9 @@ onmessage = async event => {
       // a stuck or crashed file costs only its own row when this worker is replaced.
       const loaded = await loadAsync(new Uint8Array(message.buffer), message.name, progress);
       const mended = mend(loaded, message.options || {}, progress, { crossings: false });
-      const positions = new Float32Array(mended.positions), tris = new Uint32Array(mended.tris);
-      postMessage({ type: 'batch-result', format: loaded.format, unit: loaded.unit, notes: loaded.notes || [], report: mended.report, positions, tris }, [positions.buffer, tris.buffer]);
+      // The whole view comes back with it, so switching to this model later is instant.
+      const { message: view, transfer } = viewOf(loaded, mended);
+      postMessage({ type: 'batch-result', ...view }, transfer);
     } else if (message.type === 'batch-export') {
       // Several models at the one height, each as an STL and a 3MF, with a summary, in one ZIP.
       const files = [];

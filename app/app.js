@@ -198,8 +198,13 @@ function onMessage(event) {
   const message = event.data;
   if (message.type === 'progress') return setStatus(message.label, 'busy');
   // The self-crossing count arrives a moment after the result, as an extra.
-  if (message.type === 'crossings') { if (state.report) { Object.assign(state.report, message); renderCrossings(); } return; }
+  if (message.type === 'crossings') {
+    // Counts for a batch model that has since been switched away from are not this one's.
+    if (state.report && (!message.sync || message.sync === state.syncGen)) { Object.assign(state.report, message); renderCrossings(); }
+    return;
+  }
   clearTimeout(limit);
+  if (message.type === 'ready') { if (message.sync === state.syncGen) { state.syncing = false; setBusy(false); } return; }
   if (message.type === 'error') fail(message.message);
   else if (message.type === 'result') showResult(message);
   else if (message.type === 'file') save(message);
@@ -453,7 +458,7 @@ const BATCH_FILES = 20;
 const BATCH_BYTES = 1024 ** 3;
 const MODEL_NAME = /\.(glb|stl)$/i;
 const STATUS_WORDS = { waiting: 'Waiting', working: 'Repairing', repaired: 'Repaired', sound: 'Nothing to fix', partial: 'Partly repaired', failed: 'Not repaired' };
-const batch = { rows: [], skipped: [], at: -1, running: false, exporting: false, worker: null, timer: 0 };
+const batch = { rows: [], skipped: [], at: -1, running: false, exporting: false, worker: null, timer: 0, viewBytes: 0 };
 
 /** Files chosen or dropped: one goes to the view as before; several become a batch. */
 function takeFiles(files) {
@@ -486,6 +491,7 @@ function startBatch(files, skipped) {
   });
   batch.skipped = skipped;
   batch.at = -1;
+  batch.viewBytes = 0;
   batch.running = true;
   $('batch').hidden = false;
   $('choose-label').textContent = 'Choose other files';
@@ -501,7 +507,8 @@ function startBatch(files, skipped) {
 function clearBatch() {
   if (!batch.rows.length && !batch.running) return;
   if (batch.running) { batch.worker?.terminate(); batch.worker = null; clearTimeout(batch.timer); }
-  Object.assign(batch, { rows: [], skipped: [], at: -1, running: false });
+  Object.assign(batch, { rows: [], skipped: [], at: -1, running: false, viewBytes: 0 });
+  state.syncing = false;
   $('batch').hidden = true;
   if ($('model-switch')) $('model-switch').hidden = true;
   placeTop();
@@ -557,7 +564,13 @@ function onBatchMessage(event) {
   const row = batch.rows.find(item => item.status === 'working');
   if (!row) return;
   if (message.type === 'error') Object.assign(row, { status: 'failed', error: message.message });
-  else Object.assign(row, { status: message.report.status, report: message.report, format: message.format, unit: message.unit, notes: message.notes, positions: message.positions, tris: message.tris });
+  else {
+    Object.assign(row, { status: message.report.status, report: message.report, format: message.format, unit: message.unit, notes: message.notes, positions: message.after.positions, tris: message.after.tris });
+    // Keep the whole view, so switching to this model is instant, while memory allows.
+    // Past the budget only the repaired model is kept, and the switch repairs it again.
+    const bytes = viewBytes(message);
+    if (batch.viewBytes + bytes <= VIEW_BUDGET) { row.view = message; batch.viewBytes += bytes; }
+  }
   nextInBatch();
 }
 
@@ -588,19 +601,42 @@ function finishBatch() {
   $('batch-title').focus({ preventScroll: true });
 }
 
+const VIEW_BUDGET = 400 * 1024 ** 2;
+const viewBytes = view => [view.before.positions, view.before.tris, view.after.positions, view.after.tris, view.removed, view.added, view.flipped].reduce((sum, array) => sum + (array?.byteLength || 0), 0);
+
+/**
+ * Show a batch model. One whose view is kept appears at once; the view's worker then loads
+ * it quietly, and downloads and options wait the second that takes. Switching again in that
+ * second is fine: only the latest load counts.
+ */
 function viewRow(index) {
   const row = batch.rows[index];
-  if (!row || !row.positions || state.busy) return;
+  if (!row || !row.positions || (state.busy && !state.syncing)) return;
   batch.at = index;
-  renderBatch();
-  openFile(row.file, { fromBatch: true, turns: row.turns });
+  if (!row.view) {
+    // A quiet load still on its way is overtaken by this one; the worker takes them in order.
+    if (state.syncing) { state.syncGen++; state.syncing = false; state.busy = false; }
+    renderBatch();
+    return openFile(row.file, { fromBatch: true, turns: row.turns });
+  }
+  Object.assign(state, { name: row.file.name, pendingFile: row.file, fresh: true, fromBatch: true });
+  showResult(row.view);
+  const sync = state.syncGen = (state.syncGen || 0) + 1;
+  state.syncing = true;
+  setBusy(true);
+  setStatus(`${row.file.name} · ${number(row.report.before.triangles)} triangles`);
+  row.file.arrayBuffer()
+    .then(buffer => { if (sync === state.syncGen) ask({ type: 'load', buffer, name: row.file.name, options: options(), turns: row.turns, sync }, [buffer]); })
+    .catch(() => {});
 }
 
 /** A repair of the model in view (another option, a quarter turn) is the row's model now. */
 function keepRow(message) {
   const row = batch.rows[batch.at];
   if (!row) return;
-  Object.assign(row, { status: message.report.status, report: message.report, positions: new Float32Array(message.after.positions), tris: new Uint32Array(message.after.tris) });
+  // The same arrays the view is drawing; nothing changes them, and downloads take copies.
+  if (row.view && row.view !== message) { batch.viewBytes += viewBytes(message) - viewBytes(row.view); row.view = message; }
+  Object.assign(row, { status: message.report.status, report: message.report, positions: message.after.positions, tris: message.after.tris });
   renderBatch();
   setBatchBadge();
 }
@@ -657,7 +693,7 @@ function renderModelSwitch() {
   const place = viewable.findIndex(([, i]) => i === batch.at);
   $('model-count').textContent = `${place + 1} of ${viewable.length}`;
   $('model-dot').className = 'model-dot ' + (batch.rows[batch.at]?.status || '');
-  for (const id of ['model-prev', 'model-next', 'model-select']) $(id).disabled = state.busy || viewable.length < 2;
+  for (const id of ['model-prev', 'model-next', 'model-select']) $(id).disabled = (state.busy && !state.syncing) || viewable.length < 2;
 }
 
 /** Step to the previous or next viewable model, round the list. */
