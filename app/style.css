@@ -126,7 +126,11 @@ strong { font-weight: 600; }
 .top-stick::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 48px; background: var(--paper); -webkit-mask-image: linear-gradient(#000, transparent); mask-image: linear-gradient(#000, transparent); pointer-events: none; transition: background-color 0.3s ease; }
 /* On a very short screen, such as a phone on its side, pinning would leave no room to read. */
 @media (max-height: 560px) { .top-stick { position: static; } .top-stick::after { display: none; } }
-body.has-results .top-stick::after { height: 24px; }
+/* With results the comparison comes first and the cards and file strip follow it, so
+   nothing pins over the view; only the home page's upload card stays pinned. */
+body.has-results .top-stick { position: static; padding-top: 28px; }
+body.has-results .top-stick::after { display: none; }
+body.has-results:not(.embed) #results { margin-top: 96px; }
 /* Every 720px block sits in the middle of the page; text inside stays left-aligned. */
 .tool-header { max-width: 720px; margin: 0 auto 16px; }
 /* With a model loaded, the working area matters more than the introduction. */

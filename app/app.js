@@ -76,7 +76,7 @@ function lostModel() {
   state.report = null;
   $('results').hidden = true;
   $('outcome').hidden = true;
-  if (EMBED) $('results').before($('top-stick')); // back above the view
+  $('results').before($('top-stick')); // back above, where the upload card belongs
   document.body.classList.remove('has-results', 'outcome-clean');
   $('drop').classList.remove('compact');
   $('choose-label').textContent = 'Choose a file';
@@ -162,7 +162,8 @@ function fail(message, title = FAILURES.unreadable.title) {
   $('failure').hidden = false;
   document.body.classList.remove('outcome-clean');
   placeTop();
-  toTop();
+  if (document.body.classList.contains('has-results')) $('failure').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+  else toTop();
   setBadge('bad', 'Not repaired');
   sound.play('failed');
   setStatus(state.report ? `${state.shown} · ${number(state.report.before.triangles)} triangles` : '');
@@ -249,9 +250,8 @@ function showResult(message) {
   // In a batch the batch card speaks for every model, so the single-model card stays away.
   $('outcome').hidden = quiet;
   document.body.classList.add('has-results');
-  // In a short frame the comparison matters most, so there it comes first and the outcome
-  // card and the file strip follow it.
-  if (EMBED) document.querySelector('.view').after($('top-stick'));
+  // The comparison matters most, so it comes first; the cards and the file strip follow it.
+  document.querySelector('.view').after($('top-stick'));
   if (fresh && !quiet) {
     // A GLB is nominally in meters, but many arrive at an arbitrary size, so a height is needed.
     // An STL may already be the right size, so it is left alone unless asked.
@@ -581,6 +581,7 @@ function retire(old) {
 function forgetModel() {
   state.gen++; // an answer still coming for the model that was in view is not wanted now
   state.report = null;
+  $('results').before($('top-stick')); // the batch card shows progress at the top until a model opens
   $('results').hidden = true;
   $('outcome').hidden = true;
   document.body.classList.remove('has-results', 'outcome-clean');
