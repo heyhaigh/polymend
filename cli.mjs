@@ -41,7 +41,7 @@ for (const name of WITH_VALUE) if (flag(name) && (!value(name) || value(name).st
 const clean = text => String(text).replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, ' ');
 
 const MODEL = /\.(glb|stl)$/i;
-const OWN_OUTPUT = /-mended\.(glb|stl)$/i; // this tool's own output, from an earlier run
+const OWN_OUTPUT = /-mended\.stl$/i; // this tool's own output, from an earlier run (it never writes a GLB)
 const isFile = file => { try { return fs.statSync(file).isFile(); } catch { return false; } };
 // A folder stands for the models directly inside it, in name order. Subfolders, entries
 // that cannot be read (such as a broken link) and earlier outputs of this tool are left out.
@@ -68,19 +68,21 @@ const TITLES = { repaired: 'Repaired', sound: 'Nothing to fix', partial: 'Partly
 
 // Two inputs with the same name would write over each other's files, also where a computer
 // ignores capitals; later ones get the first free number.
+// Names only need to differ within one output folder.
 const taken = new Set();
-const nameFor = input => {
+const nameFor = (input, out) => {
   const base = clean((inputs.length === 1 && value('--name')) || path.basename(input).replace(MODEL, '')).trim() || 'model';
+  const key = name => `${path.resolve(out)}\0${name.toLowerCase()}`;
   let name = base;
-  for (let n = 2; taken.has(name.toLowerCase()); n++) name = `${base}-${n}`;
-  taken.add(name.toLowerCase());
+  for (let n = 2; taken.has(key(name)); n++) name = `${base}-${n}`;
+  taken.add(key(name));
   return name;
 };
 
 /** Repair one model and write its files. Returns its summary; a file that cannot be read gives status "failed". */
 async function repairOne(input) {
-  const name = nameFor(input);
   const out = value('--out') || path.dirname(path.resolve(input));
+  const name = nameFor(input, out);
   let mesh, result;
   try {
     // Refuse an oversized file before reading it, rather than after.
@@ -153,12 +155,18 @@ const batch = {
   results: summaries.map(s => ({ input: s.input, status: s.status, ...(s.error ? { error: s.error } : { files: s.files }) })),
 };
 const batchDir = value('--out') || path.dirname(path.resolve(inputs[0]));
-fs.mkdirSync(batchDir, { recursive: true });
-fs.writeFileSync(path.join(batchDir, 'polymend-batch.json'), JSON.stringify(batch, null, 2));
+// The list is still printed if it cannot be saved, so a caller reading --json gets it.
+try {
+  fs.mkdirSync(batchDir, { recursive: true });
+  fs.writeFileSync(path.join(batchDir, 'polymend-batch.json'), JSON.stringify(batch, null, 2));
+  batch.list = path.join(batchDir, 'polymend-batch.json');
+} catch (error) {
+  batch.listError = `Could not write polymend-batch.json: ${clean(error.message)}`;
+}
 if (json) console.log(JSON.stringify(batch));
 else {
   say(`\n${summaries.length} models: ${['repaired', 'sound', 'partial', 'failed'].filter(count).map(s => `${count(s)} ${TITLES[s].toLowerCase()}`).join(', ')}.`);
   for (const s of summaries) say(`  ${TITLES[s.status].padEnd(17)} ${clean(path.basename(s.input))}`);
-  say(`Wrote ${path.join(batchDir, 'polymend-batch.json')}`);
+  if (batch.list) say(`Wrote ${batch.list}`); else console.error(batch.listError);
 }
-process.exit(batch.failed ? 1 : batch.partial ? 2 : 0);
+process.exit(batch.failed || batch.listError ? 1 : batch.partial ? 2 : 0);

@@ -115,6 +115,21 @@ await page.waitForTimeout(4000);
 check(await page.locator('#batch').isHidden(), 'the batch card is gone');
 check(downloads.length === before, 'no download arrives from the stopped batch');
 
+// 8. A new batch while a real model is still being packed: WebKit once crashed the whole
+// page when the packing worker was stopped mid-job, so it must be let finish instead.
+let crashed = false;
+page.on('crash', () => { crashed = true; });
+for (const delay of [100, 400, 900]) {
+  await page.setInputFiles('#file', real.slice(0, 2));
+  await page.waitForFunction(() => /Building ZIP/.test(document.getElementById('batch-download-label').textContent) && /^\d+ models$/.test(document.getElementById('batch-title').textContent), null, { timeout: 120000 });
+  await page.waitForTimeout(delay);
+  await page.setInputFiles('#file', odd.slice(0, 2));
+  await reviewed();
+  await page.waitForTimeout(1500);
+  if (crashed) break;
+}
+check(!crashed, 'a new batch dropped while models are being packed does not crash the page');
+
 check(!errors.length, `no page errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
 await browser.close();
 fs.rmSync(scratch, { recursive: true, force: true });

@@ -531,7 +531,9 @@ test('the command line repairs a folder of models and lists every result, unread
   assert.equal(batch.models, 3);
   assert.deepEqual([batch.repaired, batch.failed], [2, 1]);
   assert.deepEqual(batch.results.map(r => r.status), ['repaired', 'repaired', 'failed']);
-  assert.deepEqual(JSON.parse(fs.readFileSync(out + '/polymend-batch.json', 'utf8')), batch);
+  const { list, ...saved } = batch;
+  assert.equal(list, out + '/polymend-batch.json');
+  assert.deepEqual(JSON.parse(fs.readFileSync(list, 'utf8')), saved);
   for (const name of ['a-box', 'b-box']) assert.ok(fs.statSync(`${out}/${name}-mended.stl`).size > 84, name);
   assert.ok(!fs.existsSync(out + '/c-notes-mended.stl'));
   // --name cannot be shared by several models.
@@ -561,7 +563,7 @@ test('the command line keeps its files inside --out, survives a write error, and
   const folder = dir + '/models';
   fs.mkdirSync(folder);
   fs.copyFileSync(fixture, folder + '/Box.glb');
-  fs.copyFileSync(fixture, folder + '/box-mended.stl'.replace('.stl', '.glb'));
+  fs.writeFileSync(folder + '/box-mended.stl', 'an earlier output, not to be read');
   fs.symlinkSync(folder + '/missing.glb', folder + '/broken.glb');
   let result = run([folder, '--height', '20', '--wide', '--out', folder, '--json']);
   let batch = JSON.parse(result.out.trim().split('\n').filter(line => line.startsWith('{')).pop());
@@ -573,6 +575,18 @@ test('the command line keeps its files inside --out, survives a write error, and
   result = run([dir + '/upper/Box.glb', dir + '/lower/box.glb', '--height', '20', '--wide', '--out', dir + '/cases', '--json']);
   batch = JSON.parse(result.out.trim().split('\n').pop());
   assert.deepEqual(batch.results.map(r => r.files.stl.split('/').pop()), ['Box-mended.stl', 'box-2-mended.stl']);
+  // Without --out each model writes beside itself, so same names in two folders keep their names.
+  result = run([dir + '/upper/Box.glb', dir + '/lower/box.glb', '--height', '20', '--wide', '--json']);
+  batch = JSON.parse(result.out.trim().split('\n').pop());
+  assert.deepEqual(batch.results.map(r => r.files.stl.split('/').slice(-2).join('/')), ['upper/Box-mended.stl', 'lower/box-mended.stl']);
+  // A list that cannot be saved is still printed, and the run says so.
+  fs.mkdirSync(dir + '/locked');
+  fs.chmodSync(dir + '/locked', 0o555);
+  result = run([dir + '/upper/Box.glb', dir + '/lower/box.glb', '--as-is', '--wide', '--out', dir + '/locked/sub', '--json']);
+  fs.chmodSync(dir + '/locked', 0o755);
+  batch = JSON.parse(result.out.trim().split('\n').pop());
+  assert.equal(result.code, 1);
+  assert.match(batch.listError, /Could not write polymend-batch.json/);
   // A file standing where the output folder should be: refused before any work.
   fs.writeFileSync(dir + '/not-a-folder', 'x');
   assert.equal(run([fixture, '--as-is', '--out', dir + '/not-a-folder']).code, 1);

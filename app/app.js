@@ -150,9 +150,11 @@ function fail(message, title = FAILURES.unreadable.title) {
   setBusy(false);
   // The file that failed is forgotten. Without this, the next change to the model still
   // on the page would be taken for that file arriving, and the model would get its name.
-  state.fresh = false;
-  state.pendingFile = null;
-  if (state.report) state.name = state.shown;
+  if (!state.batchLoading) {
+    state.fresh = false;
+    state.pendingFile = null;
+    if (state.report) state.name = state.shown;
+  }
   const kept = state.report ? ` The model below is still ${state.shown}.` : '';
   $('failure-title').textContent = title;
   $('failure-detail').textContent = message + kept;
@@ -214,7 +216,12 @@ function onMessage(event) {
     return;
   }
   clearTimeout(limit);
-  if (message.type === 'ready') { state.batchLoading = false; setBusy(false); return; }
+  if (message.type === 'ready') {
+    state.batchLoading = false;
+    setBusy(false);
+    if (state.report) setStatus(`${state.shown} · ${number(state.report.before.triangles)} triangles`);
+    return;
+  }
   // A batch model that failed to load here is still on screen from its kept view, but the
   // worker holds another model, so it must not be downloaded on its own.
   if (message.type === 'error' && state.batchLoading) { Object.assign(state, { batchLoading: false, unsynced: true }); }
@@ -540,14 +547,32 @@ function startBatch(files, skipped) {
 
 /** Stop and forget the batch: its worker, its clock, its rows, and any download being built. */
 function clearBatch() {
-  batch.worker?.terminate();
+  retire(batch.worker);
   clearTimeout(batch.timer);
   clearTimeout(state.syncTimer);
   Object.assign(batch, { id: batch.id + 1, rows: [], skipped: [], at: -1, running: false, worker: null, job: null, viewBytes: 0 });
-  Object.assign(state, { batchLoading: false, unsynced: false, quietShown: false });
+  // A model of this batch may be loading into the view's worker. Its answer will be dropped,
+  // so its clock is stopped and the page let go here, or it would wait for nothing.
+  if (state.batchLoading) { clearTimeout(limit); state.batchLoading = false; setBusy(false); }
+  Object.assign(state, { unsynced: false, quietShown: false });
   if ($('batch')) $('batch').hidden = true;
   if ($('model-switch')) $('model-switch').hidden = true;
   placeTop();
+}
+
+/**
+ * Let go of a batch worker. One in the middle of a job is not stopped there: WebKit can
+ * crash the whole page when a worker is stopped while it compresses. Its answer is already
+ * unwanted (the job token no longer matches), so it is shut as soon as it gives one, or
+ * after the time a job may take.
+ */
+function retire(old) {
+  if (!old) return;
+  if (!batch.job) return old.terminate();
+  const shut = () => { clearTimeout(backstop); old.terminate(); };
+  const backstop = setTimeout(shut, LIMIT_MS);
+  old.onmessage = event => { if (event.data.type !== 'progress') shut(); };
+  old.onerror = shut;
 }
 
 /** Clear the view before a batch: the batch card takes its place until a model is opened. */
@@ -763,8 +788,11 @@ function renderBatch() {
     $('batch-detail').textContent = `${list(parts)}.` + (count('partial') ? ' A partly repaired model will probably still bring a warning from your slicer.' : '');
   }
   if (batch.skipped.length) $('batch-detail').textContent += ` Left out, as not .glb or .stl: ${list(batch.skipped)}.`;
+  // The list is drawn afresh as jobs finish; whoever was on a row with the keyboard stays on it.
+  const focused = document.activeElement?.closest?.('#batch-list .batch-row')?.dataset.id;
   $('batch-list').replaceChildren(...rows.map((row, i) => {
     const item = document.createElement('li');
+    item.dataset.id = String(row.id);
     item.className = 'batch-row ' + row.status + (i === batch.at ? ' current' : '');
     const open = document.createElement('button');
     open.type = 'button';
@@ -780,6 +808,7 @@ function renderBatch() {
     if (note) item.append(Object.assign(document.createElement('p'), { className: 'batch-error', textContent: row.buildError ? `Not in Download all: ${row.buildError}` : note }));
     return item;
   }));
+  if (focused !== undefined) $('batch-list').querySelector(`[data-id="${focused}"] .batch-open`)?.focus({ preventScroll: true });
   renderModelSwitch();
   // The ZIP is put together from each model's packed files, made in the background.
   const done = rows.filter(row => DONE.includes(row.status) && !row.buildError);
@@ -849,7 +878,7 @@ async function downloadBatch() {
   document.body.append(link);
   link.click();
   link.remove();
-  setTimeout(() => URL.revokeObjectURL(link.href), 60_000); // long enough for the save to begin
+  setTimeout(() => URL.revokeObjectURL(link.href), 10 * 60_000); // long enough for a slow save dialog
 }
 
 // --- wiring
