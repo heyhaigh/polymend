@@ -27,10 +27,10 @@ await page.waitForSelector('#results:not([hidden])', { timeout: 60000 });
 console.log(`${picked.length} models in ${((Date.now() - started) / 1000).toFixed(1)} s`);
 console.log((await page.locator('#batch-detail').innerText()));
 for (const row of await page.locator('.batch-row').allInnerTexts()) console.log('  ' + row.replace(/\n/g, ' · '));
-console.log('in view:', await page.locator('#model-current').innerText(), '·', await page.locator('#model-count').innerText());
+console.log('in view:', await page.evaluate(() => document.getElementById('model-trigger').dataset.tooltip || document.getElementById('model-current').textContent), '·', await page.locator('#model-count').innerText());
 await page.click('#model-next');
 await page.waitForFunction(() => !document.getElementById('model-next').disabled, null, { timeout: 60000 });
-console.log('next:', await page.locator('#model-current').innerText(), '·', await page.locator('#model-count').innerText());
+console.log('next:', await page.evaluate(() => document.getElementById('model-trigger').dataset.tooltip || document.getElementById('model-current').textContent), '·', await page.locator('#model-count').innerText());
 
 const [download] = await Promise.all([page.waitForEvent('download', { timeout: 300000 }), page.click('#batch-download')]);
 const zipPath = path.join(scratch, download.suggestedFilename());
