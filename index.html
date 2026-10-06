@@ -106,6 +106,11 @@
       <div class="stack">
         <figure class="view">
           <div class="toolbar">
+            <div class="segmented" role="group" aria-label="Which version to show">
+              <button id="show-before" type="button" class="icon-only" aria-pressed="false" aria-label="Before" data-tooltip="Before"><svg viewBox="0 -960 960 960" width="18" height="18" fill="currentColor" aria-hidden="true" focusable="false"><path d="M660-320v-320L500-480l160 160ZM200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm120-80v-560H200v560h120Zm80 0h360v-560H400v560Zm-80 0H200h120Z"/></svg></button>
+              <button id="show-after" type="button" class="icon-only" aria-pressed="true" aria-label="After" data-tooltip="After"><svg viewBox="0 -960 960 960" width="18" height="18" fill="currentColor" aria-hidden="true" focusable="false"><path d="M500-640v320l160-160-160-160ZM200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm120-80v-560H200v560h120Zm80 0h360v-560H400v560Zm-80 0H200h120Z"/></svg></button>
+              <button id="show-both" type="button" class="icon-only" aria-pressed="false" aria-label="Side by side" data-tooltip="Side by side"><svg viewBox="0 -960 960 960" width="18" height="18" fill="currentColor" aria-hidden="true" focusable="false"><path transform="translate(960 0) scale(-1 1)" d="M600-160v-80h160v-480H600v-80h160q33 0 56.5 23.5T840-720v480q0 33-23.5 56.5T760-160H600ZM440-80v-80H200q-33 0-56.5-23.5T120-240v-480q0-33 23.5-56.5T200-800h240v-80h80v800h-80Zm320-640v480-480Z"/></svg></button>
+            </div>
             <!-- embed:cut -->
             <div id="model-switch" class="model-switch" role="group" aria-label="Which model to show" hidden>
               <button id="model-prev" type="button" class="round" aria-label="Previous model"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -121,11 +126,6 @@
               <span id="model-count" class="model-count"></span>
             </div>
             <!-- /embed:cut -->
-            <div class="segmented" role="group" aria-label="Which version to show">
-              <button id="show-before" type="button" class="icon-only" aria-pressed="false" aria-label="Before" data-tooltip="Before"><svg viewBox="0 -960 960 960" width="18" height="18" fill="currentColor" aria-hidden="true" focusable="false"><path d="M660-320v-320L500-480l160 160ZM200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm120-80v-560H200v560h120Zm80 0h360v-560H400v560Zm-80 0H200h120Z"/></svg></button>
-              <button id="show-after" type="button" class="icon-only" aria-pressed="true" aria-label="After" data-tooltip="After"><svg viewBox="0 -960 960 960" width="18" height="18" fill="currentColor" aria-hidden="true" focusable="false"><path d="M500-640v320l160-160-160-160ZM200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm120-80v-560H200v560h120Zm80 0h360v-560H400v560Zm-80 0H200h120Z"/></svg></button>
-              <button id="show-both" type="button" class="icon-only" aria-pressed="false" aria-label="Side by side" data-tooltip="Side by side"><svg viewBox="0 -960 960 960" width="18" height="18" fill="currentColor" aria-hidden="true" focusable="false"><path transform="translate(960 0) scale(-1 1)" d="M360-120H200q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h160v80H200v560h160v80Zm80 80v-880h80v880h-80Zm160-80v-80h80v80h-80Zm0-640v-80h80v80h-80Zm160 640v-80h80q0 33-23.5 56.5T760-120Zm0-160v-80h80v80h-80Zm0-160v-80h80v80h-80Zm0-160v-80h80v80h-80Zm0-160v-80q33 0 56.5 23.5T840-760h-80Z"/></svg></button>
-            </div>
             <div class="stepper" id="stepper" role="group" aria-label="Changes" hidden>
               <button id="prev" type="button" class="round" aria-label="Previous change"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <span id="step-label" aria-live="polite"></span>
