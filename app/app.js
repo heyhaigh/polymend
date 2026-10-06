@@ -394,7 +394,8 @@ function renderStepper() {
   state.visible = list;
   state.spot = -1;
   $('stepper').hidden = list.length === 0;
-  $('step-label').textContent = list.length ? `${plural(list.length, 'change')} here` : '';
+  $('step-label').textContent = list.length ? number(list.length) : '';
+  $('stepper').setAttribute('aria-label', list.length ? `${plural(list.length, 'change')}: step through them` : 'Changes');
 }
 
 function step(direction) {
@@ -404,7 +405,7 @@ function step(direction) {
   if (!state.returnTo) { state.returnTo = viewer.getCamera(); $('back').hidden = false; $('home').hidden = true; }
   state.spot = (state.spot + direction + list.length) % list.length;
   viewer.focus(list[state.spot]);
-  $('step-label').textContent = `Change ${state.spot + 1} of ${list.length}`;
+  $('step-label').textContent = `${state.spot + 1} / ${list.length}`;
 }
 
 /** Leave a close-up. With `restore`, go back to the view the visitor had before it. */

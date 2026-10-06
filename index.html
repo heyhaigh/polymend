@@ -92,9 +92,9 @@
               <button id="show-after" type="button" aria-pressed="true">After</button>
               <button id="show-both" type="button" aria-pressed="false">Side by side</button>
             </div>
-            <div class="stepper" id="stepper" hidden>
+            <div class="stepper" id="stepper" role="group" aria-label="Changes" hidden>
               <button id="prev" type="button" class="round" aria-label="Previous change"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-              <span id="step-label" aria-live="polite">Changes</span>
+              <span id="step-label" aria-live="polite"></span>
               <button id="next" type="button" class="round" aria-label="Next change"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </div>
             <div class="download-split" data-split>

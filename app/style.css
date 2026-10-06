@@ -347,7 +347,14 @@ body.dragging.drag-wrong .cta-box {
 .segmented button:hover { background: color-mix(in srgb, currentColor 8%, transparent); }
 .segmented button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
 .stepper { display: inline-flex; align-items: center; gap: 8px; }
-.stepper span { min-width: 9.5em; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
+.stepper span { min-width: 2.5em; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
+/* Where the toolbar is narrow (a phone, or the embed), the download button keeps only its
+   icon and arrow so that the view switch, the stepper and the button share one line. */
+.view { container-type: inline-size; }
+@container (max-width: 640px) {
+  .toolbar .download-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .toolbar .split-main { padding-inline: 14px; }
+}
 
 .stage { position: relative; background: var(--stage); border-radius: 12px; overflow: hidden; transition: background-color 0.3s ease; }
 canvas { display: block; width: 100%; height: min(68vh, 620px); touch-action: none; cursor: grab; border-radius: 12px; }
