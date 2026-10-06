@@ -170,11 +170,13 @@ h3 { font-size: 18px; font-weight: 400; margin: 28px 0 8px; }
   margin-inline: auto;
   overflow: hidden; /* the pulse below is clipped to the card */
 }
-/* Every five seconds, while the card is left alone, the same halftone dots the pointer
-   reveals spread out from the middle until they fill the card, then fade away. The spread
-   is a mask whose radius is an animated custom property; the card is small, so repainting
-   it for a second every five costs nothing noticeable. Stops the moment the pointer
-   arrives, while a file is held over the page, and once a model is loaded. */
+/* Every five seconds, while the card is left alone, a wave of the same halftone dots the
+   pointer reveals travels out from the middle to the corners: the dots appear at its
+   leading edge and fade away behind it, so the middle is already clearing while the edge
+   is still on its way. The wave is a ring-shaped mask whose radius is an animated custom
+   property; the card is small, so repainting it for a second every five costs nothing
+   noticeable. Stops the moment the pointer arrives, while a file is held over the page,
+   and once a model is loaded. */
 @property --spread { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
 .cta-box::after {
   content: "";
@@ -185,17 +187,16 @@ h3 { font-size: 18px; font-weight: 400; margin: 28px 0 8px; }
   pointer-events: none;
   background: radial-gradient(circle, var(--orange-dot) 1px, transparent 1.5px) 0 0 / 9px 9px;
   --spread: 0%;
-  mask-image: radial-gradient(circle farthest-corner at 50% 50%, #000 calc(var(--spread) - 18%), transparent var(--spread));
-  -webkit-mask-image: radial-gradient(circle farthest-corner at 50% 50%, #000 calc(var(--spread) - 18%), transparent var(--spread));
-  opacity: 0;
-  animation: spread-dots 5s cubic-bezier(0.2, 0.7, 0.3, 1) 1.2s infinite;
+  /* A long soft tail behind the leading edge: the dots linger a moment, then clear. */
+  mask-image: radial-gradient(circle farthest-corner at 50% 50%, transparent calc(var(--spread) - 60%), #000 calc(var(--spread) - 14%), #000 calc(var(--spread) - 6%), transparent var(--spread));
+  -webkit-mask-image: radial-gradient(circle farthest-corner at 50% 50%, transparent calc(var(--spread) - 60%), #000 calc(var(--spread) - 14%), #000 calc(var(--spread) - 6%), transparent var(--spread));
+  opacity: 0.26;
+  animation: spread-dots 5s cubic-bezier(0.25, 0.6, 0.35, 1) 1.2s infinite;
 }
 @keyframes spread-dots {
-  0% { --spread: 0%; opacity: 0; }
-  5% { opacity: 0.26; }
-  28% { --spread: 120%; opacity: 0.26; }
-  44% { --spread: 120%; opacity: 0; }
-  100% { --spread: 120%; opacity: 0; }
+  0% { --spread: 0%; }
+  34% { --spread: 175%; }
+  100% { --spread: 175%; }
 }
 .cta-box:hover::after, .cta-box.has-pointer-trail::after, body.dragging .cta-box::after, .cta-box.compact::after { animation: none; }
 @media (prefers-reduced-motion: reduce) { .cta-box::after { animation: none; } }
