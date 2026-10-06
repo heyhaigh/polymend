@@ -942,16 +942,13 @@ function closeModelMenu(restoreFocus = false, fade = false) {
  * name that is still too long is shortened in the middle, keeping its extension. The full
  * name shows on hover, and screen readers hear it in the button's label.
  */
-let measure = null;
 function fitName(holder, name, others = []) {
   holder.textContent = name;
   const button = holder.closest('button');
   button.removeAttribute('data-tooltip');
-  const room = holder.clientWidth;
-  if (!room || holder.scrollWidth <= room) return;
-  measure ??= document.createElement('canvas').getContext('2d');
-  const style = getComputedStyle(holder);
-  measure.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  // Each try is measured in place, as the page draws it, so nothing is cut by a rounding.
+  const fits = () => holder.scrollWidth <= holder.clientWidth;
+  if (!holder.clientWidth || fits()) return;
   const ext = (name.match(/\.[^.]{1,5}$/) || [''])[0];
   let stem = name.slice(0, name.length - ext.length);
   // The start this name shares with the most similar other name, cut back to a word break:
@@ -963,13 +960,11 @@ function fitName(holder, name, others = []) {
   }
   const lead = shared > 3 ? '…' : '';
   if (lead) stem = stem.slice(shared);
-  let text = lead + '…' + ext;
   for (let keep = stem.length; keep >= 2; keep--) {
     const back = lead ? 0 : Math.min(6, Math.floor(keep / 2)); // after a dropped start, the start of the rest matters most
-    const candidate = lead + stem.slice(0, keep - back) + (keep < stem.length ? '…' : '') + (back ? stem.slice(-back) : '') + ext;
-    if (measure.measureText(candidate).width <= room) { text = candidate; break; }
+    holder.textContent = lead + stem.slice(0, keep - back) + (keep < stem.length ? '…' : '') + (back ? stem.slice(-back) : '') + ext;
+    if (fits()) break;
   }
-  holder.textContent = text;
   button.dataset.tooltip = name;
 }
 window.addEventListener('resize', () => { if (batch.rows.length && batch.at >= 0) renderModelSwitch(); });
