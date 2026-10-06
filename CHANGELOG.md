@@ -2,6 +2,24 @@
 
 What has changed in Polymend, newest first. Each version is marked with the moment it was published. From version 0.3.0 on, every change is listed here and recorded in the project's public history.
 
+## 0.3.1 (Published October 5, 2026 at 8:31 PM EDT)
+
+The embed, refined, and a few things around it.
+
+**Embed**
+
+- The frame is 340 pixels tall by default instead of 720, with the upload card set more compactly to suit. Results scroll inside the frame.
+- Inside another site, the tool is a near-white panel with a fine edge, so it sits cleanly against the page around it.
+- "Add it to your site" now has plain controls for the theme, the chime and the height; the code rewrites itself as you choose, so there is nothing to edit by hand. The same controls appear in the footer pop-up.
+- The code is set like code, in two joined panes with the choices above it.
+
+**Page**
+
+- The outcome card and the refusal card can be dismissed with an X in the corner. The badge in the pinned bar keeps saying how the repair went.
+- The fade under the pinned bar no longer flashes when the theme changes.
+- The pop-up blurs the page behind it.
+- This page is now called the changelog, and each version shows the moment it was published.
+
 ## 0.3.0 (Published October 5, 2026 at 7:49 PM EDT)
 
 Safer on models unlike the ones it was first built for, and tested on far more of them.
@@ -21,6 +39,8 @@ Safer on models unlike the ones it was first built for, and tested on far more o
 - L-shaped and crescent-shaped holes are closed neatly, where the old patch could fold over itself.
 - Seams whose two sides differ by a hair are joined.
 - Places where the surface pinches to a single point are counted and reported.
+- Holes are counted before anything is patched and told apart as flat or curved. A flat hole is closed in its own plane with no new point.
+- The faults table shows holes, duplicate triangles and collapsed triangles.
 
 **Files**
 
