@@ -168,7 +168,36 @@ h3 { font-size: 18px; font-weight: 400; margin: 28px 0 8px; }
   transition: padding 0.2s ease-out, border-color 0.3s ease-out, box-shadow 0.3s ease-out, background-color 0.3s ease-out;
   max-width: 720px;
   margin-inline: auto;
+  overflow: hidden; /* the pulse below is clipped to the card */
 }
+/* Every five seconds, while the card is left alone, a ring runs out from the middle to the
+   corners: a quick ripple, then quiet. It stops the moment the pointer arrives, while a
+   file is held over the page, and once a model is loaded. Transform and opacity only, so
+   it costs nothing to run. */
+.cta-box::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: -1;
+  width: 110%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  border: 2px solid color-mix(in srgb, var(--orange) 80%, transparent);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--orange) 35%, transparent), inset 0 0 22px color-mix(in srgb, var(--orange) 22%, transparent);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.02);
+  animation: ripple 5s cubic-bezier(0.16, 0.84, 0.3, 1) 1.2s infinite;
+}
+@keyframes ripple {
+  0% { transform: translate(-50%, -50%) scale(0.02); opacity: 0; }
+  3% { opacity: 0.7; }
+  24% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+.cta-box:hover::after, .cta-box.has-pointer-trail::after, body.dragging .cta-box::after, .cta-box.compact::after { animation: none; }
+@media (prefers-reduced-motion: reduce) { .cta-box::after { animation: none; } }
 .cta-box h2, .drop-refuse-title { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
 /* The invitation and the refusal occupy the same space and cross-fade. */
 .drop-faces { display: grid; width: 100%; }
