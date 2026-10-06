@@ -117,7 +117,10 @@ strong { font-weight: 600; }
    upload card pinned while the rest of the page scrolls beneath them. The same on phones. */
 .top-stick { position: sticky; top: -190px; z-index: 30; margin-inline: -24px; padding: 96px 24px 16px; background: var(--paper); transition: background-color 0.3s ease; }
 /* Text rising toward the card fades out, and is gone 16px below it. */
-.top-stick::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 48px; background: linear-gradient(var(--paper), color-mix(in srgb, var(--paper) 0%, transparent)); pointer-events: none; }
+/* The fade is a solid in the page colour under a mask, not a gradient of that colour: a
+   gradient cannot animate, so when the theme changes it would jump to the new colour
+   while everything around it was still crossfading, and flash as a strip. */
+.top-stick::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 48px; background: var(--paper); -webkit-mask-image: linear-gradient(#000, transparent); mask-image: linear-gradient(#000, transparent); pointer-events: none; transition: background-color 0.3s ease; }
 /* On a very short screen, such as a phone on its side, pinning would leave no room to read. */
 @media (max-height: 560px) { .top-stick { position: static; } .top-stick::after { display: none; } }
 body.has-results .top-stick::after { height: 24px; }
