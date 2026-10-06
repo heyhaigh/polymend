@@ -442,7 +442,9 @@ body.dragging.drag-wrong .cta-box {
 .model-count { flex-shrink: 0; padding: 2px 5px; border-radius: 4px; background: color-mix(in srgb, currentColor 10%, transparent); font-size: 10px; font-weight: 400; line-height: 1.2; opacity: 0.75; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* Faint lines between the toolbar's groups: the view buttons, the models, the changes. */
 @media (min-width: 701px) {
-  .toolbar > :is(.model-switch, .stepper) { padding-left: 10px; border-left: 1px solid color-mix(in srgb, currentColor 12%, transparent); }
+  .toolbar > :is(.model-switch, .stepper) { position: relative; padding-left: 11px; }
+  /* Half the height of the group, centred on it. */
+  .toolbar > :is(.model-switch, .stepper)::before { content: ""; position: absolute; left: 0; top: 25%; height: 50%; width: 1px; background: color-mix(in srgb, currentColor 12%, transparent); }
 }
 
 /* On a narrow screen the name gets the whole line and the count sits under it. */
