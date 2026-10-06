@@ -71,6 +71,13 @@ Every size in a file is the file's own claim. The readers check each claim again
 
 No dependencies, with one vendored exception: Google's Draco decoder (`src/vendor/`, Apache 2.0, its JavaScript build, two marked lines changed) unpacks Draco-compressed GLB files. It is 700 KB, so the page fetches it only the first time a file needs it. Everything else is plain ES modules that run in Node and in a browser.
 
+## Releasing
+
+1. Add the entry to `CHANGELOG.md` with the publish time (`date '+%B %-d, %Y at %-I:%M %p %Z'`), bump `VERSION` in `src/output.js`, `version` in `package.json` and `softwareVersion` in `index.html`, then `node tools/make-changelog.mjs` and `node tools/make-embed.mjs`.
+2. `npm test`, `node tools/snapshot.mjs`, then commit, tag `vX.Y.Z`, `git push origin main --follow-tags`.
+3. `node tools/build-site.mjs && npx wrangler deploy`, then `node tools/check-live.mjs`.
+4. **Refresh the copy bundled in the heyhaigh.ai skill.** The *2D to 3D Print* skill in the `portfolio-workspace` repository ships this engine and command line inside its ZIP, so it does not pick up a release by itself. In that repository run `sh scripts/2d-to-3d-print-skill/sync-polymend.sh <path to this checkout>`, then `python3 scripts/build-2d-to-3d-print-skill.py`, `python3 tests/2d-to-3d-print-security.py` and `npm run skills:audit`, and ship it through a pull request. `scripts/2d-to-3d-print-skill/2d-to-3d-print/scripts/polymend/VERSION.txt` there says which version is bundled. See `docs/POLYMEND-BUNDLE.md` in that repository.
+
 ## Checking against real models
 
 The real models are not in this repository.
