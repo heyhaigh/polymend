@@ -5,6 +5,7 @@
 ## What it does
 
 - Fixes the mesh faults slicers report as open edges, non-manifold edges and reversed faces: it removes stray triangles stuck to the surface, patches small holes (up to 100 edges), and turns wrongly facing triangles.
+- Repairs up to 20 files at once (up to 1 GB in all), lists how each went, and downloads every repaired model in one ZIP with a summary.
 - Converts GLB to STL or 3MF, turning the model upright and letting the user set a print height in millimeters.
 - Shows the model before and after, side by side, with every change marked, and reports "Repaired", "Nothing to fix" or "Partly repaired".
 - Leaves original vertices where they are, except that points a hair apart along a seam are joined. A model with no faults is not changed at all.
@@ -12,7 +13,7 @@
 
 ## Facts
 
-- Input: GLB (binary glTF, including Draco-compressed) and STL (binary or text), up to 200 MB or 1 million triangles. Meshopt-compressed GLB is not supported.
+- Input: GLB (binary glTF, including Draco-compressed) and STL (binary or text), up to 200 MB or 1 million triangles. Up to 20 files at once, 1 GB in all. Meshopt-compressed GLB is not supported.
 - Output: binary STL, 3MF in millimeters, or a ZIP of both. Color and texture are not kept.
 - Privacy: no upload, no analytics, no cookies; the page's Content-Security-Policy forbids network connections.
 - Speed: a 300,000-triangle model is repaired in about a second; a 1-million-triangle model in a few seconds.

@@ -366,6 +366,32 @@ body.dragging.drag-wrong .cta-box {
 .outcome ul:empty { display: none; }
 .outcome li { margin-bottom: 5px; }
 
+/* --- a batch of models: one row each, the one in view marked */
+.batch-list { list-style: none; margin: 14px 0 0; padding: 0; border-top: 1px solid color-mix(in srgb, var(--tone) 22%, transparent); }
+.batch-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 4px 0; border-bottom: 1px solid color-mix(in srgb, var(--tone) 14%, transparent); }
+.batch-open { flex: 1 1 14em; display: flex; align-items: baseline; gap: 12px; min-width: 0; margin: 0 0 0 -8px; padding: 6px 8px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; font-size: 13px; text-align: left; cursor: pointer; transition: background-color 0.2s ease-out; }
+.batch-open:not([disabled]):is(:hover, :focus-visible) { background: color-mix(in srgb, currentColor 7%, transparent); }
+.batch-open[disabled] { cursor: default; }
+.batch-row.current .batch-open { background: color-mix(in srgb, currentColor 9%, transparent); font-weight: 600; }
+.batch-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.batch-size { flex-shrink: 0; font-size: 11px; opacity: 0.6; font-weight: 400; }
+.batch-row .badge { font-size: 11px; white-space: nowrap; }
+.batch-row.waiting { opacity: 0.55; }
+.batch-row.working .badge::before { content: ""; display: inline-block; width: 7px; height: 7px; margin: 0 6px 0 2px; border-radius: 50%; background: currentColor; animation: pulse 1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .batch-row.working .badge::before { animation: none; } }
+.batch-error { flex-basis: 100%; margin: 0 0 6px; font-size: 11px; opacity: 0.75; }
+.batch-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 14px; }
+.batch-actions .caption { margin: 0; flex: 1 1 18em; }
+.batch-download { display: inline-flex; align-items: center; gap: 8px; }
+.batch-download svg { display: block; }
+.batch-download[disabled] { opacity: 0.5; cursor: default; }
+/* On a narrow screen the name gets the whole line and the count sits under it. */
+@media (max-width: 560px) { .batch-open { flex-direction: column; align-items: flex-start; gap: 2px; } .batch-name { max-width: 100%; } }
+
+/* The limits, under the upload card's status line. Hidden once the card is compact. */
+.drop-limits { margin: 12px 0 0; font-size: 11px; opacity: 0.6; text-align: center; }
+.cta-box.compact .drop-limits { display: none; }
+
 /* --- viewer and panel */
 /* The viewer takes the full width; the verdict and the details follow beneath it. */
 .stack { margin-top: 48px; }

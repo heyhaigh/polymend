@@ -156,6 +156,26 @@ onmessage = async event => {
       turn(mesh.positions);
       turn(result.positions);
       send();
+    } else if (message.type === 'batch-repair') {
+      // One model of a batch. Nothing is kept here: the page holds each repaired model, so
+      // a stuck or crashed file costs only its own row when this worker is replaced.
+      const loaded = await loadAsync(new Uint8Array(message.buffer), message.name, progress);
+      const mended = mend(loaded, message.options || {}, progress, { crossings: false });
+      const positions = new Float32Array(mended.positions), tris = new Uint32Array(mended.tris);
+      postMessage({ type: 'batch-result', format: loaded.format, unit: loaded.unit, notes: loaded.notes || [], report: mended.report, positions, tris }, [positions.buffer, tris.buffer]);
+    } else if (message.type === 'batch-export') {
+      // Several models at the one height, each as an STL and a 3MF, with a summary, in one ZIP.
+      const files = [];
+      for (const [i, model] of message.models.entries()) {
+        progress(`Writing ${i + 1} of ${message.models.length}`);
+        const sized = layout(model.positions, { heightMm: message.heightMm, unitMm: model.unit === 'meter' ? 1000 : 1 });
+        const name = safeName(model.title);
+        files.push([`${name}-mended.stl`, writeSTL(sized.positions, model.tris, 1, `polymend ${VERSION}`)]);
+        files.push([`${name}-mended.3mf`, await write3MF(sized.positions, model.tris, { title: model.title })]);
+      }
+      if (message.summary) files.push(['polymend-summary.txt', new TextEncoder().encode(message.summary)]);
+      const bytes = await zip(files);
+      postMessage({ type: 'batch-file', name: message.name, bytes }, [bytes.buffer]);
     } else if (message.type === 'export' && result) {
       progress('Writing the file');
       // A GLB's numbers are meters; with no height chosen they are written as millimeters.
