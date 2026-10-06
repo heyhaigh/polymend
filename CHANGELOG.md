@@ -2,6 +2,25 @@
 
 What has changed in Polymend, newest first. Each version is marked with the moment it was published. From version 0.3.0 on, every change is listed here and recorded in the project's public history.
 
+## 0.4.1 (Published October 5, 2026 at 9:15 PM EDT)
+
+Finishing touches on the embed and the page.
+
+**Embed**
+
+- In the frame, once there is a result, the before-and-after view comes first and the outcome card and file strip follow it; the view is taller.
+- A lighter edge in light mode and a neutral charcoal fill in dark mode.
+- The credit is a small square badge of the maker's hand, through a halftone screen, with a ring on hover.
+- The view switch, the step arrows and the download button share one line; on a phone the download button keeps only its icon.
+
+**Page**
+
+- The upload card, while left alone, sends a slow wave of its halftone dots out from the centre every few seconds.
+- The before-and-after view has an edge, matching the line between its halves.
+- The step counter shows arrows and a number. The outcome title matches the section subheaders, and the outcome card can be dismissed with an X.
+- The "What changed" list is gone: the outcome card already says what changed.
+- The embed pop-up blurs the page behind it.
+
 ## 0.4.0 (Published October 5, 2026 at 8:42 PM EDT)
 
 **Compressed GLB files**
