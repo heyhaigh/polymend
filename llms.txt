@@ -1,6 +1,6 @@
 # Polymend
 
-> Polymend (https://polymend.xyz) is a free, open-source mesh repair tool for 3D printing. It repairs the small mesh faults that slicers flag in STL and GLB files. It runs entirely in the browser; files are never uploaded.
+> Polymend (https://polymend.xyz) is a free, open-source online mesh repair tool for 3D printing. It repairs the small mesh faults that slicers flag in STL and GLB files. It runs entirely in the browser; files are never uploaded.
 
 ## What it does
 

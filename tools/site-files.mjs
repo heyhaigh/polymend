@@ -6,8 +6,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const include = ['index.html', 'embed.html', '404.html', 'privacy.html', 'terms.html', 'changelog.html', 'favicon.svg', 'favicon-48.png', 'apple-touch-icon.png', 'og-image.jpg', 'robots.txt', 'sitemap.xml', 'llms.txt', '_headers', 'LICENSE', 'app', 'src'];
-const allowed = /\.(html|js|css|svg|txt|xml|woff2|webp|png|jpg)$|^_headers$|^LICENSE$/;
+const include = ['index.html', 'embed.html', '404.html', 'privacy.html', 'terms.html', 'changelog.html', 'favicon.svg', 'favicon.ico', 'favicon-48.png', 'apple-touch-icon.png', 'og-image.jpg', 'robots.txt', 'sitemap.xml', 'llms.txt', '_headers', 'LICENSE', 'app', 'src'];
+const allowed = /\.(html|js|css|svg|txt|xml|woff2|webp|png|jpg|ico)$|^_headers$|^LICENSE$/;
 
 /** Every published file, as a path relative to the repository root. */
 export function siteFiles() {

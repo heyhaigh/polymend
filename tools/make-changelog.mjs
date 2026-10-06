@@ -45,6 +45,17 @@ export function changelogPage(markdown) {
   <title>${escape(title)} · Polymend</title>
   <meta name="description" content="What has changed in Polymend, the free browser-based STL and GLB mesh repair tool, version by version.">
   <link rel="canonical" href="https://polymend.xyz/changelog">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Polymend">
+  <meta property="og:title" content="Changelog · Polymend">
+  <meta property="og:description" content="What has changed in Polymend, the free browser-based STL and GLB mesh repair tool, version by version.">
+  <meta property="og:url" content="https://polymend.xyz/changelog">
+  <meta property="og:image" content="https://polymend.xyz/og-image.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Polymend. A 3D figure shown before and after repair, with the repaired spots marked.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://polymend.xyz/og-image.jpg">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon-48.png" type="image/png" sizes="48x48">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">

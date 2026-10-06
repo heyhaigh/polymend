@@ -24,6 +24,8 @@ export function embedPage(home) {
   page = replaceOnce(page, '<html lang="en">', '<html lang="en" data-embed>');
   page = replaceOnce(page, '<body>', '<body class="embed">');
   page = page.replace(/<title>[^<]*<\/title>/, '<title>Polymend mesh repair</title>\n  <meta name="robots" content="noindex">');
+  // A noindex page should not also name a canonical: Google reads the pair as conflicting.
+  page = replaceOnce(page, '  <link rel="canonical" href="https://polymend.xyz/">\n', '');
   // Inside a frame, only the frame itself can take a dropped file.
   page = replaceOnce(page, 'Anywhere on this page works.', 'Anywhere in this box works.');
   page = replaceOnce(page, '    <!-- embed:credit -->', CREDIT);
