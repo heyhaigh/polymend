@@ -293,6 +293,11 @@ body.dragging.drag-wrong .cta-box {
   border-radius: 12px;
   transition: background-color 0.3s ease, border-color 0.3s ease, opacity 0.3s ease;
 }
+.outcome { position: relative; padding-right: 48px; }
+/* The card can be put away: the badge in the pinned bar keeps saying how it went. */
+.card-close { position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; background: transparent; color: inherit; opacity: 0.55; cursor: pointer; transition: background-color 0.2s ease-out, opacity 0.2s ease-out; }
+.card-close svg { display: block; }
+.card-close:is(:hover, :focus-visible) { opacity: 1; background: color-mix(in srgb, currentColor 10%, transparent); }
 .outcome.sound { --tone: var(--tone-info); }
 .outcome.partial { --tone: var(--tone-warn); }
 .outcome.failed { --tone: var(--tone-bad); }

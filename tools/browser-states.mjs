@@ -99,5 +99,12 @@ await page.goto('http://127.0.0.1:8650/');
 await page.setInputFiles('#file', big);
 await page.waitForSelector('#results:not([hidden])', { timeout: 60000 });
 console.log('normal limit →', (await read()).outcome);
+// The card's X puts it away; the title does not come back while a model is on the page.
+await page.click('#outcome [data-dismiss]');
+console.log('after dismissing →', JSON.stringify(await page.evaluate(() => ({ cardHidden: document.getElementById('outcome').hidden, titleShown: document.querySelector('.tool-title').getBoundingClientRect().width > 2, badge: document.getElementById('badge').textContent, pinnedAt: document.getElementById('top-stick').style.top }))));
+await page.setInputFiles('#file', 'out/browser/not-a-model.stl');
+await page.waitForSelector('#failure:not([hidden])');
+await page.click('#failure [data-dismiss]');
+console.log('refusal dismissed too →', await page.evaluate(() => document.getElementById('failure').hidden));
 console.log('page errors:', errors.length ? errors : 'none');
 await browser.close();

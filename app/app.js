@@ -88,10 +88,17 @@ function placeSticky() {
   $('top-stick').style.top = `${16 - meta.offsetTop}px`;
 }
 
-/** An outcome, good or bad, takes the place of the title and description. */
+/**
+ * An outcome, good or bad, takes the place of the title and description. Once a model is
+ * on the page the title stays away even if the card has been dismissed.
+ */
 function placeTop() {
-  document.body.classList.toggle('has-outcome', !$('failure').hidden || !$('outcome').hidden);
+  document.body.classList.toggle('has-outcome', !$('failure').hidden || !$('outcome').hidden || document.body.classList.contains('has-results'));
   placeSticky();
+}
+// The X in a card's corner puts it away; the next result or refusal brings a card back.
+for (const button of document.querySelectorAll('[data-dismiss]')) {
+  button.addEventListener('click', () => { button.closest('.outcome').hidden = true; placeTop(); });
 }
 
 /** The outcome card is the first thing on the page, so a new outcome brings the page back to it. */
