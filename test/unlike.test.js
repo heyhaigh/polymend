@@ -488,3 +488,26 @@ test('unpacked geometry is held to the triangle limit', async () => {
   assert.equal(unpacked.indices.length, 46 * 3);
   await assert.rejects(decodeDraco(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]), 0), /could not be unpacked|not a surface/);
 });
+
+// ---------------------------------------------------------------- the command line
+
+test('the command line turns a GLB into a repaired STL and 3MF at the asked height', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const dir = fs.mkdtempSync(os.tmpdir() + '/polymend-cli-');
+  const fixture = new URL('./fixtures/holed-box-draco.glb', import.meta.url).pathname;
+  let code = 0, output = '';
+  try { output = execFileSync('node', ['cli.mjs', fixture, '--height', '20', '--wide', '--out', dir, '--name', 'box', '--json'], { cwd: new URL('..', import.meta.url).pathname, encoding: 'utf8' }); } catch (error) { code = error.status; output = error.stdout; }
+  assert.equal(code, 0, output);
+  const report = JSON.parse(output.trim().split('\n').pop());
+  assert.equal(report.status, 'repaired');
+  assert.equal(report.sizeMm[2], 20);
+  assert.ok(fs.statSync(dir + '/box-mended.stl').size > 84);
+  assert.ok(fs.statSync(dir + '/box-mended.3mf').size > 100);
+  assert.deepEqual(JSON.parse(fs.readFileSync(dir + '/box-report.json', 'utf8')).done.holesPatched, 1);
+  // Without a height or --as-is it refuses, and a partly repaired model exits with 2.
+  assert.throws(() => execFileSync('node', ['cli.mjs', fixture, '--out', dir], { cwd: new URL('..', import.meta.url).pathname, stdio: 'pipe' }), error => error.status === 1);
+  assert.throws(() => execFileSync('node', ['cli.mjs', fixture, '--as-is', '--out', dir, '--name', 'open'], { cwd: new URL('..', import.meta.url).pathname, stdio: 'pipe' }), error => error.status === 2);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
