@@ -13,7 +13,7 @@ const notModel = path.join(scratch, 'notes.txt');
 fs.writeFileSync(notModel, 'not a model');
 const tooMany = Array.from({ length: 21 }, (_, i) => { const file = path.join(scratch, `part-${i + 1}.stl`); fs.writeFileSync(file, 'solid x\nendsolid x\n'); return file; });
 
-const browser = await findPlaywright().chromium.launch();
+const browser = await findPlaywright()[process.env.ENGINE || 'chromium'].launch();
 const page = await browser.newPage({ viewport: { width: 1100, height: 1000 }, acceptDownloads: true });
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));

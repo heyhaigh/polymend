@@ -539,3 +539,53 @@ test('the command line repairs a folder of models and lists every result, unread
   fs.rmSync(folder, { recursive: true, force: true });
   fs.rmSync(out, { recursive: true, force: true });
 });
+
+test('the command line keeps its files inside --out, survives a write error, and skips its own outputs', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const cwd = new URL('..', import.meta.url).pathname;
+  const run = args => { try { return { code: 0, out: execFileSync('node', ['cli.mjs', ...args], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) }; } catch (error) { return { code: error.status, out: String(error.stdout) + String(error.stderr) }; } };
+  const fixture = new URL('./fixtures/holed-box-draco.glb', import.meta.url).pathname;
+  const dir = fs.mkdtempSync(os.tmpdir() + '/polymend-cli-safe-');
+  // A name with a path in it is refused, so nothing can be written outside --out.
+  for (const name of ['../escaped', '/tmp/escaped', '..', 'a/b']) {
+    const { code } = run([fixture, '--as-is', '--out', dir + '/out', '--name', name]);
+    assert.equal(code, 1, name);
+  }
+  assert.ok(!fs.existsSync(dir + '/escaped-mended.stl'));
+  // Unknown options and a height that is not a finite number are refused.
+  assert.equal(run([fixture, '--hieght', '20']).code, 1);
+  assert.equal(run([fixture, '--height', 'Infinity']).code, 1);
+  // Earlier outputs in a folder are not taken as inputs; names differing only in capitals stay apart.
+  const folder = dir + '/models';
+  fs.mkdirSync(folder);
+  fs.copyFileSync(fixture, folder + '/Box.glb');
+  fs.copyFileSync(fixture, folder + '/box-mended.stl'.replace('.stl', '.glb'));
+  fs.symlinkSync(folder + '/missing.glb', folder + '/broken.glb');
+  let result = run([folder, '--height', '20', '--wide', '--out', folder, '--json']);
+  let batch = JSON.parse(result.out.trim().split('\n').filter(line => line.startsWith('{')).pop());
+  assert.equal(batch.status ?? 'single', 'repaired', 'a folder with one model after skipping outputs and a broken link is a single run');
+  // Box.glb and box.glb from two folders would be one file where capitals are ignored.
+  fs.mkdirSync(dir + '/upper'); fs.mkdirSync(dir + '/lower');
+  fs.copyFileSync(fixture, dir + '/upper/Box.glb');
+  fs.copyFileSync(fixture, dir + '/lower/box.glb');
+  result = run([dir + '/upper/Box.glb', dir + '/lower/box.glb', '--height', '20', '--wide', '--out', dir + '/cases', '--json']);
+  batch = JSON.parse(result.out.trim().split('\n').pop());
+  assert.deepEqual(batch.results.map(r => r.files.stl.split('/').pop()), ['Box-mended.stl', 'box-2-mended.stl']);
+  // A file standing where the output folder should be: refused before any work.
+  fs.writeFileSync(dir + '/not-a-folder', 'x');
+  assert.equal(run([fixture, '--as-is', '--out', dir + '/not-a-folder']).code, 1);
+  // A write error fails that model only: here the second model's output name is taken by a folder.
+  const two = dir + '/two';
+  fs.mkdirSync(two);
+  fs.copyFileSync(fixture, two + '/a.glb');
+  fs.copyFileSync(fixture, two + '/b.glb');
+  fs.mkdirSync(dir + '/out2/b-mended.stl', { recursive: true });
+  result = run([two, '--height', '20', '--wide', '--out', dir + '/out2', '--json']);
+  batch = JSON.parse(result.out.trim().split('\n').pop());
+  assert.equal(result.code, 1);
+  assert.deepEqual(batch.results.map(r => r.status), ['repaired', 'failed']);
+  assert.match(batch.results[1].error, /Could not write/);
+  fs.rmSync(dir, { recursive: true, force: true });
+});

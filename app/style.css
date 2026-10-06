@@ -385,6 +385,11 @@ body.dragging.drag-wrong .cta-box {
 .batch-download { display: inline-flex; align-items: center; gap: 8px; }
 .batch-download svg { display: block; }
 .batch-download[disabled] { opacity: 0.5; cursor: default; }
+/* While the ZIP is being built: a pulsing dot in place of the arrow, at full strength. */
+.batch-download.building[disabled] { opacity: 0.85; }
+.batch-download.building svg { display: none; }
+.batch-download.building::before { content: ""; width: 9px; height: 9px; margin: 0 3px; border-radius: 50%; background: var(--orange); animation: pulse 1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .batch-download.building::before { animation: none; } }
 /* The model switch above the view, in a batch: arrows, a list of every model, and "2 of 4". */
 .model-switch { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .model-pick { position: relative; display: inline-flex; align-items: center; flex: 0 1 auto; min-width: 0; }
