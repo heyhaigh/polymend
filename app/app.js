@@ -210,7 +210,6 @@ function showResult(message) {
   Object.assign(state, { format: message.format, unit: message.unit, notes: message.notes || [], report: message.report, extent: message.extent, spots: message.spots, spot: -1, reloading: false });
   const quiet = fresh ? state.fromBatch : state.quietShown;
   if (fresh) { state.shown = state.name; state.file = state.pendingFile; state.turns = batch.rows[batch.at]?.turns || 0; state.quietShown = quiet; }
-  $('outcome-label').textContent = quiet ? `Outcome · ${state.shown}` : 'Outcome';
   if (quiet) keepRow(message);
   state.goodOptions = options();
   $('failure').hidden = true;
@@ -219,7 +218,8 @@ function showResult(message) {
   $('drop').classList.add('compact');
   $('choose-label').textContent = quiet ? 'Choose other files' : 'Choose another file';
   $('results').hidden = false;
-  $('outcome').hidden = false;
+  // In a batch the batch card speaks for every model, so the single-model card stays away.
+  $('outcome').hidden = quiet;
   document.body.classList.add('has-results');
   // In a short frame the comparison matters most, so there it comes first and the outcome
   // card and the file strip follow it.
@@ -500,7 +500,6 @@ function clearBatch() {
   if (batch.running) { batch.worker?.terminate(); batch.worker = null; clearTimeout(batch.timer); }
   Object.assign(batch, { rows: [], skipped: [], at: -1, running: false });
   $('batch').hidden = true;
-  $('outcome-label').textContent = 'Outcome';
   placeTop();
 }
 
@@ -615,7 +614,7 @@ function renderBatch() {
   } else {
     $('batch-title').textContent = plural(rows.length, 'model');
     const parts = ['repaired', 'sound', 'partial', 'failed'].filter(count).map(status => `${number(count(status))} ${STATUS_WORDS[status].toLowerCase()}`);
-    $('batch-detail').textContent = `${list(parts)}.` + (count('partial') ? ' A partly repaired model will probably still bring a warning from your slicer; open it to see why.' : '');
+    $('batch-detail').textContent = `${list(parts)}.` + (count('partial') ? ' A partly repaired model will probably still bring a warning from your slicer.' : '');
   }
   if (batch.skipped.length) $('batch-detail').textContent += ` Left out, as not .glb or .stl: ${list(batch.skipped)}.`;
   $('batch-list').replaceChildren(...rows.map((row, i) => {
@@ -633,12 +632,21 @@ function renderBatch() {
     if (row.error) badge.title = row.error;
     item.append(open, badge);
     if (row.error) item.append(Object.assign(document.createElement('p'), { className: 'batch-error', textContent: row.error }));
+    else if (row.status === 'partial' && row.report) item.append(Object.assign(document.createElement('p'), { className: 'batch-error', textContent: remaining(row.report) }));
     return item;
   }));
   const ready = rows.filter(row => row.positions).length;
   $('batch-download').disabled = batch.running || batch.exporting || !ready;
   $('batch-download-label').textContent = batch.exporting ? 'Preparing the ZIP' : `Download all ${ready} (ZIP)`;
   renderBatchNote();
+}
+
+/** One line for a partly repaired row: what is left, and where to look. */
+function remaining(report) {
+  const after = report.after;
+  const left = [after.openEdges && plural(after.openEdges, 'open edge'), after.nonManifoldEdges && plural(after.nonManifoldEdges, 'non-manifold edge'), after.inconsistentEdges && plural(after.inconsistentEdges, 'wrongly facing join')].filter(Boolean);
+  const total = after.openEdges + after.nonManifoldEdges + after.inconsistentEdges;
+  return (left.length ? `${list(left)} remain${total === 1 ? 's' : ''}.` : 'The edge checks pass, but it is not a printable solid.') + ' Open it to see where, and try the Repair options below it.';
 }
 
 /** Says what the ZIP will hold, at what size. The height is the one under Size below. */
