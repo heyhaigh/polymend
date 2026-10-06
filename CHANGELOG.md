@@ -2,6 +2,14 @@
 
 What has changed in Polymend, newest first. Each version is marked with the moment it was published. From version 0.3.0 on, every change is listed here and recorded in the project's public history.
 
+## 0.5.1 (Published October 6, 2026 at 4:13 PM EDT)
+
+- In "Add it to your site", the theme choice that follows each visitor's device setting is now called System, and the choices fit on the narrowest phones.
+- A small button after "Chime when a repair finishes" plays the chime, so you can hear it before you choose. It can be pressed again and again.
+- The sound switch is larger, matching the height buttons, with the same light outline.
+- The upload card no longer flickers over the page as you scroll past it.
+- On a phone, a little less space between the upload card and the explanation below it.
+
 ## 0.5.0 (Published October 6, 2026 at 3:51 PM EDT)
 
 - Several models at once: choose or drop up to 20 GLB or STL files, up to 1 GB in all. Each is repaired in turn on your device, and a list shows how each one went.
