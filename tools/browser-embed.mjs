@@ -67,10 +67,11 @@ for (const [tag, options] of [['desktop', { viewport: { width: 1280, height: 900
   await shot('6-home-popup');
   console.log(tag, 'pop-up open:', await page.evaluate(() => document.getElementById('embed-dialog').open), '| controls moved into it:', await page.evaluate(() => !!document.querySelector('#embed-dialog #embed-maker')));
   // The choices rewrite the code.
-  await page.check('#embed-dialog [name="embed-theme"][value="dark"]');
-  await page.uncheck('#embed-dialog #embed-sound');
-  await page.fill('#embed-dialog #embed-height', '420');
-  console.log(tag, 'after choosing dark, no sound, 420:', await page.textContent('#embed-snippet'));
+  await page.click('#embed-dialog .choice:nth-child(2)');
+  await page.click('#embed-dialog .switch');
+  await page.fill('#embed-dialog #embed-height', '400');
+  await page.click('#embed-dialog [data-step="20"]');
+  console.log(tag, 'after choosing dark, no sound, 400 then +20:', await page.textContent('#embed-snippet'));
   await page.keyboard.press('Escape');
   await page.waitForTimeout(200);
   console.log(tag, 'closed with Escape:', await page.evaluate(() => !document.getElementById('embed-dialog').open), '| controls back in the page:', await page.evaluate(() => !!document.querySelector('.about #embed-maker')));

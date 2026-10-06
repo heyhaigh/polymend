@@ -545,6 +545,14 @@ if ($('embed-maker')) {
     snippet.textContent = `<iframe src="https://polymend.xyz/embed${query ? '?' + query : ''}" title="Polymend: STL and GLB mesh repair" width="100%" height="${height}" style="border:0;border-radius:12px" loading="lazy"></iframe>`;
   };
   for (const input of maker.querySelectorAll('input')) input.addEventListener('input', write);
+  // The round buttons beside the height step it, as the arrows beside the viewer step through changes.
+  for (const button of maker.querySelectorAll('[data-step]')) {
+    button.addEventListener('click', () => {
+      const field = $('embed-height');
+      field.value = Math.min(1200, Math.max(200, (Number(field.value) || 340) + Number(button.dataset.step)));
+      write();
+    });
+  }
   write();
   for (const button of document.querySelectorAll('[data-copy]')) {
     button.addEventListener('click', async () => {

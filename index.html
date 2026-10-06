@@ -209,17 +209,23 @@
         <div class="snippet-options">
           <div class="option-row">
             <span class="option-name">Theme</span>
-            <label><input type="radio" name="embed-theme" value="" checked> Light</label>
-            <label><input type="radio" name="embed-theme" value="dark"> Dark</label>
-            <label><input type="radio" name="embed-theme" value="auto"> Match each visitor's setting</label>
+            <div class="segmented choices" role="radiogroup" aria-label="Theme">
+              <label class="choice"><input type="radio" name="embed-theme" value="" checked><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Light</span></label>
+              <label class="choice"><input type="radio" name="embed-theme" value="dark"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Dark</span></label>
+              <label class="choice"><input type="radio" name="embed-theme" value="auto"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg><span>Match the visitor</span></label>
+            </div>
           </div>
           <div class="option-row">
             <span class="option-name">Sound</span>
-            <label><input type="checkbox" id="embed-sound" checked> A short chime when a repair finishes</label>
+            <label class="switch"><input type="checkbox" id="embed-sound" checked><span class="switch-track" aria-hidden="true"></span><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Chime when a repair finishes</span></label>
           </div>
           <div class="option-row">
             <span class="option-name">Height</span>
-            <label><input type="number" id="embed-height" value="340" min="260" max="1200" step="10"> px</label>
+            <div class="stepper field-stepper">
+              <button type="button" class="round" data-step="-20" aria-label="Shorter"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+              <label class="field"><input type="number" id="embed-height" value="340" min="200" max="1200" step="20" aria-label="Height in pixels"><span>px</span></label>
+              <button type="button" class="round" data-step="20" aria-label="Taller"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 6v12M6 12h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+            </div>
             <span class="caption">It fills the width you give it. 340 fits the upload card; results scroll inside the frame.</span>
           </div>
         </div>

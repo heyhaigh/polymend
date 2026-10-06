@@ -500,13 +500,35 @@ body.outcome-clean :is(.about, .faq) { display: none; }
 /* --- embed code: on the home page, and in the pop-up opened from the footer */
 #embed { scroll-margin-top: 330px; }
 .snippet { position: relative; margin: 14px 0 12px; padding: 16px 16px 62px; background: var(--fill-strong); border: 1px solid var(--line-strong); border-radius: 12px; }
-/* The choices that write the code: one row per choice, plain controls. */
-.snippet-options { display: grid; gap: 10px; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line-strong); font-size: 13px; }
-.option-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
+/* The choices that write the code, in the page's own controls: the segmented switch from
+   the viewer for the theme, a slide switch for the sound, the round stepper buttons for
+   the height. The real inputs stay in the page for keyboards and screen readers. */
+.snippet-options { display: grid; gap: 14px; margin-bottom: 14px; padding-bottom: 16px; border-bottom: 1px solid var(--line-strong); font-size: 13px; }
+.option-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 .option-name { min-width: 56px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.6; }
-.option-row label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
-.option-row input[type="number"] { width: 5em; padding: 4px 6px; font: inherit; color: inherit; background: var(--glass); border: 1px solid var(--line-strong); border-radius: 6px; }
-.option-row .caption { flex-basis: 100%; }
+.option-row .caption { flex-basis: 100%; margin: 0; }
+.choices input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.choice { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 50px; font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer; transition: background 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+.choice svg { display: block; }
+.choice:hover { background: color-mix(in srgb, currentColor 8%, transparent); }
+.choice:has(input:checked) { background: var(--ink); color: var(--paper); }
+.choice:has(input:focus-visible) { outline: 2px solid var(--orange); outline-offset: 2px; }
+.switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+.switch input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.switch svg { display: block; opacity: 0.7; }
+.switch-track { position: relative; width: 38px; height: 22px; border-radius: 11px; background: color-mix(in srgb, currentColor 18%, transparent); transition: background 0.25s ease; flex-shrink: 0; }
+.switch-track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+.switch:has(input:checked) .switch-track { background: var(--orange); }
+.switch:has(input:checked) .switch-track::after { transform: translateX(16px); }
+.switch:has(input:focus-visible) .switch-track { outline: 2px solid var(--orange); outline-offset: 2px; }
+.field-stepper { gap: 6px; }
+.field { display: inline-flex; align-items: center; gap: 6px; }
+.field span { min-width: 0; } /* not the wide centred label the viewer's stepper uses */
+.field input[type="number"] { width: 4.5em; padding: 6px 8px; text-align: center; font: inherit; color: inherit; font-variant-numeric: tabular-nums; }
+.field input[type="number"]::-webkit-outer-spin-button, .field input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.field input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+.field-stepper .round { cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .choice, .switch-track, .switch-track::after { transition: none; } }
 .snippet code { font: inherit; }
 .snippet pre { font: inherit; font-size: 13px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; user-select: all; }
 .snippet .copy { position: absolute; right: 12px; bottom: 12px; cursor: pointer; }
