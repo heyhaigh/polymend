@@ -541,6 +541,7 @@ body.outcome-clean :is(.about, .faq) { display: none; }
 @media (max-width: 768px) {
   .top-stick { padding-top: 80px; }
   .tool-title { font-size: 26px; }
+  .tool-scope { display: none; } /* on a phone the scope line is one paragraph too many before the card */
   canvas { height: min(58vh, 440px); }
   .stage-hint { display: none; }
 }
