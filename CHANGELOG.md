@@ -2,6 +2,10 @@
 
 What has changed in Polymend, newest first. Each version is marked with the moment it was published. From version 0.3.0 on, every change is listed here and recorded in the project's public history.
 
+## 0.4.5 (Published October 6, 2026 at 12:04 AM EDT)
+
+- Search engines and link previews get better details: every page now shows a preview image when shared, the sitemap says when each page last changed, and the site has a classic favicon for browsers that ask for one.
+
 ## 0.4.4 (Published October 5, 2026 at 11:14 PM EDT)
 
 - The result and the questions now say what a self-crossing looks like in a slicer, a small dark triangle or fleck, and that it is not a hole and prints as solid.
