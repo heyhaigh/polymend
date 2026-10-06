@@ -570,8 +570,8 @@ body.outcome-clean :is(.about, .faq) { display: none; }
 /* Inside another site the page is a light panel with a fine edge, so it reads as one
    object against whatever surrounds it, and it is kept short: the embed code gives the
    frame about a third of its width in height. */
-body.embed { --paper: #f8f8f5; --edge: #dcdbd5; }
-body.embed.dark-mode, html.dark-mode body.embed { --paper: #111c2a; --edge: #2a3645; }
+body.embed { --paper: #f8f8f5; --edge: #e4e3de; }
+body.embed.dark-mode, html.dark-mode body.embed { --paper: #15181d; --edge: #2b2f36; }
 body.embed::after { content: ""; position: fixed; inset: 0; border: 1px solid var(--edge); border-radius: 12px; pointer-events: none; z-index: 40; }
 body.embed .tool-container { min-height: 100vh; display: flex; flex-direction: column; padding: 0 20px 10px; }
 body.embed .top-stick { padding: 14px 20px 10px; margin-inline: -20px; }
