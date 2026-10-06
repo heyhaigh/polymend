@@ -344,7 +344,7 @@ function renderCrossings() {
   else if (now) {
     text = `The surface passes through itself in ${plural(now, 'place')}${was === now ? ', as it did before the repair' : ` (${number(was)} before the repair)`}. Polymend counts these but does not repair them.`
       + (now > was ? ' The extra ones are where a patch had to pass close to nearby surface.' : '')
-      + ' Sculpted and scanned models often have them and many slicers cope, but they can cause flawed layers. If a print goes wrong at one, a general repair tool or a 3D editor is the next step.';
+      + ' In a slicer\'s preview they can show as small dark triangles or flecks on the surface; those are not holes, and they print as solid. Sculpted and scanned models often have them and most slicers cope, but they can cause flawed layers. If a print goes wrong at one, a general repair tool or a 3D editor is the next step.';
   }
   // Also for information: places where the surface pinches down to a single point.
   if (r.pointsTouching) text = `The surface pinches to a single point in ${plural(r.pointsTouching, 'place')}, where two parts just touch. Slicers generally accept this.` + (text ? ' ' + text : '');

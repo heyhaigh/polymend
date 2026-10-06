@@ -2,6 +2,10 @@
 
 What has changed in Polymend, newest first. Each version is marked with the moment it was published. From version 0.3.0 on, every change is listed here and recorded in the project's public history.
 
+## 0.4.4 (Published October 5, 2026 at 11:14 PM EDT)
+
+- The result and the questions now say what a self-crossing looks like in a slicer, a small dark triangle or fleck, and that it is not a hole and prints as solid.
+
 ## 0.4.3 (Published October 5, 2026 at 10:25 PM EDT)
 
 - An embedding page with its own light and dark modes can tell the frame when they change, and it flips with the page.
