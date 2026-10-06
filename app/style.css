@@ -500,6 +500,13 @@ body.outcome-clean :is(.about, .faq) { display: none; }
 /* --- embed code: on the home page, and in the pop-up opened from the footer */
 #embed { scroll-margin-top: 330px; }
 .snippet { position: relative; margin: 14px 0 12px; padding: 16px 16px 62px; background: var(--fill-strong); border: 1px solid var(--line-strong); border-radius: 12px; }
+/* The choices that write the code: one row per choice, plain controls. */
+.snippet-options { display: grid; gap: 10px; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line-strong); font-size: 13px; }
+.option-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
+.option-name { min-width: 56px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.6; }
+.option-row label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.option-row input[type="number"] { width: 5em; padding: 4px 6px; font: inherit; color: inherit; background: var(--glass); border: 1px solid var(--line-strong); border-radius: 6px; }
+.option-row .caption { flex-basis: 100%; }
 .snippet code { font: inherit; }
 .snippet pre { font: inherit; font-size: 13px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; user-select: all; }
 .snippet .copy { position: absolute; right: 12px; bottom: 12px; cursor: pointer; }
@@ -517,8 +524,19 @@ body.outcome-clean :is(.about, .faq) { display: none; }
 /* --- the copy that other sites place in a frame (/embed): the tool alone, with no title,
    explanation or site footer, and a one-line credit. Before a file is given it sits in the
    middle of whatever height the frame was given. */
-body.embed .tool-container { min-height: 100vh; display: flex; flex-direction: column; padding-bottom: 16px; }
-body.embed .top-stick { padding-top: 20px; }
+/* Inside another site the page is a light panel with a fine edge, so it reads as one
+   object against whatever surrounds it, and it is kept short: the embed code gives the
+   frame about a third of its width in height. */
+body.embed { --paper: #f3f2ee; --edge: #d7d6cf; }
+body.embed.dark-mode, html.dark-mode body.embed { --paper: #111c2a; --edge: #2a3645; }
+body.embed::after { content: ""; position: fixed; inset: 0; border: 1px solid var(--edge); border-radius: 12px; pointer-events: none; z-index: 40; }
+body.embed .tool-container { min-height: 100vh; display: flex; flex-direction: column; padding: 0 20px 10px; }
+body.embed .top-stick { padding: 14px 20px 10px; margin-inline: -20px; }
+body.embed .tool-header { margin-bottom: 8px; }
+body.embed:not(.has-results) .cta-box { padding: 20px 20px 22px; }
+body.embed:not(.has-results) .cta-box h2 { font-size: 17px; margin-bottom: 6px; }
+body.embed:not(.has-results) .drop-copy { margin-bottom: 12px; }
+body.embed canvas { height: min(52vh, 440px); }
 /* Before a file is given, the upload card grows to fill the frame, so the whole frame
    reads as one drop target whatever height its owner chose. */
 body.embed:not(.has-results) .top-stick { flex: 1; display: flex; flex-direction: column; position: static; }
@@ -527,6 +545,6 @@ body.embed .tool-header { width: 100%; }
 body.embed:not(.has-results) .cta-box { flex: 1; width: 100%; display: flex; flex-direction: column; justify-content: center; }
 body.embed .tool-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 body.embed :is(.tool-subtitle, .tool-scope) { display: none; }
-.embed-credit { width: 100%; max-width: 720px; margin: 12px auto 0; display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
+.embed-credit { width: 100%; max-width: 720px; margin: 8px auto 0; display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
 .embed-credit a { opacity: 0.65; text-decoration: none; }
 .embed-credit a:is(:hover, :focus-visible) { opacity: 1; text-decoration: underline; }

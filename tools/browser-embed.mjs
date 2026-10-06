@@ -65,9 +65,15 @@ for (const [tag, options] of [['desktop', { viewport: { width: 1280, height: 900
   await page.locator('[data-embed-open]').scrollIntoViewIfNeeded();
   await page.click('[data-embed-open]');
   await shot('6-home-popup');
-  console.log(tag, 'pop-up open:', await page.evaluate(() => document.getElementById('embed-dialog').open), '| same code:', await page.evaluate(() => document.getElementById('embed-snippet-copy').textContent === document.getElementById('embed-snippet').textContent));
+  console.log(tag, 'pop-up open:', await page.evaluate(() => document.getElementById('embed-dialog').open), '| controls moved into it:', await page.evaluate(() => !!document.querySelector('#embed-dialog #embed-maker')));
+  // The choices rewrite the code.
+  await page.check('#embed-dialog [name="embed-theme"][value="dark"]');
+  await page.uncheck('#embed-dialog #embed-sound');
+  await page.fill('#embed-dialog #embed-height', '420');
+  console.log(tag, 'after choosing dark, no sound, 420:', await page.textContent('#embed-snippet'));
   await page.keyboard.press('Escape');
-  console.log(tag, 'closed with Escape:', await page.evaluate(() => !document.getElementById('embed-dialog').open));
+  await page.waitForTimeout(200);
+  console.log(tag, 'closed with Escape:', await page.evaluate(() => !document.getElementById('embed-dialog').open), '| controls back in the page:', await page.evaluate(() => !!document.querySelector('.about #embed-maker')));
   console.log(tag, 'errors:', errors.length ? errors : 'none');
   await context.close();
 }

@@ -204,12 +204,29 @@
       </ol>
 
       <h2 id="embed">Add it to your site</h2>
-      <p>Polymend can sit inside any web page. Paste this code where you want the tool to appear. It works there exactly as it does here: models are repaired in your visitor's browser and are never sent to your site or to Polymend.</p>
-      <div class="snippet">
-        <pre><code id="embed-snippet">&lt;iframe src=&quot;https://polymend.xyz/embed&quot; title=&quot;Polymend: STL and GLB mesh repair&quot; width=&quot;100%&quot; height=&quot;720&quot; style=&quot;border:0;border-radius:12px&quot; loading=&quot;lazy&quot;&gt;&lt;/iframe&gt;</code></pre>
+      <p>Polymend can sit inside any web page. Choose how it should look, then paste the code where you want the tool to appear. It works there exactly as it does here: models are repaired in your visitor's browser and are never sent to your site or to Polymend.</p>
+      <div class="snippet" id="embed-maker">
+        <div class="snippet-options">
+          <div class="option-row">
+            <span class="option-name">Theme</span>
+            <label><input type="radio" name="embed-theme" value="" checked> Light</label>
+            <label><input type="radio" name="embed-theme" value="dark"> Dark</label>
+            <label><input type="radio" name="embed-theme" value="auto"> Match each visitor's setting</label>
+          </div>
+          <div class="option-row">
+            <span class="option-name">Sound</span>
+            <label><input type="checkbox" id="embed-sound" checked> A short chime when a repair finishes</label>
+          </div>
+          <div class="option-row">
+            <span class="option-name">Height</span>
+            <label><input type="number" id="embed-height" value="340" min="260" max="1200" step="10"> px</label>
+            <span class="caption">It fills the width you give it. 340 fits the upload card; results scroll inside the frame.</span>
+          </div>
+        </div>
+        <pre><code id="embed-snippet">&lt;iframe src=&quot;https://polymend.xyz/embed&quot; title=&quot;Polymend: STL and GLB mesh repair&quot; width=&quot;100%&quot; height=&quot;340&quot; style=&quot;border:0;border-radius:12px&quot; loading=&quot;lazy&quot;&gt;&lt;/iframe&gt;</code></pre>
         <button type="button" class="pill copy" data-copy="embed-snippet">Copy code</button>
       </div>
-      <p class="snippet-note">It is light by default. Add <code>?theme=dark</code> to the address for a dark page, or <code>?theme=auto</code> to follow each visitor's own setting.</p>
+      <p class="snippet-note">The code changes as you choose, so there is nothing to edit by hand. Free, with a small "Created by Ry" link under the tool.</p>
     </section>
 
     <section class="faq" aria-labelledby="faq-title">
@@ -288,18 +305,9 @@
     <dialog id="embed-dialog" class="modal" aria-labelledby="embed-dialog-title">
       <div class="modal-body">
         <h2 id="embed-dialog-title">Add Polymend to your site</h2>
-        <p>Paste this code where you want the tool to appear. Your visitors can drop in a model, see the repair and download the result without leaving your page.</p>
-        <div class="snippet">
-          <pre><code id="embed-snippet-copy"></code></pre>
-          <button type="button" class="pill copy" data-copy="embed-snippet-copy">Copy code</button>
-        </div>
-        <ul>
-          <li><strong>Size.</strong> It fills the width you give it. A height of 720 suits most pages; results scroll inside the frame.</li>
-          <li><strong>Theme.</strong> Light by default. Add <code>?theme=dark</code> or <code>?theme=auto</code> to the address.</li>
-          <li><strong>Sound.</strong> A short chime marks the finish. Add <code>?sound=off</code> to silence it.</li>
-          <li><strong>Privacy.</strong> The same as here. Models stay in your visitor's browser; nothing is sent to your site or to Polymend.</li>
-          <li><strong>Cost.</strong> Free. A small "Created by Ry" link sits under the tool.</li>
-        </ul>
+        <p>Choose how it should look, then paste the code where you want the tool to appear. Your visitors can drop in a model, see the repair and download the result without leaving your page. Models stay in their browser; nothing is sent to your site or to Polymend.</p>
+        <div id="embed-maker-slot"></div>
+        <p class="snippet-note">Free, with a small "Created by Ry" link under the tool.</p>
         <button type="button" class="pill" data-embed-close>Close</button>
       </div>
     </dialog>

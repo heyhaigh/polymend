@@ -54,7 +54,7 @@ test('nothing the site ships loads code, styles, fonts or images from another si
     const text = read(file);
     for (const match of text.matchAll(/<(script|link|img|iframe|source|video|audio)\b[^>]*?\b(?:src|href)="([^"]+)"/g)) {
       const [, tag, url] = match;
-      const outside = /^(https?:)?\/\//.test(url);
+      const outside = /^(https?:)?\/\//.test(url) && !url.startsWith('https://polymend.xyz/'); // the site's own address is not outside
       // Plain links and the tags that describe the page to search engines are not loads.
       const harmless = tag === 'link' && /rel="(canonical|author)"/.test(match[0]);
       assert.ok(!outside || harmless, `${file} loads ${url}`);
@@ -145,7 +145,7 @@ test('only the embedded copy may be placed in a frame by other sites, and it is 
 
 test('the embed code on the home page points at the embedded copy and nothing else', () => {
   const code = read('index.html').match(/<code id="embed-snippet">([^<]+)<\/code>/)[1].replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"');
-  assert.match(code, /^<iframe src="https:\/\/polymend\.xyz\/embed" [^>]*><\/iframe>$/);
+  assert.match(code, /^<iframe src="https:\/\/polymend\.xyz\/embed" [^>]*height="340"[^>]*><\/iframe>$/);
   assert.ok(!/<script|allow=|sandbox=/.test(code), 'the embed code should be a plain frame: no script, no extra permissions');
 });
 

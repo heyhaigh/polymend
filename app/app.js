@@ -529,11 +529,23 @@ for (const input of document.querySelectorAll('[data-option]')) {
 }
 $('outcome-title').tabIndex = -1;
 
-// The embed code. It is written once, in the page text; the footer's pop-up shows the same
-// words. Neither exists on the embedded page itself.
-if ($('embed-snippet')) {
+// The embed code. Three choices rewrite it as they change, so nobody edits it by hand.
+// One set of controls serves the page text and the footer's pop-up: it moves into the
+// pop-up while that is open. None of this exists on the embedded page itself.
+if ($('embed-maker')) {
   const dialog = $('embed-dialog');
-  $('embed-snippet-copy').textContent = $('embed-snippet').textContent;
+  const maker = $('embed-maker');
+  const home = document.createComment('embed maker');
+  const snippet = $('embed-snippet');
+  const write = () => {
+    const theme = document.querySelector('[name="embed-theme"]:checked')?.value || '';
+    const quiet = !$('embed-sound').checked;
+    const height = Math.min(1200, Math.max(200, Math.round(Number($('embed-height').value) || 340)));
+    const query = [theme && `theme=${theme}`, quiet && 'sound=off'].filter(Boolean).join('&');
+    snippet.textContent = `<iframe src="https://polymend.xyz/embed${query ? '?' + query : ''}" title="Polymend: STL and GLB mesh repair" width="100%" height="${height}" style="border:0;border-radius:12px" loading="lazy"></iframe>`;
+  };
+  for (const input of maker.querySelectorAll('input')) input.addEventListener('input', write);
+  write();
   for (const button of document.querySelectorAll('[data-copy]')) {
     button.addEventListener('click', async () => {
       const source = $(button.dataset.copy);
@@ -554,9 +566,12 @@ if ($('embed-snippet')) {
     link.addEventListener('click', event => {
       if (typeof dialog.showModal !== 'function') return; // a very old browser follows the link to the section instead
       event.preventDefault();
+      maker.replaceWith(home);
+      $('embed-maker-slot').append(maker);
       dialog.showModal();
     });
   }
+  dialog.addEventListener('close', () => { home.replaceWith(maker); });
   // The Close button, or a click on the dimmed page around the box.
   dialog.addEventListener('click', event => { if (event.target === dialog || event.target.closest('[data-embed-close]')) dialog.close(); });
 }
