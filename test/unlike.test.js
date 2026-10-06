@@ -511,3 +511,31 @@ test('the command line turns a GLB into a repaired STL and 3MF at the asked heig
   assert.throws(() => execFileSync('node', ['cli.mjs', fixture, '--as-is', '--out', dir, '--name', 'open'], { cwd: new URL('..', import.meta.url).pathname, stdio: 'pipe' }), error => error.status === 2);
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('the command line repairs a folder of models and lists every result, unreadable ones too', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const cwd = new URL('..', import.meta.url).pathname;
+  const folder = fs.mkdtempSync(os.tmpdir() + '/polymend-batch-in-');
+  const out = fs.mkdtempSync(os.tmpdir() + '/polymend-batch-out-');
+  const fixture = new URL('./fixtures/holed-box-draco.glb', import.meta.url).pathname;
+  fs.copyFileSync(fixture, folder + '/a-box.glb');
+  fs.copyFileSync(fixture, folder + '/b-box.glb');
+  fs.writeFileSync(folder + '/c-notes.stl', 'this is not a model');
+  fs.writeFileSync(folder + '/readme.txt', 'not a model either, and not picked up');
+  let code = 0, output = '';
+  try { output = execFileSync('node', ['cli.mjs', folder, '--height', '20', '--wide', '--out', out, '--json'], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); } catch (error) { code = error.status; output = error.stdout; }
+  assert.equal(code, 1, 'one unreadable file makes the exit code 1');
+  const batch = JSON.parse(output.trim().split('\n').pop());
+  assert.equal(batch.models, 3);
+  assert.deepEqual([batch.repaired, batch.failed], [2, 1]);
+  assert.deepEqual(batch.results.map(r => r.status), ['repaired', 'repaired', 'failed']);
+  assert.deepEqual(JSON.parse(fs.readFileSync(out + '/polymend-batch.json', 'utf8')), batch);
+  for (const name of ['a-box', 'b-box']) assert.ok(fs.statSync(`${out}/${name}-mended.stl`).size > 84, name);
+  assert.ok(!fs.existsSync(out + '/c-notes-mended.stl'));
+  // --name cannot be shared by several models.
+  assert.throws(() => execFileSync('node', ['cli.mjs', folder, '--as-is', '--name', 'x', '--out', out], { cwd, stdio: 'pipe' }), error => error.status === 1);
+  fs.rmSync(folder, { recursive: true, force: true });
+  fs.rmSync(out, { recursive: true, force: true });
+});
