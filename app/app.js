@@ -491,6 +491,8 @@ const VIEW_BUDGET = (SMALL_DEVICE ? 120 : 400) * 1024 ** 2;
 const MODEL_NAME = /\.(glb|stl)$/i;
 const DONE = ['repaired', 'sound', 'partial'];
 const STATUS_WORDS = { waiting: 'Waiting', working: 'Repairing', repaired: 'Repaired', sound: 'Nothing to fix', partial: 'Partly repaired', failed: 'Not repaired' };
+const PHONE = matchMedia('(max-width: 640px)');
+PHONE.addEventListener?.('change', () => { if (batch.rows.length) renderBatch(); });
 const batch = { id: 0, rows: [], skipped: [], at: -1, running: false, worker: null, timer: 0, job: null, jobs: 0, viewBytes: 0 };
 
 /** File names go into text the visitor reads and saves: no control or direction characters. */
@@ -811,10 +813,13 @@ function renderBatch() {
   }));
   if (focused !== undefined) $('batch-list').querySelector(`[data-id="${focused}"] .batch-open`)?.focus({ preventScroll: true });
   renderModelSwitch();
-  // The list is folded away unless asked for, so the comparison below stays in view.
-  $('batch-more').hidden = !batch.expanded;
-  $('batch').classList.toggle('open', !!batch.expanded);
-  $('batch-toggle').setAttribute('aria-expanded', String(!!batch.expanded));
+  // On a phone the list is folded away unless asked for, so the comparison stays in view.
+  // A desktop has the room, and always shows it.
+  const open = !PHONE.matches || !!batch.expanded;
+  $('batch-more').hidden = !open;
+  $('batch').classList.toggle('open', open);
+  $('batch-toggle').hidden = !PHONE.matches;
+  $('batch-toggle').setAttribute('aria-expanded', String(open));
   $('batch-toggle-label').textContent = batch.expanded ? 'Hide list' : 'Show list';
   // The ZIP is put together from each model's packed files, made in the background.
   const done = rows.filter(row => DONE.includes(row.status) && !row.buildError);
@@ -989,7 +994,7 @@ $('batch-download')?.addEventListener('click', downloadBatch);
 $('batch-toggle')?.addEventListener('click', () => { batch.expanded = !batch.expanded; renderBatch(); });
 // On a phone the whole folded line opens and closes the list, not only the chevron.
 document.querySelector('.batch-head')?.addEventListener('click', event => {
-  if (!matchMedia('(max-width: 640px)').matches || event.target.closest('button')) return;
+  if (!PHONE.matches || event.target.closest('button')) return;
   batch.expanded = !batch.expanded;
   renderBatch();
 });
