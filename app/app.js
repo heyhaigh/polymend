@@ -23,6 +23,7 @@ theme?.onChange(dark => viewer?.setSurface(surface(dark)));
 // A normal model takes about a second. Anything still running after a minute is stuck
 // or far outside what this page repairs, so the work is stopped and the user is told.
 const LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
+const EMBED = document.documentElement.hasAttribute('data-embed');
 const askedLimit = Number(new URLSearchParams(location.search).get('limit-ms'));
 const LIMIT_MS = LOCAL && askedLimit > 0 ? askedLimit : 60_000;
 let worker = null;
@@ -70,6 +71,7 @@ function lostModel() {
   state.report = null;
   $('results').hidden = true;
   $('outcome').hidden = true;
+  if (EMBED) $('results').before($('top-stick')); // back above the view
   document.body.classList.remove('has-results', 'outcome-clean');
   $('drop').classList.remove('compact');
   $('choose-label').textContent = 'Choose a file';
@@ -210,6 +212,9 @@ function showResult(message) {
   $('results').hidden = false;
   $('outcome').hidden = false;
   document.body.classList.add('has-results');
+  // In a short frame the comparison matters most, so there it comes first and the outcome
+  // card and the file strip follow it.
+  if (EMBED) document.querySelector('.view').after($('top-stick'));
   if (fresh) {
     // A GLB is nominally in meters, but many arrive at an arbitrary size, so a height is needed.
     // An STL may already be the right size, so it is left alone unless asked.

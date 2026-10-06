@@ -579,7 +579,7 @@ body.embed .tool-header { margin-bottom: 8px; }
 body.embed:not(.has-results) .cta-box { padding: 20px 20px 22px; }
 body.embed:not(.has-results) .cta-box h2 { font-size: 17px; margin-bottom: 6px; }
 body.embed:not(.has-results) .drop-copy { margin-bottom: 12px; }
-body.embed canvas { height: min(52vh, 440px); }
+body.embed canvas { height: min(60vh, 460px); }
 /* Before a file is given, the upload card grows to fill the frame, so the whole frame
    reads as one drop target whatever height its owner chose. */
 body.embed:not(.has-results) .top-stick { flex: 1; display: flex; flex-direction: column; position: static; }
@@ -589,5 +589,15 @@ body.embed:not(.has-results) .cta-box { flex: 1; width: 100%; display: flex; fle
 body.embed .tool-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 body.embed :is(.tool-subtitle, .tool-scope) { display: none; }
 .embed-credit { width: 100%; max-width: 720px; margin: 8px auto 0; display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
+.embed-credit { align-items: center; }
 .embed-credit a { opacity: 0.65; text-decoration: none; }
 .embed-credit a:is(:hover, :focus-visible) { opacity: 1; text-decoration: underline; }
+/* The maker's mark: the hand from heyhaigh.ai as a small badge, a ring appearing on hover. */
+.embed-badge { display: block; width: 28px; height: 28px; border-radius: 50%; opacity: 1; box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 35%, transparent); transition: box-shadow 0.2s ease-out, transform 0.2s ease-out; }
+.embed-badge img { display: block; width: 28px; height: 28px; border-radius: 50%; }
+.embed-badge:is(:hover, :focus-visible) { box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 35%, transparent); transform: translateY(-1px); text-decoration: none; }
+.embed-badge:focus-visible { outline: none; }
+/* With a result, the embed shows the view first; the outcome and the file strip follow it. */
+body.embed.has-results .top-stick { position: static; padding-top: 12px; }
+body.embed.has-results .top-stick::after { display: none; }
+body.embed.has-results .stack { margin-top: 0; }
