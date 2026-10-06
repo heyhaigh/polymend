@@ -1,6 +1,6 @@
 // Sizing for print, and the 3MF writer.
 
-export const VERSION = '0.4.5';
+export const VERSION = '0.5.0';
 
 /**
  * With a print height: scale a Z-up model to that height in millimetres, stand it on the
@@ -33,7 +33,8 @@ export function layout(positions, { heightMm, unitMm = 1 } = {}) {
 const CONTENT_TYPES = '<?xml version="1.0" encoding="UTF-8"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/></Types>';
 const RELS = '<?xml version="1.0" encoding="UTF-8"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>';
 
-const escapeXml = text => String(text).replace(/[<>&"']/g, ch => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[ch]);
+// Control characters are not allowed in XML at all, so they are dropped rather than escaped.
+const escapeXml = text => String(text).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').replace(/[<>&"']/g, ch => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[ch]);
 // Coordinates are written as briefly as possible. Rounding the number and letting
 // JavaScript print it is several times faster than formatting and trimming text.
 // Five decimal places of a millimetre is a hundredth of a micron, far finer than any
@@ -101,29 +102,39 @@ async function deflate(bytes) {
 }
 
 /**
- * A minimal ZIP archive: deflated where the platform can, stored otherwise.
- * `files` is a list of [name, bytes] pairs.
+ * One file for a ZIP, packed on its own: deflated where the platform can and where that
+ * makes it smaller, stored otherwise. Packing each file separately lets a large archive be
+ * put together from parts, without ever holding all of it in one array.
  */
-export async function zip(files) {
-  const encoder = new TextEncoder();
-  const chunks = [];
-  const directory = [];
+export async function zipEntry(name, data, { compress = true } = {}) {
+  const nameBytes = new TextEncoder().encode(name);
+  if (nameBytes.length > 255) throw new Error(`A file name in the ZIP is too long: ${name}`);
+  const packed = compress ? await deflate(data) : null;
+  const body = packed && packed.length < data.length ? packed : data;
+  return { nameBytes, crc: crc32(data), method: body === data ? 0 : 8, size: data.length, body };
+}
+
+/**
+ * The parts of a ZIP archive, in order, from entries made by `zipEntry`. An entry's body
+ * may be bytes or a Blob, so `new Blob(zipParts(entries))` builds a large archive without
+ * copying it into one array. Archives are plain ZIP, so they must stay under 4 GiB.
+ */
+export function zipParts(entries) {
+  const LIMIT = 0xffffffff;
+  const parts = [], directory = [];
   let offset = 0;
-  for (const [name, data] of files) {
-    const packed = await deflate(data);
-    const body = packed && packed.length < data.length ? packed : data;
-    const method = body === data ? 0 : 8;
-    const nameBytes = encoder.encode(name);
-    const crc = crc32(data);
-    const header = new Uint8Array(30 + nameBytes.length);
+  for (const entry of entries) {
+    const length = entry.body.size ?? entry.body.length;
+    const header = new Uint8Array(30 + entry.nameBytes.length);
     const view = new DataView(header.buffer);
-    view.setUint32(0, 0x04034b50, true); view.setUint16(4, 20, true); view.setUint16(6, 0x0800, true); view.setUint16(8, method, true);
+    view.setUint32(0, 0x04034b50, true); view.setUint16(4, 20, true); view.setUint16(6, 0x0800, true); view.setUint16(8, entry.method, true);
     view.setUint16(10, 0, true); view.setUint16(12, 0x21, true); // 1980-01-01, so the same model always gives the same file
-    view.setUint32(14, crc, true); view.setUint32(18, body.length, true); view.setUint32(22, data.length, true);
-    view.setUint16(26, nameBytes.length, true); header.set(nameBytes, 30);
-    chunks.push(header, body);
-    directory.push({ nameBytes, crc, packed: body.length, size: data.length, method, offset });
-    offset += header.length + body.length;
+    view.setUint32(14, entry.crc, true); view.setUint32(18, length, true); view.setUint32(22, entry.size, true);
+    view.setUint16(26, entry.nameBytes.length, true); header.set(entry.nameBytes, 30);
+    parts.push(header, entry.body);
+    directory.push({ ...entry, length, offset });
+    offset += header.length + length;
+    if (offset > LIMIT || entry.size > LIMIT) throw new Error('The ZIP would be larger than 4 GB.');
   }
   const start = offset;
   for (const entry of directory) {
@@ -131,19 +142,39 @@ export async function zip(files) {
     const view = new DataView(record.buffer);
     view.setUint32(0, 0x02014b50, true); view.setUint16(4, 20, true); view.setUint16(6, 20, true); view.setUint16(8, 0x0800, true);
     view.setUint16(10, entry.method, true); view.setUint16(12, 0, true); view.setUint16(14, 0x21, true);
-    view.setUint32(16, entry.crc, true); view.setUint32(20, entry.packed, true); view.setUint32(24, entry.size, true);
+    view.setUint32(16, entry.crc, true); view.setUint32(20, entry.length, true); view.setUint32(24, entry.size, true);
     view.setUint16(28, entry.nameBytes.length, true); view.setUint32(42, entry.offset, true);
     record.set(entry.nameBytes, 46);
-    chunks.push(record);
+    parts.push(record);
     offset += record.length;
   }
+  if (offset > LIMIT || directory.length > 0xffff) throw new Error('The ZIP would be larger than 4 GB.');
   const end = new Uint8Array(22);
   const view = new DataView(end.buffer);
   view.setUint32(0, 0x06054b50, true); view.setUint16(8, directory.length, true); view.setUint16(10, directory.length, true);
   view.setUint32(12, offset - start, true); view.setUint32(16, start, true);
-  chunks.push(end);
-  const out = new Uint8Array(offset + 22);
+  parts.push(end);
+  return parts;
+}
+
+/** A small ZIP archive in one array. `files` is a list of [name, bytes] pairs. */
+export async function zip(files) {
+  const entries = [];
+  for (const [name, data] of files) entries.push(await zipEntry(name, data));
+  const parts = zipParts(entries);
+  const out = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
   let at = 0;
-  for (const chunk of chunks) { out.set(chunk, at); at += chunk.length; }
+  for (const part of parts) { out.set(part, at); at += part.length; }
   return out;
+}
+
+/**
+ * A file name with nothing in it that could escape a folder, upset an unzip tool, or
+ * stop it extracting on Windows: only plain characters, no leading dots, no trailing dots
+ * or spaces, not a name Windows reserves, and not too long.
+ */
+export function safeFileName(name) {
+  let out = String(name).replace(/[^A-Za-z0-9 ._()+-]/g, '_').replace(/^[.]+/, '_').replace(/[. ]+$/, '').slice(0, 100);
+  if (/^(con|prn|aux|nul|com[0-9]|lpt[0-9])$/i.test(out)) out = '_' + out;
+  return out || 'model';
 }

@@ -2,6 +2,16 @@
 
 What has changed in Polymend, newest first. Each version is marked with the moment it was published. From version 0.3.0 on, every change is listed here and recorded in the project's public history.
 
+## 0.5.0 (Published October 6, 2026 at 3:51 PM EDT)
+
+- Several models at once: choose or drop up to 20 GLB or STL files, up to 1 GB in all. Each is repaired in turn on your device, and a list shows how each one went.
+- The review opens as soon as every model is repaired. Switch between models with the arrows or the menu above the view; switching is instant.
+- "Download all" gives every model in one ZIP, an STL and a 3MF of each with a short summary, at the height set under Size. The ZIP is put together in the background while you look, and the button shows its progress until it is ready. The menu beside it gives just the model in view, in either format.
+- A change made to one model in view, a repair option or a quarter turn, is carried into its files in the ZIP; a new height remakes them all.
+- With a result on the page, the before-and-after view now comes first, with the result and the file list below it. On a phone, the list folds into one line until you open it.
+- The view's Before, After and Side by side buttons are now icons, with their names on hover.
+- From the command line, `node cli.mjs <folder or files> --height <mm>` repairs every model and writes a list of the results.
+
 ## 0.4.5 (Published October 6, 2026 at 12:04 AM EDT)
 
 - Search engines and link previews get better details: every page now shows a preview image when shared, the sitemap says when each page last changed, and the site has a classic favicon for browsers that ask for one.

@@ -1,7 +1,7 @@
 // Page behaviour: take a file, hand it to the worker, show what it found and did.
 
 import { createViewer } from './viewer.js';
-import { VERSION } from '../src/output.js';
+import { VERSION, zipEntry, zipParts, safeFileName } from '../src/output.js';
 import * as sound from './sound.js';
 import { FAILURES, MAX_BYTES } from './messages.js';
 
@@ -9,7 +9,7 @@ const $ = id => document.getElementById(id);
 const number = value => value.toLocaleString('en-US');
 const plural = (count, one, many = one + 's') => `${number(count)} ${count === 1 ? one : many}`;
 
-const state = { name: '', format: '', unit: null, notes: [], report: null, extent: [0, 0, 0], spots: [], spot: -1, busy: false, which: 'after', turns: 0 };
+const state = { name: '', format: '', unit: null, notes: [], report: null, extent: [0, 0, 0], spots: [], spot: -1, busy: false, which: 'after', turns: 0, gen: 0 };
 const viewer = createViewer($('canvas'));
 if (!viewer) { $('canvas').hidden = true; $('no-webgl').hidden = false; }
 if ($('version')) $('version').textContent = `Version ${VERSION}.`; // absent from the embedded page
@@ -41,7 +41,11 @@ function startWorker() {
   worker.onmessage = onMessage;
 }
 
-/** Send work to the worker and start the clock. */
+/**
+ * Send work to the worker and start the clock. Every request carries the generation of the
+ * model in view, and the worker answers with it; a new model means a new generation, so
+ * an answer for an earlier one is dropped before it can touch the page or the clock.
+ */
 function ask(message, transfer = []) {
   clearTimeout(limit);
   limit = setTimeout(() => {
@@ -52,7 +56,7 @@ function ask(message, transfer = []) {
     lostModel();
     fail(FAILURES.timedOut.detail, FAILURES.timedOut.title);
   }, LIMIT_MS);
-  worker.postMessage(message, transfer);
+  worker.postMessage({ ...message, gen: state.gen }, transfer);
 }
 
 /**
@@ -64,6 +68,7 @@ function lostModel() {
   if (state.report && state.file && !state.reloading) {
     state.reloading = true; // one quiet reload only; if that also fails, start over
     for (const input of document.querySelectorAll('[data-option]')) input.checked = state.goodOptions[input.dataset.option];
+    state.gen++;
     state.file.arrayBuffer().then(buffer => { setBusy(true); ask({ type: 'load', buffer, name: state.shown, options: state.goodOptions, turns: state.turns }, [buffer]); }).catch(() => {});
     return;
   }
@@ -71,7 +76,7 @@ function lostModel() {
   state.report = null;
   $('results').hidden = true;
   $('outcome').hidden = true;
-  if (EMBED) $('results').before($('top-stick')); // back above the view
+  $('results').before($('top-stick')); // back above, where the upload card belongs
   document.body.classList.remove('has-results', 'outcome-clean');
   $('drop').classList.remove('compact');
   $('choose-label').textContent = 'Choose a file';
@@ -95,7 +100,7 @@ function placeSticky() {
  * on the page the title stays away even if the card has been dismissed.
  */
 function placeTop() {
-  document.body.classList.toggle('has-outcome', !$('failure').hidden || !$('outcome').hidden || document.body.classList.contains('has-results'));
+  document.body.classList.toggle('has-outcome', !$('failure').hidden || !$('outcome').hidden || !!($('batch') && !$('batch').hidden) || document.body.classList.contains('has-results'));
   placeSticky();
 }
 // The X in a card's corner puts it away; the next result or refusal brings a card back.
@@ -127,9 +132,15 @@ function setBadge(kind, text) {
 
 function setBusy(busy) {
   state.busy = busy;
-  for (const id of ['choose', 'rotate']) $(id).disabled = busy;
-  for (const control of document.querySelectorAll('[data-option], [data-download], .split-caret')) control.disabled = busy;
+  // While a batch model loads quietly, other files can still be chosen. A model whose file
+  // could not be read again can be looked at, but not changed or downloaded on its own.
+  $('choose').disabled = busy && !state.batchLoading;
+  const locked = busy || !!state.unsynced;
+  $('rotate').disabled = locked;
+  for (const control of document.querySelectorAll('[data-option], [data-download], .split-caret')) control.disabled = locked;
+  if (typeof lockDownloads === 'function' && batch.rows.length) lockDownloads();
   if (busy) closeMenus();
+  if (batch.rows.length && $('model-switch')) renderModelSwitch();
 }
 
 /**
@@ -140,9 +151,11 @@ function fail(message, title = FAILURES.unreadable.title) {
   setBusy(false);
   // The file that failed is forgotten. Without this, the next change to the model still
   // on the page would be taken for that file arriving, and the model would get its name.
-  state.fresh = false;
-  state.pendingFile = null;
-  if (state.report) state.name = state.shown;
+  if (!state.batchLoading) {
+    state.fresh = false;
+    state.pendingFile = null;
+    if (state.report) state.name = state.shown;
+  }
   const kept = state.report ? ` The model below is still ${state.shown}.` : '';
   $('failure-title').textContent = title;
   $('failure-detail').textContent = message + kept;
@@ -150,7 +163,8 @@ function fail(message, title = FAILURES.unreadable.title) {
   $('failure').hidden = false;
   document.body.classList.remove('outcome-clean');
   placeTop();
-  toTop();
+  if (document.body.classList.contains('has-results')) $('failure').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+  else toTop();
   setBadge('bad', 'Not repaired');
   sound.play('failed');
   setStatus(state.report ? `${state.shown} · ${number(state.report.before.triangles)} triangles` : '');
@@ -169,12 +183,19 @@ function options() {
   return out;
 }
 
+/**
+ * Load one model into the view. A file the visitor chose on its own ends any batch; a
+ * batch row opened for a look (`fromBatch`) arrives quietly, with no chime and no jump.
+ */
 async function openFile(file) {
-  if (!file || state.busy) return;
+  if (!file || (state.busy && !state.batchLoading)) return;
   if (file.size > MAX_BYTES) return fail(FAILURES.tooLarge.detail, FAILURES.tooLarge.title);
+  clearBatch();
+  const gen = ++state.gen;
   state.name = file.name;
   state.pendingFile = file;
   state.fresh = true;
+  state.fromBatch = false;
   setBusy(true);
   // With no model on the page, an earlier failure stays, dimmed, until the new outcome
   // replaces it. Hiding it would bring the title back for a moment and shift the page twice.
@@ -183,16 +204,29 @@ async function openFile(file) {
   setBadge('working', 'Working on this device');
   setStatus(`Reading ${file.name}`, 'busy');
   let buffer;
-  try { buffer = await file.arrayBuffer(); } catch { return fail('This file could not be read.'); }
-  ask({ type: 'load', buffer, name: file.name, options: options() }, [buffer]);
+  try { buffer = await file.arrayBuffer(); } catch { if (gen === state.gen) fail('This file could not be read.'); return; }
+  if (gen === state.gen) ask({ type: 'load', buffer, name: file.name, options: options() }, [buffer]);
 }
 
 function onMessage(event) {
   const message = event.data;
+  if (message.gen !== state.gen) return; // for a model no longer in view
   if (message.type === 'progress') return setStatus(message.label, 'busy');
   // The self-crossing count arrives a moment after the result, as an extra.
-  if (message.type === 'crossings') { if (state.report) { Object.assign(state.report, message); renderCrossings(); } return; }
+  if (message.type === 'crossings') {
+    if (state.report) { Object.assign(state.report, { crossingsBefore: message.crossingsBefore, crossingsAfter: message.crossingsAfter, crossingsSkipped: message.crossingsSkipped }); renderCrossings(); }
+    return;
+  }
   clearTimeout(limit);
+  if (message.type === 'ready') {
+    state.batchLoading = false;
+    setBusy(false);
+    if (state.report) setStatus(`${state.shown} · ${number(state.report.before.triangles)} triangles`);
+    return;
+  }
+  // A batch model that failed to load here is still on screen from its kept view, but the
+  // worker holds another model, so it must not be downloaded on its own.
+  if (message.type === 'error' && state.batchLoading) { Object.assign(state, { batchLoading: false, unsynced: true }); }
   if (message.type === 'error') fail(message.message);
   else if (message.type === 'result') showResult(message);
   else if (message.type === 'file') save(message);
@@ -202,20 +236,24 @@ function showResult(message) {
   const fresh = state.fresh;
   state.fresh = false;
   Object.assign(state, { format: message.format, unit: message.unit, notes: message.notes || [], report: message.report, extent: message.extent, spots: message.spots, spot: -1, reloading: false });
-  if (fresh) { state.shown = state.name; state.file = state.pendingFile; state.turns = 0; }
+  const quiet = fresh ? state.fromBatch : state.quietShown;
+  if (fresh) { state.shown = state.name; state.file = state.pendingFile; state.turns = batch.rows[batch.at]?.turns || 0; state.quietShown = quiet; }
+  if (message.type === 'result') state.batchLoading = false; // an answer from the worker, not a kept view
+  if (quiet) keepRow(message, !fresh && state.pendingEdit);
+  state.pendingEdit = false;
   state.goodOptions = options();
   $('failure').hidden = true;
   setBusy(false);
   setStatus(`${state.shown} · ${number(message.report.before.triangles)} triangles`);
   $('drop').classList.add('compact');
-  $('choose-label').textContent = 'Choose another file';
+  $('choose-label').textContent = quiet ? 'Choose other files' : 'Choose another file';
   $('results').hidden = false;
-  $('outcome').hidden = false;
+  // In a batch the batch card speaks for every model, so the single-model card stays away.
+  $('outcome').hidden = quiet;
   document.body.classList.add('has-results');
-  // In a short frame the comparison matters most, so there it comes first and the outcome
-  // card and the file strip follow it.
-  if (EMBED) document.querySelector('.view').after($('top-stick'));
-  if (fresh) {
+  // The comparison matters most, so it comes first; the cards and the file strip follow it.
+  document.querySelector('.view').after($('top-stick'));
+  if (fresh && !quiet) {
     // A GLB is nominally in meters, but many arrive at an arbitrary size, so a height is needed.
     // An STL may already be the right size, so it is left alone unless asked.
     $('set-height').checked = message.format === 'glb';
@@ -225,7 +263,8 @@ function showResult(message) {
   // After a clean result the explanation and questions step aside; they come back if
   // something needs explaining.
   document.body.classList.toggle('outcome-clean', message.report.status !== 'partial');
-  showOutcomeBadge();
+  // In a batch the pinned badge speaks for the whole batch, not the one model in view.
+  if (quiet) setBatchBadge(); else showOutcomeBadge();
   renderOutcome();
   placeTop(); // after the card has its words, because its height sets where the top block pins
   renderCounts();
@@ -234,7 +273,8 @@ function showResult(message) {
   viewer?.setModel(message);
   show(state.which);
   leaveCloseUp(false);
-  if (fresh) { viewer?.home(); $('outcome-title').focus({ preventScroll: true }); toTop(); sound.play(message.report.status); }
+  if (fresh) viewer?.home();
+  if (fresh && !quiet) { $('outcome-title').focus({ preventScroll: true }); toTop(); sound.play(message.report.status); }
 }
 
 /** The outcome card: the verdict, then anything the visitor should know before trusting it. */
@@ -293,11 +333,39 @@ function renderOutcome() {
     notes.unshift(...why);
   }
   $('outcome-reasons').replaceChildren(...notes.map(text => Object.assign(document.createElement('li'), { textContent: text })));
-  const anyway = r.status === 'partial';
-  // The orange button is a promise that the file is ready, so it steps down when it is not.
+  renderDownloads();
+}
+
+/**
+ * The download buttons. For one model, the main button gives its STL and 3MF together. In
+ * a batch it gives every model in one ZIP, and the menu beside it, headed by the name of
+ * the model in view, gives that model alone in each format.
+ */
+function renderDownloads() {
+  const inBatch = state.quietShown && batch.rows.length > 0;
+  const zip = inBatch ? batchZipState() : null;
+  // The orange button is a promise that the files are ready, so it steps down when they are not.
+  const anyway = inBatch ? batch.rows.some(row => row.status === 'partial') : state.report?.status === 'partial';
   for (const split of document.querySelectorAll('[data-split]')) {
     split.classList.toggle('anyway', anyway);
-    split.querySelector('.download-label').textContent = anyway ? 'Download all anyway' : 'Download all';
+    const main = split.querySelector('.split-main');
+    main.classList.toggle('building', !!zip?.building);
+    main.dataset.batch = String(inBatch);
+    split.querySelector('.download-label').textContent = inBatch
+      ? (zip.building ? `Building ZIP… ${zip.ready} of ${zip.total}` : `Download all ${zip.ready}`)
+      : (anyway ? 'Download all anyway' : 'Download all');
+    const title = split.querySelector('.split-menu-title');
+    title.hidden = !inBatch;
+    if (inBatch) title.textContent = clean(state.shown);
+  }
+  lockDownloads();
+}
+
+/** The main button waits for the batch ZIP; the menu's single-model choices do not. */
+function lockDownloads() {
+  const locked = state.busy || !!state.unsynced;
+  for (const main of document.querySelectorAll('[data-split] .split-main')) {
+    main.disabled = main.dataset.batch === 'true' ? (batchZipState().building || !batchZipState().ready) : locked;
   }
 }
 
@@ -431,9 +499,556 @@ function download(format) {
   ask({ type: 'export', format, heightMm: heightMm(), title: state.shown.replace(/\.[^.]+$/, '') || 'model' });
 }
 
+// --- several files at once
+// A batch is worked through one job at a time by a worker of its own: first each model is
+// repaired and packed into its two print files, then any model whose files are out of date
+// (a new height, or an option or turn changed while it was in view) is packed again. Every
+// job carries a token, and an answer whose token is not the current job's is dropped, so a
+// late answer from a replaced batch, a stopped job or an old worker can never land on a row.
+// The page keeps each model's packed files (as Blobs, which the browser may keep outside
+// its own memory) and, within a budget, each model's view, so switching between them is
+// instant and "Download all" only has to put the parts together. The embed takes one file.
+const BATCH_FILES = 20;
+const BATCH_BYTES = 1024 ** 3;
+// Kept views make switching instant. Measured: a batch of twenty 300,000-triangle models
+// peaks about 1.1 GB above the page's baseline in desktop Chrome, about 220 MB of it views.
+// A phone tab is closed at far less, so a phone or a small computer keeps fewer.
+const SMALL_DEVICE = matchMedia('(pointer: coarse)').matches || (navigator.deviceMemory > 0 && navigator.deviceMemory <= 4);
+const VIEW_BUDGET = (SMALL_DEVICE ? 120 : 400) * 1024 ** 2;
+const MODEL_NAME = /\.(glb|stl)$/i;
+const DONE = ['repaired', 'sound', 'partial'];
+const STATUS_WORDS = { waiting: 'Waiting', working: 'Repairing', repaired: 'Repaired', sound: 'Nothing to fix', partial: 'Partly repaired', failed: 'Not repaired' };
+const PHONE = matchMedia('(max-width: 640px)');
+PHONE.addEventListener?.('change', () => { if (batch.rows.length) renderBatch(); });
+const batch = { id: 0, rows: [], skipped: [], at: -1, running: false, worker: null, timer: 0, job: null, jobs: 0, viewBytes: 0 };
+
+/** File names go into text the visitor reads and saves: no control or direction characters. */
+const clean = text => String(text).replace(/[\u0000-\u001f\u007f‪-‮⁦-⁩]/g, ' ');
+const viewBytes = view => [view.before.positions, view.before.tris, view.after.positions, view.after.tris, view.removed, view.added, view.flipped].reduce((sum, array) => sum + (array?.byteLength || 0), 0);
+const current = row => row.built === row.rev && row.entries;
+
+/** Files chosen or dropped: one goes to the view as before; several become a batch. */
+function takeFiles(files) {
+  if (!files.length) return;
+  if (EMBED || files.length === 1) return openFile(files[0]);
+  if (state.busy && !state.batchLoading) return; // a download or repair of the model in view is under way
+  const models = files.filter(file => MODEL_NAME.test(file.name));
+  const skipped = files.filter(file => !MODEL_NAME.test(file.name)).map(file => file.name);
+  if (!models.length) return fail('None of these files is a .glb or .stl file.');
+  if (models.length === 1) return openFile(models[0]);
+  if (models.length > BATCH_FILES) return fail(`Polymend takes up to ${BATCH_FILES} files at a time, and these are ${models.length}. Choose ${BATCH_FILES} or fewer and try again.`, 'Too many files at once');
+  const total = models.reduce((sum, file) => sum + file.size, 0);
+  if (total > BATCH_BYTES) return fail(`These files come to ${(total / 1024 ** 3).toFixed(1)} GB together, and a batch can be up to 1 GB in all. Choose fewer, or smaller, files.`, 'Too much at once');
+  startBatch(models, skipped);
+}
+
+function startBatch(files, skipped) {
+  clearBatch();
+  forgetModel();
+  $('failure').hidden = true;
+  // One height for the whole batch, set under Size. GLB files rarely carry a real size, so
+  // a height is on when any of them is a GLB.
+  $('set-height').checked = files.some(file => /\.glb$/i.test(file.name));
+  state.which = innerWidth >= 560 ? 'both' : 'after';
+  // Each model's files get a name that is safe in a ZIP and on any computer, and unique
+  // even where a computer ignores capitals: later ones get a number.
+  const taken = new Set();
+  const batchOptions = options(); // every model is repaired the same way unless changed in view
+  batch.rows = files.map((file, id) => {
+    const title = clean(file.name.replace(MODEL_NAME, '')).trim() || 'model';
+    const base = safeFileName(title);
+    let fileName = base;
+    for (let n = 2; taken.has(fileName.toLowerCase()); n++) fileName = `${base}-${n}`;
+    taken.add(fileName.toLowerCase());
+    return { id, file, title, fileName, status: 'waiting', options: { ...batchOptions }, turns: 0, rev: 0, built: -1, entries: null, view: null, viewBytes: 0 };
+  });
+  batch.skipped = skipped.map(clean);
+  batch.running = true;
+  $('batch').hidden = false;
+  $('choose-label').textContent = 'Choose other files';
+  $('drop').classList.add('compact');
+  setBadge('working', 'Working on this device');
+  placeTop();
+  renderBatch();
+  toTop();
+  pump();
+}
+
+/** Stop and forget the batch: its worker, its clock, its rows, and any download being built. */
+function clearBatch() {
+  retire(batch.worker);
+  clearTimeout(batch.timer);
+  clearTimeout(state.syncTimer);
+  Object.assign(batch, { id: batch.id + 1, rows: [], skipped: [], at: -1, running: false, worker: null, job: null, viewBytes: 0 });
+  // A model of this batch may be loading into the view's worker. Its answer will be dropped,
+  // so its clock is stopped and the page let go here, or it would wait for nothing.
+  if (state.batchLoading) { clearTimeout(limit); state.batchLoading = false; setBusy(false); }
+  Object.assign(state, { unsynced: false, quietShown: false });
+  if ($('batch')) $('batch').hidden = true;
+  if ($('model-switch')) $('model-switch').hidden = true;
+  placeTop();
+}
+
+/**
+ * Let go of a batch worker. One in the middle of a job is not stopped there: WebKit can
+ * crash the whole page when a worker is stopped while it compresses. Its answer is already
+ * unwanted (the job token no longer matches), so it is shut as soon as it gives one, or
+ * after the time a job may take.
+ */
+function retire(old) {
+  if (!old) return;
+  if (!batch.job) return old.terminate();
+  const shut = () => { clearTimeout(backstop); old.terminate(); };
+  const backstop = setTimeout(shut, LIMIT_MS);
+  old.onmessage = event => { if (event.data.type !== 'progress') shut(); };
+  old.onerror = shut;
+}
+
+/** Clear the view before a batch: the batch card takes its place until a model is opened. */
+function forgetModel() {
+  state.gen++; // an answer still coming for the model that was in view is not wanted now
+  state.report = null;
+  $('results').before($('top-stick')); // the batch card shows progress at the top until a model opens
+  $('results').hidden = true;
+  $('outcome').hidden = true;
+  document.body.classList.remove('has-results', 'outcome-clean');
+}
+
+function batchWorker() {
+  if (batch.worker) return batch.worker;
+  const made = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+  made.onmessage = onBatchMessage;
+  made.onerror = () => { if (batch.worker === made && batch.job) jobFailed(batch.job, FAILURES.crashed.detail, true); };
+  batch.worker = made;
+  return made;
+}
+
+/** Start the next job: a model not yet repaired, or else one whose files are out of date. */
+function pump() {
+  if (batch.job) return;
+  const waiting = batch.rows.find(item => item.status === 'waiting');
+  if (!waiting && batch.running) finishBatch(); // every model repaired: the review can begin
+  const row = waiting || batch.rows.find(item => DONE.includes(item.status) && item.built !== item.rev && !item.buildError);
+  if (row) return runJob(row);
+  batch.worker?.terminate(); // nothing left to do; a fresh one is made if more is asked
+  batch.worker = null;
+  renderBatch();
+}
+
+async function runJob(row) {
+  // First every model is repaired, so the review can start; then each is packed into its
+  // print files, in the background, from the repaired model the page already holds.
+  const job = { token: ++batch.jobs, rowId: row.id, rev: row.rev, first: row.status === 'waiting' };
+  batch.job = job;
+  if (job.first) row.status = 'working';
+  renderBatch();
+  if (row.file.size > MAX_BYTES) return jobFailed(job, FAILURES.tooLarge.detail);
+  const common = { job: job.token, name: row.file.name, options: row.options, turns: row.turns };
+  let request, transfer = [];
+  if (!job.first && row.view) {
+    const after = row.view.after; // copied to the worker, so the view keeps its own
+    request = { ...common, type: 'batch-pack', positions: after.positions, tris: after.tris, unit: row.view.unit };
+  } else {
+    let buffer;
+    try { buffer = await row.file.arrayBuffer(); } catch { return jobFailed(job, 'This file could not be read.'); }
+    if (batch.job !== job) return; // the batch was replaced or stopped while the file was read
+    request = { ...common, type: job.first ? 'batch-repair' : 'batch-pack', buffer };
+    transfer = [buffer];
+  }
+  Object.assign(request, { heightMm: heightMm(), fileName: row.fileName, title: row.title });
+  batch.timer = setTimeout(() => jobFailed(job, FAILURES.timedOut.detail, true), LIMIT_MS);
+  try { batchWorker().postMessage(request, transfer); } catch (error) { jobFailed(job, error.message, true); }
+}
+
+/** A job ended without a result. Only the current job can fail, and only once. */
+function jobFailed(job, reason, stopWorker = false) {
+  if (batch.job !== job) return;
+  clearTimeout(batch.timer);
+  batch.job = null;
+  if (stopWorker) { batch.worker?.terminate(); batch.worker = null; }
+  const row = batch.rows[job.rowId];
+  if (job.first) Object.assign(row, { status: 'failed', error: clean(reason) });
+  else row.buildError = clean(reason);
+  pump();
+}
+
+function onBatchMessage(event) {
+  const message = event.data, job = batch.job;
+  if (!job || message.job !== job.token || message.type === 'progress') return;
+  if (message.type === 'error') return jobFailed(job, message.message);
+  if (message.type !== (job.first ? 'batch-repaired' : 'batch-packed')) return;
+  clearTimeout(batch.timer);
+  batch.job = null;
+  const row = batch.rows[job.rowId];
+  if (job.first) {
+    Object.assign(row, { status: message.report.status, report: message.report, format: message.format, unit: message.unit });
+    keepView(row, message);
+  } else if (job.rev === row.rev) {
+    // A model changed while its files were being made is packed again on a later turn.
+    Object.assign(row, { entries: message.entries, built: row.rev, buildError: null });
+  }
+  pump();
+}
+
+/** Keep a model's view for instant switching, giving up the oldest others past the budget. */
+function keepView(row, view) {
+  batch.viewBytes -= row.viewBytes;
+  row.view = view;
+  row.viewBytes = viewBytes(view);
+  batch.viewBytes += row.viewBytes;
+  for (const other of batch.rows) {
+    if (batch.viewBytes <= VIEW_BUDGET) break;
+    if (other === row || other.id === batch.at || !other.view) continue;
+    batch.viewBytes -= other.viewBytes;
+    other.view = null;
+    other.viewBytes = 0;
+  }
+}
+
+function setBatchBadge() {
+  if (batch.running) return setBadge('working', 'Working on this device');
+  const [kind, text] = { failed: ['bad', 'Some files not repaired'], partial: ['warn', 'Partly repaired on this device'], repaired: ['good', 'Repaired on this device'], sound: ['info', 'Checked on this device'] }[batchVerdict()];
+  setBadge(kind, text);
+}
+
+/** The worst outcome in the batch decides its colour, badge and chime. */
+function batchVerdict() {
+  const has = status => batch.rows.some(row => row.status === status);
+  return has('failed') ? 'failed' : has('partial') ? 'partial' : has('repaired') ? 'repaired' : 'sound';
+}
+
+function finishBatch() {
+  batch.running = false;
+  setBatchBadge();
+  sound.play(batchVerdict());
+  renderBatch();
+  // With nothing open yet, open the first model that needs a look, or else the first one.
+  if (batch.at >= 0) return;
+  const pick = batch.rows.findIndex(row => row.status === 'partial');
+  const first = pick >= 0 ? pick : batch.rows.findIndex(row => DONE.includes(row.status));
+  if (first >= 0) viewRow(first);
+  $('batch-title').focus({ preventScroll: true });
+}
+
+function applyOptions(chosen) {
+  for (const input of document.querySelectorAll('[data-option]')) input.checked = !!chosen[input.dataset.option];
+}
+
+/**
+ * Show a batch model. One whose view is kept appears at once; the view's worker then loads
+ * it quietly once the visitor stops on it, and downloads and options wait the second that
+ * takes. Switching again in that time is fine: answers for an earlier model are dropped.
+ */
+function viewRow(index) {
+  const row = batch.rows[index];
+  if (!row || !DONE.includes(row.status) || (state.busy && !state.batchLoading)) return;
+  batch.at = index;
+  applyOptions(row.options);
+  const gen = ++state.gen;
+  clearTimeout(state.syncTimer);
+  Object.assign(state, { name: row.file.name, pendingFile: row.file, fresh: true, fromBatch: true, unsynced: false });
+  const load = quiet => row.file.arrayBuffer()
+    .then(buffer => { if (gen === state.gen) ask({ type: 'load', buffer, name: row.file.name, options: row.options, turns: row.turns, quiet }, [buffer]); })
+    .catch(() => { if (gen === state.gen) notLoaded(row); });
+  if (row.view) {
+    showResult(row.view);
+    state.batchLoading = true;
+    setBusy(true);
+    state.syncTimer = setTimeout(() => load(true), 250);
+  } else {
+    state.batchLoading = true;
+    setBusy(true);
+    setStatus(`Opening ${row.file.name}`, 'busy');
+    load(false);
+  }
+  renderBatch();
+}
+
+/** The file could not be read again: the model can be looked at but not downloaded alone. */
+function notLoaded(row) {
+  Object.assign(state, { batchLoading: false, unsynced: true });
+  setBusy(false);
+  setStatus(`${row.file.name} could not be read again, so it cannot be downloaded on its own here. It is still in Download all.`);
+}
+
+/**
+ * The model in view was repaired again in the view's worker. Its result is the row's now;
+ * if the visitor changed an option or turned it, its print files are made again too.
+ */
+function keepRow(message, edited) {
+  const row = batch.rows[batch.at];
+  if (!row) return;
+  Object.assign(row, { status: message.report.status, report: message.report });
+  if (row.view !== message) keepView(row, message);
+  if (edited) {
+    row.options = options();
+    row.turns = state.turns;
+    row.rev++;
+    pump();
+  }
+  renderBatch();
+  setBatchBadge();
+}
+
+/** A new height changes every model's print files, so all are made again, in turn. */
+let heightTimer = 0;
+function heightChanged() {
+  renderBatchNote();
+  if (!batch.rows.length) return;
+  clearTimeout(heightTimer);
+  heightTimer = setTimeout(() => {
+    for (const row of batch.rows) if (DONE.includes(row.status) || row.status === 'working') { row.rev++; row.buildError = null; }
+    pump();
+    renderBatch();
+  }, 400);
+}
+
+function renderBatch() {
+  if (!$('batch')) return;
+  const rows = batch.rows;
+  const count = status => rows.filter(row => row.status === status).length;
+  $('batch').className = 'outcome batch ' + (batch.running ? 'sound' : batchVerdict());
+  if (batch.running) {
+    const done = rows.filter(row => !['waiting', 'working'].includes(row.status)).length;
+    $('batch-title').textContent = `Repairing ${number(Math.min(done + 1, rows.length))} of ${plural(rows.length, 'model')}`;
+    $('batch-detail').textContent = 'Each model is repaired on this device, one at a time. Finished ones can be opened below while the rest carry on.';
+  } else {
+    // Each row has its own outcome, so the card says only what the rows cannot.
+    $('batch-title').textContent = plural(rows.length, 'model');
+    $('batch-detail').textContent = count('partial') ? 'A partly repaired model will probably still bring a warning from your slicer.' : '';
+  }
+  if (batch.skipped.length) $('batch-detail').textContent = `${$('batch-detail').textContent} Left out, as not .glb or .stl: ${list(batch.skipped)}.`.trim();
+  $('batch-detail').hidden = !$('batch-detail').textContent;
+  // The list is drawn afresh as jobs finish; whoever was on a row with the keyboard stays on it.
+  const focused = document.activeElement?.closest?.('#batch-list .batch-row')?.dataset.id;
+  $('batch-list').replaceChildren(...rows.map((row, i) => {
+    const item = document.createElement('li');
+    item.dataset.id = String(row.id);
+    item.className = 'batch-row ' + row.status + (i === batch.at ? ' current' : '');
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'batch-open';
+    open.disabled = !DONE.includes(row.status);
+    open.setAttribute('aria-current', String(i === batch.at));
+    open.append(Object.assign(document.createElement('span'), { className: 'batch-name', textContent: clean(row.file.name) }),
+      Object.assign(document.createElement('span'), { className: 'batch-size', textContent: row.report ? `${number(row.report.before.triangles)} triangles` : '' }));
+    open.addEventListener('click', () => viewRow(i));
+    const badge = Object.assign(document.createElement('span'), { className: 'badge ' + ({ repaired: 'good', sound: 'info', partial: 'warn', failed: 'bad', working: 'working' }[row.status] || 'idle'), textContent: STATUS_WORDS[row.status] });
+    item.append(open, badge);
+    const note = row.error || row.buildError || (row.status === 'partial' && row.report ? remaining(row.report) : '');
+    if (note) item.append(Object.assign(document.createElement('p'), { className: 'batch-error', textContent: row.buildError ? `Not in Download all: ${row.buildError}` : note }));
+    return item;
+  }));
+  if (focused !== undefined) $('batch-list').querySelector(`[data-id="${focused}"] .batch-open`)?.focus({ preventScroll: true });
+  renderModelSwitch();
+  // On a phone the list is folded away unless asked for, so the comparison stays in view.
+  // A desktop has the room, and always shows it.
+  const open = !PHONE.matches || !!batch.expanded;
+  $('batch-more').hidden = !open;
+  $('batch').classList.toggle('open', open);
+  $('batch-toggle').hidden = !PHONE.matches;
+  $('batch-toggle').setAttribute('aria-expanded', String(open));
+  $('batch-toggle-label').textContent = batch.expanded ? 'Hide list' : 'Show list';
+  // The ZIP is put together from each model's packed files, made in the background.
+  const { ready, building, total } = batchZipState();
+  const button = $('batch-download');
+  button.disabled = building || !ready;
+  button.classList.toggle('building', building);
+  button.setAttribute('aria-busy', String(building));
+  $('batch-download-label').textContent = building ? `Building ZIP… ${ready} of ${total}` : `Download all ${ready} (ZIP)`;
+  if (state.quietShown) renderDownloads();
+  renderBatchNote();
+}
+
+/** How far the batch ZIP's parts are made: ready of total, and whether any are still to come. */
+function batchZipState() {
+  const done = batch.rows.filter(row => DONE.includes(row.status) && !row.buildError);
+  const ready = done.filter(current).length;
+  return { ready, total: batch.running ? batch.rows.length : done.length, building: batch.running || ready < done.length };
+}
+
+/** The switch above the view: which model is in it, and the way to the others. */
+function renderModelSwitch() {
+  const viewable = batch.rows.filter(row => DONE.includes(row.status));
+  const show = batch.at >= 0 && viewable.length > 0;
+  $('model-switch').hidden = !show;
+  if (!show) return closeModelMenu();
+  const row = batch.rows[batch.at];
+  $('model-count').textContent = `${viewable.findIndex(item => item.id === batch.at) + 1} of ${viewable.length}`; // before the name is fitted around it
+  fitName($('model-current'), clean(row.file.name), viewable.filter(item => item !== row).map(item => clean(item.file.name)));
+  $('model-trigger').setAttribute('aria-label', `Model in view: ${clean(row.file.name)}, ${STATUS_WORDS[row.status]}. Choose another.`);
+  $('model-dot').className = 'model-dot ' + row.status;
+  const locked = (state.busy && !state.batchLoading) || viewable.length < 2;
+  for (const id of ['model-prev', 'model-next', 'model-trigger']) $(id).disabled = locked;
+  if (locked) closeModelMenu();
+  // The list keeps whichever item has the keyboard when it is drawn again.
+  const focused = document.activeElement?.closest?.('#model-menu [data-row]')?.dataset.row;
+  $('model-menu').replaceChildren(...viewable.map(item => {
+    const option = Object.assign(document.createElement('button'), { type: 'button', tabIndex: -1 });
+    option.setAttribute('role', 'menuitemradio');
+    option.setAttribute('aria-checked', String(item.id === batch.at));
+    option.dataset.row = String(item.id);
+    option.append(
+      Object.assign(document.createElement('span'), { className: 'model-dot ' + item.status }),
+      Object.assign(document.createElement('span'), { className: 'model-item-name', textContent: clean(item.file.name) }),
+      Object.assign(document.createElement('span'), { className: 'model-item-status', textContent: STATUS_WORDS[item.status] }),
+      checkmark());
+    return option;
+  }));
+  if (focused !== undefined) $('model-menu').querySelector(`[data-row="${focused}"]`)?.focus({ preventScroll: true });
+}
+
+/** The tick beside the chosen model, built as elements: the page never turns text into markup. */
+function checkmark() {
+  const svg = 'http://www.w3.org/2000/svg';
+  const icon = document.createElementNS(svg, 'svg');
+  for (const [name, value] of [['viewBox', '0 -960 960 960'], ['width', '18'], ['height', '18'], ['fill', 'currentColor'], ['aria-hidden', 'true'], ['focusable', 'false']]) icon.setAttribute(name, value);
+  const path = document.createElementNS(svg, 'path');
+  path.setAttribute('d', 'M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z');
+  icon.append(path);
+  const holder = Object.assign(document.createElement('span'), { className: 'model-item-check' });
+  holder.append(icon);
+  return holder;
+}
+
+// The model menu opens under its button, like the playback menu on heyhaigh.ai, and closes
+// with a short fade once a model is chosen.
+let menuFade = null;
+function openModelMenu() {
+  if ($('model-trigger').disabled) return;
+  menuFade?.cancel();
+  menuFade = null;
+  const menu = $('model-menu');
+  menu.hidden = false;
+  $('model-trigger').setAttribute('aria-expanded', 'true');
+  (menu.querySelector('[aria-checked="true"]') || menu.querySelector('button'))?.focus({ preventScroll: true });
+}
+function closeModelMenu(restoreFocus = false, fade = false) {
+  const menu = $('model-menu');
+  if (!menu || menu.hidden) return;
+  $('model-trigger').setAttribute('aria-expanded', 'false');
+  if (restoreFocus) $('model-trigger').focus({ preventScroll: true });
+  if (fade && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const animation = menu.animate([{ opacity: 1, transform: 'translateY(0)' }, { opacity: 0, transform: 'translateY(-4px)' }], { duration: 160, easing: 'ease-out', fill: 'forwards' });
+    menuFade = animation;
+    animation.finished.then(() => { if (menuFade !== animation) return; menu.hidden = true; animation.cancel(); menuFade = null; }, () => {});
+  } else menu.hidden = true;
+}
+
+/**
+ * Put a file name in a narrow space. Names in a batch often share a long start and differ
+ * after it (figure-front-final.glb, figure-back-final.glb), so a long name first loses the
+ * start it shares with the others, up to a word break, and shows what tells it apart. A
+ * name that is still too long is shortened in the middle, keeping its extension. The full
+ * name shows on hover, and screen readers hear it in the button's label.
+ */
+function fitName(holder, name, others = []) {
+  holder.textContent = name;
+  const button = holder.closest('button');
+  button.removeAttribute('data-tooltip');
+  // Each try is measured in place, as the page draws it, so nothing is cut by a rounding.
+  const fits = () => holder.scrollWidth <= holder.clientWidth;
+  if (!holder.clientWidth || fits()) return;
+  const ext = (name.match(/\.[^.]{1,5}$/) || [''])[0];
+  let stem = name.slice(0, name.length - ext.length);
+  // The start this name shares with the most similar other name, cut back to a word break:
+  // that is the name it could be mistaken for.
+  let shared = 0;
+  if (others.length) {
+    shared = Math.max(...others.map(other => { let i = 0; while (i < stem.length && stem[i] === other[i]) i++; return i; }));
+    while (shared > 0 && !/[-_ .]/.test(stem[shared - 1])) shared--;
+  }
+  const lead = shared > 3 ? '…' : '';
+  if (lead) stem = stem.slice(shared);
+  for (let keep = stem.length; keep >= 2; keep--) {
+    const back = lead ? 0 : Math.min(6, Math.floor(keep / 2)); // after a dropped start, the start of the rest matters most
+    holder.textContent = lead + stem.slice(0, keep - back) + (keep < stem.length ? '…' : '') + (back ? stem.slice(-back) : '') + ext;
+    if (fits()) break;
+  }
+  button.dataset.tooltip = name;
+}
+window.addEventListener('resize', () => { if (batch.rows.length && batch.at >= 0) renderModelSwitch(); });
+document.fonts?.ready.then(() => { if (batch.rows.length && batch.at >= 0) renderModelSwitch(); });
+
+/** Step to the previous or next model that can be opened, round the list. */
+function stepModel(direction) {
+  const viewable = batch.rows.filter(row => DONE.includes(row.status)).map(row => row.id);
+  if (viewable.length < 2) return;
+  const place = viewable.indexOf(batch.at);
+  viewRow(viewable[(place + direction + viewable.length) % viewable.length]);
+}
+
+/** One line for a partly repaired row: what is left, and where to look. */
+function remaining(report) {
+  const after = report.after;
+  const left = [after.openEdges && plural(after.openEdges, 'open edge'), after.nonManifoldEdges && plural(after.nonManifoldEdges, 'non-manifold edge'), after.inconsistentEdges && plural(after.inconsistentEdges, 'wrongly facing join')].filter(Boolean);
+  const total = after.openEdges + after.nonManifoldEdges + after.inconsistentEdges;
+  return (left.length ? `${list(left)} remain${total === 1 ? 's' : ''}.` : 'The edge checks pass, but it is not a printable solid.') + ' Open it in the view to see where, and try the Repair options below it.';
+}
+
+/** Says what the ZIP will hold, at what size. The height is the one under Size below. */
+function renderBatchNote() {
+  if (!$('batch-note') || !batch.rows.length) return;
+  const height = heightMm();
+  $('batch-note').textContent = `An STL and a 3MF of every repaired model, ${height ? `each ${height} mm tall` : 'each at its file\'s own size'}, with a summary.`;
+}
+
+/** Put the packed files together. Nothing is made here but the summary and the ZIP's index. */
+async function downloadBatch() {
+  const rows = batch.rows.filter(row => DONE.includes(row.status) && current(row));
+  if (!rows.length || batch.running) return;
+  const height = heightMm();
+  const summary = [`Polymend ${VERSION}: ${plural(batch.rows.length, 'model')}, ${height ? `each ${height} mm tall` : 'each at its own size'}.`, '',
+    ...batch.rows.map(row => `${STATUS_WORDS[row.status].padEnd(16)} ${clean(row.file.name)}${row.report ? ` (${number(row.report.before.triangles)} triangles)` : ''}${row.error ? `: ${row.error}` : ''}${row.buildError ? `: not included, ${row.buildError}` : ''}`)].join('\n') + '\n';
+  let archive;
+  try {
+    const entries = rows.flatMap(row => row.entries);
+    entries.push(await zipEntry('polymend-summary.txt', new TextEncoder().encode(summary)));
+    archive = new Blob(zipParts(entries), { type: 'application/zip' });
+  } catch (error) {
+    return fail(error.message, 'The ZIP could not be made');
+  }
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(archive);
+  link.download = 'polymend-batch.zip';
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 10 * 60_000); // long enough for a slow save dialog
+}
+
 // --- wiring
 $('choose').addEventListener('click', () => $('file').click());
-$('file').addEventListener('change', event => { sound.prime(); openFile(event.target.files[0]); event.target.value = ''; });
+$('batch-download')?.addEventListener('click', downloadBatch);
+$('batch-toggle')?.addEventListener('click', () => { batch.expanded = !batch.expanded; renderBatch(); });
+// On a phone the whole folded line opens and closes the list, not only the chevron.
+document.querySelector('.batch-head')?.addEventListener('click', event => {
+  if (!PHONE.matches || event.target.closest('button')) return;
+  batch.expanded = !batch.expanded;
+  renderBatch();
+});
+$('model-prev')?.addEventListener('click', () => stepModel(-1));
+$('model-next')?.addEventListener('click', () => stepModel(1));
+$('model-trigger')?.addEventListener('click', () => ($('model-menu').hidden ? openModelMenu() : closeModelMenu()));
+$('model-trigger')?.addEventListener('keydown', event => { if (['ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); openModelMenu(); } });
+$('model-menu')?.addEventListener('click', event => {
+  const item = event.target.closest('[data-row]');
+  if (!item) return;
+  closeModelMenu(true, true);
+  viewRow(Number(item.dataset.row));
+});
+$('model-menu')?.addEventListener('keydown', event => {
+  const items = [...$('model-menu').querySelectorAll('[data-row]')];
+  const at = items.indexOf(document.activeElement);
+  const next = { ArrowDown: at + 1, ArrowUp: at - 1, Home: 0, End: items.length - 1 }[event.key];
+  if (next !== undefined) { event.preventDefault(); items[(next + items.length) % items.length]?.focus({ preventScroll: true }); }
+  else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeModelMenu(true); }
+  else if (event.key === 'Tab') closeModelMenu();
+});
+document.addEventListener('click', event => { if (!event.target.closest('.model-pick')) closeModelMenu(); });
+$('set-height').addEventListener('change', heightChanged);
+$('height').addEventListener('input', heightChanged);
+$('file').addEventListener('change', event => { sound.prime(); takeFiles([...event.target.files]); event.target.value = ''; });
 // Dropping anywhere works, and a missed drop never navigates away from the page.
 let depth = 0;
 
@@ -461,7 +1076,7 @@ window.addEventListener('drop', event => {
   sound.prime(); // dropping a file is the visitor's action, so sound may follow
   depth = 0;
   setDragging(false);
-  openFile(event.dataTransfer?.files?.[0]);
+  takeFiles([...(event.dataTransfer?.files || [])]);
 });
 $('show-before').addEventListener('click', () => show('before'));
 $('show-after').addEventListener('click', () => show('after'));
@@ -472,8 +1087,21 @@ $('home').addEventListener('click', () => { viewer?.home(); renderStepper(); });
 $('back').addEventListener('click', () => { leaveCloseUp(); $('next').focus(); });
 $('set-height').addEventListener('change', renderSize);
 $('height').addEventListener('input', renderSize);
-$('rotate').addEventListener('click', () => { if (state.report && !state.busy) { setBusy(true); state.turns++; ask({ type: 'rotate' }); } });
-for (const button of document.querySelectorAll('[data-download]')) button.addEventListener('click', () => { closeMenus(); download(button.dataset.download); });
+$('rotate').addEventListener('click', () => {
+  if (!state.report || state.busy) return;
+  setBusy(true);
+  state.turns++;
+  state.pendingEdit = true;
+  ask({ type: 'rotate' });
+});
+for (const button of document.querySelectorAll('[data-download]')) {
+  button.addEventListener('click', () => {
+    closeMenus();
+    // In a batch the main button is the whole batch; the menu's choices are the model in view.
+    if (button.classList.contains('split-main') && button.dataset.batch === 'true') return downloadBatch();
+    download(button.dataset.download);
+  });
+}
 
 // The arrow beside "Download all" opens a short menu of single formats.
 function closeMenus(focusCaret = false) {
@@ -523,6 +1151,7 @@ for (const input of document.querySelectorAll('[data-option]')) {
     placeTop();
     setBadge('working', 'Working on this device');
     setStatus('Repairing again', 'busy');
+    state.pendingEdit = true;
     ask({ type: 'options', options: options() });
   });
 }

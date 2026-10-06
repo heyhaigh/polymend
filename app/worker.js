@@ -2,7 +2,7 @@
 
 import { loadAsync, mend, countCrossings } from '../src/pipeline.js';
 import { writeSTL } from '../src/stl.js';
-import { layout, write3MF, zip, VERSION } from '../src/output.js';
+import { layout, write3MF, zip, zipEntry, safeFileName, VERSION } from '../src/output.js';
 
 // The model in hand. These three change together, and only once a whole job has
 // succeeded: if a new file cannot be read or repaired, the one before it is still here,
@@ -11,7 +11,6 @@ let mesh = null;    // the loaded input
 let result = null;  // the latest repair of it
 let options = {};
 
-const progress = label => postMessage({ type: 'progress', label });
 
 /** Triangle corners, nine numbers each, for the faces where `pick(face)` is true. */
 function soupOf(positions, tris, pick) {
@@ -45,7 +44,8 @@ function spotsOf(soup, kind, size) {
   }));
 }
 
-function send() {
+/** Everything the view needs to show a repair: both models, the changes, and where they are. */
+function viewOf(mesh, result) {
   const before = { positions: new Float32Array(mesh.positions), tris: new Uint32Array(mesh.tris) };
   const after = { positions: new Float32Array(result.positions), tris: new Uint32Array(result.tris) };
   const removed = soupOf(mesh.positions, mesh.tris, f => !result.kept[f]);
@@ -64,8 +64,15 @@ function send() {
   // Which way the repaired surface faces at each change, so the viewer can look at it squarely.
   const normalAt = normalFinder(result.positions, result.tris, size, spots.length);
   for (const spot of spots) spot.normal = normalAt(spot.centre, Math.max(spot.radius * 2.5, size * 0.006));
-  postMessage({ type: 'result', format: mesh.format, unit: mesh.unit, notes: mesh.notes || [], report: result.report, extent, before, after, removed, added, flipped, spots },
-    [before.positions.buffer, before.tris.buffer, after.positions.buffer, after.tris.buffer, removed.buffer, added.buffer, flipped.buffer]);
+  return {
+    message: { format: mesh.format, unit: mesh.unit, notes: mesh.notes || [], report: result.report, extent, before, after, removed, added, flipped, spots },
+    transfer: [before.positions.buffer, before.tris.buffer, after.positions.buffer, after.tris.buffer, removed.buffer, added.buffer, flipped.buffer],
+  };
+}
+
+function send() {
+  const { message, transfer } = viewOf(mesh, result);
+  reply({ type: 'result', ...message }, transfer);
 }
 
 /**
@@ -113,9 +120,6 @@ function normalFinder(positions, tris, size, places) {
   };
 }
 
-/** A file name with nothing in it that could escape a folder or upset an unzip tool. */
-const safeName = name => String(name).replace(/[^A-Za-z0-9 ._()+-]/g, '_').replace(/^[.]+/, '_') || 'model';
-
 /**
  * After the result is on screen: count the places the surface passes through itself.
  * It is information only, and waiting for it would roughly double the time to a result.
@@ -126,7 +130,7 @@ function later() {
   let counts;
   try { counts = countCrossings(mesh, result); } catch { counts = { crossingsBefore: null, crossingsAfter: null, crossingsSkipped: true }; }
   Object.assign(result.report, counts);
-  postMessage({ type: 'crossings', ...counts });
+  reply({ type: 'crossings', ...counts });
 }
 
 /** Quarter turn about X, for a model that arrives lying down. Shape and faults are unchanged. */
@@ -134,18 +138,39 @@ function turn(positions) {
   for (let i = 0; i < positions.length; i += 3) { const y = positions[i + 1]; positions[i + 1] = -positions[i + 2]; positions[i + 2] = y; }
 }
 
-onmessage = async event => {
-  const message = event.data;
+/**
+ * A batch model's two print files, packed for the ZIP one at a time. Each comes back as a
+ * Blob, which the browser can keep outside the page's memory, so a large batch is never
+ * held as one array. A 3MF is already compressed inside, so it is stored as it is.
+ */
+async function packPrintFiles(positions, tris, unit, heightMm, name, title) {
+  const sized = layout(positions, { heightMm, unitMm: unit === 'meter' ? 1000 : 1 });
+  const stl = await zipEntry(`${name}-mended.stl`, writeSTL(sized.positions, tris, 1, `polymend ${VERSION}`));
+  const threeMF = await zipEntry(`${name}-mended.3mf`, await write3MF(sized.positions, tris, { title }), { compress: false });
+  return [stl, threeMF].map(entry => ({ ...entry, body: new Blob([entry.body]) }));
+}
+
+// Every request is answered with the tag it came with: `gen` for the model in view, `job`
+// for a batch job. The page drops anything whose tag is no longer current, so an answer
+// that arrives late can never land on the wrong model or stop the wrong clock.
+let tag = {};
+const reply = (message, transfer = []) => postMessage({ ...message, ...tag }, transfer);
+const progress = label => reply({ type: 'progress', label });
+
+async function handle(message) {
+  tag = { gen: message.gen, job: message.job };
   try {
     if (message.type === 'load') {
       progress('Reading the file');
       const loaded = await loadAsync(new Uint8Array(message.buffer), message.name, progress);
-      // A model reloaded after a stopped job is turned the way it was before.
+      // A model reloaded after a stopped job, or a batch model, is turned the way it was.
       for (let i = 0; i < (message.turns || 0) % 4; i++) turn(loaded.positions);
       const wanted = message.options || {};
       const mended = mend(loaded, wanted, progress, { crossings: false });
       mesh = loaded; options = wanted; result = mended; // all three, and only now
-      send();
+      // A batch model already on screen only needs to be here for downloads and options.
+      if (message.quiet) reply({ type: 'ready' });
+      else send();
       later();
     } else if (message.type === 'options' && mesh) {
       const mended = mend(mesh, message.options, progress, { crossings: false });
@@ -156,18 +181,43 @@ onmessage = async event => {
       turn(mesh.positions);
       turn(result.positions);
       send();
+    } else if (message.type === 'batch-repair') {
+      // One model of a batch, repaired from its file. Nothing is kept here, so a stuck or
+      // crashed file costs only its own row when this worker is replaced.
+      const loaded = await loadAsync(new Uint8Array(message.buffer), message.name, progress);
+      const mended = mend(loaded, message.options || {}, progress, { crossings: false });
+      const { message: view, transfer } = viewOf(loaded, mended);
+      reply({ type: 'batch-repaired', ...view }, transfer);
+    } else if (message.type === 'batch-pack') {
+      // A batch model's print files at the batch height, from geometry the page already has,
+      // or, if it no longer has it, from the file, repaired again with the model's options and turns.
+      let { positions, tris, unit } = message;
+      if (!positions) {
+        const loaded = await loadAsync(new Uint8Array(message.buffer), message.name, progress);
+        for (let i = 0; i < (message.turns || 0) % 4; i++) turn(loaded.positions);
+        const mended = mend(loaded, message.options || {}, progress, { crossings: false });
+        ({ positions, tris } = mended);
+        unit = loaded.unit;
+      }
+      reply({ type: 'batch-packed', entries: await packPrintFiles(positions, tris, unit, message.heightMm, message.fileName, message.title) });
     } else if (message.type === 'export' && result) {
       progress('Writing the file');
       // A GLB's numbers are meters; with no height chosen they are written as millimeters.
       const sized = layout(result.positions, { heightMm: message.heightMm, unitMm: mesh.unit === 'meter' ? 1000 : 1 });
       const stl = () => writeSTL(sized.positions, result.tris, 1, `polymend ${VERSION}`);
       const threeMF = () => write3MF(sized.positions, result.tris, { title: message.title });
+      const name = safeFileName(message.title);
       const bytes = message.format === 'zip'
-        ? await zip([[`${safeName(message.title)}-mended.stl`, stl()], [`${safeName(message.title)}-mended.3mf`, await threeMF()]])
+        ? await zip([[`${name}-mended.stl`, stl()], [`${name}-mended.3mf`, await threeMF()]])
         : message.format === '3mf' ? await threeMF() : stl();
-      postMessage({ type: 'file', format: message.format, bytes }, [bytes.buffer]);
+      reply({ type: 'file', format: message.format, bytes }, [bytes.buffer]);
     }
   } catch (error) {
-    postMessage({ type: 'error', message: error && error.message ? error.message : 'Something went wrong reading this file.' });
+    reply({ type: 'error', message: error && error.message ? error.message : 'Something went wrong reading this file.' });
   }
-};
+}
+
+// One request at a time, in the order they came. A handler that waits (on the Draco
+// decoder, or on compression) must not let the next request start and change the model.
+let queue = Promise.resolve();
+onmessage = event => { queue = queue.then(() => handle(event.data)); };

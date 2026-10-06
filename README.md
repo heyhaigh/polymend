@@ -9,6 +9,7 @@ Live at **https://polymend.xyz**. MIT licensed.
 
 ```sh
 node cli.mjs model.glb --height 43.2 --out ./print   # the same repair from the command line: STL, 3MF and a report
+node cli.mjs ./figures --height 43.2 --out ./print   # every .glb and .stl in a folder, plus polymend-batch.json
 node tools/serve.mjs          # local copy at http://127.0.0.1:8650/
 node tools/build-site.mjs     # copy only the public files into dist/
 npx wrangler deploy           # publish dist/ to Cloudflare (polymend.xyz)
