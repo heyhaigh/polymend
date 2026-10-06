@@ -10,7 +10,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const CREDIT = `    <p class="embed-credit">
       <a href="https://polymend.xyz/" target="_blank" rel="noopener">Polymend</a>
-      <a class="embed-badge" href="https://heyhaigh.ai/" target="_blank" rel="noopener" aria-label="Created by Ryan Haigh, heyhaigh.ai" title="Created by Ryan Haigh"><img src="app/ry-hand-badge-56.webp" alt="" width="28" height="28"></a>
+      <a class="embed-badge" href="https://heyhaigh.ai/" target="_blank" rel="noopener" aria-label="Created by Ryan Haigh, heyhaigh.ai" title="Created by Ryan Haigh"><img src="app/ry-hand-badge-56.webp" srcset="app/ry-hand-badge-56.webp 2x, app/ry-hand-badge-84.webp 3x" alt="" width="28" height="28"></a>
     </p>`;
 
 export function embedPage(home) {

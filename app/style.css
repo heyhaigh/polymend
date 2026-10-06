@@ -599,9 +599,10 @@ body.embed :is(.tool-subtitle, .tool-scope) { display: none; }
 .embed-credit { align-items: center; }
 .embed-credit a { opacity: 0.65; text-decoration: none; }
 .embed-credit a:is(:hover, :focus-visible) { opacity: 1; text-decoration: underline; }
-/* The maker's mark: the hand from heyhaigh.ai as a small badge, a ring appearing on hover. */
-.embed-badge { display: block; width: 28px; height: 28px; border-radius: 50%; opacity: 1; box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 35%, transparent); transition: box-shadow 0.2s ease-out, transform 0.2s ease-out; }
-.embed-badge img { display: block; width: 28px; height: 28px; border-radius: 50%; }
+/* The maker's mark: the hand from heyhaigh.ai through a halftone screen, as a small
+   square badge, a ring appearing on hover. */
+.embed-badge { display: block; width: 28px; height: 28px; border-radius: 2px; opacity: 1; box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 35%, transparent); transition: box-shadow 0.2s ease-out, transform 0.2s ease-out; }
+.embed-badge img { display: block; width: 28px; height: 28px; border-radius: 2px; }
 .embed-badge:is(:hover, :focus-visible) { box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 35%, transparent); transform: translateY(-1px); text-decoration: none; }
 .embed-badge:focus-visible { outline: none; }
 /* With a result, the embed shows the view first; the outcome and the file strip follow it. */
