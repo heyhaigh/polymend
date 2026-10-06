@@ -27,6 +27,7 @@
   --good: #32634e;
   --orange-text: #a3510d;
   --info-text: #0a62a6;
+  --code-bg: rgba(0, 0, 0, 0.06);
   --bad-text: #b3005c;
   /* Outcome colours: green done, blue nothing needed, orange partly, pink failed. */
   --tone-good: #12bd3d;
@@ -59,6 +60,7 @@
   --good: #a3c6ad;
   --orange-text: #f3aa54;
   --info-text: #7cc4f8;
+  --code-bg: rgba(0, 0, 0, 0.32);
   --bad-text: #ff7fc0;
   --scrollbar: #ffffff;
   color-scheme: dark;
@@ -504,11 +506,13 @@ body.outcome-clean :is(.about, .faq) { display: none; }
 
 /* --- embed code: on the home page, and in the pop-up opened from the footer */
 #embed { scroll-margin-top: 330px; }
-.snippet { position: relative; margin: 14px 0 12px; padding: 16px 16px 62px; background: var(--fill-strong); border: 1px solid var(--line-strong); border-radius: 12px; }
+.snippet { margin: 14px 0 12px; border: 1px solid var(--line-strong); border-radius: 12px; overflow: hidden; }
+/* Two panes joined along one edge: the choices on the lighter one, the code on the darker. */
+.snippet-code { position: relative; padding: 16px 16px 62px; background: var(--code-bg); }
 /* The choices that write the code, in the page's own controls: the segmented switch from
    the viewer for the theme, a slide switch for the sound, the round stepper buttons for
    the height. The real inputs stay in the page for keyboards and screen readers. */
-.snippet-options { display: grid; gap: 14px; margin-bottom: 14px; padding-bottom: 16px; border-bottom: 1px solid var(--line-strong); font-size: 13px; }
+.snippet-options { display: grid; gap: 14px; padding: 16px; background: var(--glass); border-bottom: 1px solid var(--line-strong); font-size: 13px; }
 .option-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 .option-name { min-width: 56px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.6; }
 .option-row .caption { flex-basis: 100%; margin: 0; }
@@ -541,7 +545,7 @@ body.outcome-clean :is(.about, .faq) { display: none; }
 .code-attr { opacity: 0.75; }
 .code-punct { opacity: 0.5; }
 .code-string { color: var(--info-text); }
-.snippet .copy { position: absolute; right: 12px; bottom: 12px; cursor: pointer; }
+.snippet-code .copy { position: absolute; right: 12px; bottom: 12px; cursor: pointer; }
 .snippet-note { font-size: 13px; opacity: 0.75; }
 :is(.about, .modal) :is(p, li) code { padding: 1px 5px; background: var(--fill-strong); border-radius: 4px; white-space: nowrap; }
 
