@@ -149,12 +149,12 @@ test('the embed code on the home page points at the embedded copy and nothing el
   assert.ok(!/<script|allow=|sandbox=/.test(code), 'the embed code should be a plain frame: no script, no extra permissions');
 });
 
-test('the Updates page is made from CHANGELOG.md and is up to date', () => {
+test('the change log page is made from CHANGELOG.md and is up to date', () => {
   assert.equal(read('changelog.html'), changelogPage(read('CHANGELOG.md')), 'changelog.html is out of date. Run: node tools/make-changelog.mjs');
   const version = read('src/output.js').match(/VERSION = '([^']+)'/)[1];
   assert.ok(read('CHANGELOG.md').split('\n').some(line => line.startsWith(`## ${version} `)), `CHANGELOG.md has no entry for version ${version}`);
   for (const file of ['index.html', 'privacy.html', 'terms.html', 'changelog.html']) {
-    assert.match(read(file), /<a href="\/changelog">Updates<\/a>/, `${file} links to the Updates page`);
+    assert.match(read(file), /<a href="\/changelog">Change log<\/a>/, `${file} links to the change log`);
     assert.match(read(file), /<a href="mailto:feedback@polymend\.xyz\?subject=[^"]+">Send feedback<\/a>/, `${file} has the feedback link`);
   }
 });

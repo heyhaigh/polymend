@@ -1,8 +1,8 @@
-# Updates
+# Change log
 
-What has changed in Polymend, newest first. From version 0.3.0 on, every change is listed here and recorded in the project's public history.
+What has changed in Polymend, newest first. Each version is marked with the moment it was published. From version 0.3.0 on, every change is listed here and recorded in the project's public history.
 
-## 0.3.0 (October 2026)
+## 0.3.0 (Published October 5, 2026 at 7:49 PM EDT)
 
 Safer on models unlike the ones it was first built for, and tested on far more of them.
 
@@ -36,12 +36,12 @@ Safer on models unlike the ones it was first built for, and tested on far more o
 - If a second file fails, the model already on the page keeps its name and stays usable.
 - New questions and answers about testing, grazing patches, and rigged models.
 - Polymend can be placed in another website with one line of code: see "Add it to your site" on the home page, or "Embed on your site" in the footer.
-- Every footer has an Updates page, a feedback link and a contact address.
+- Every footer has a change log, a feedback link and a contact address.
 
 **Wording**
 
 - The page says what the tool is for and what it has been tested on. The privacy page describes exactly what the security policy does and does not guarantee.
 
-## 0.2.0 (October 2026)
+## 0.2.0 (Published October 5, 2026 at 5:15 PM EDT)
 
 First public version: repair of stray triangles, small holes and wrongly facing triangles in STL and GLB files, a before, after and side by side view with every change marked, and STL, 3MF or ZIP downloads. Everything runs in the browser.
