@@ -113,6 +113,9 @@ await page.setInputFiles('#file', fixture);
 await page.waitForSelector('#outcome:not([hidden])', { timeout: 60000 });
 await page.waitForTimeout(4000);
 check(await page.locator('#batch').isHidden(), 'the batch card is gone');
+check(!(await page.locator('#model-switch').isVisible()), 'the model switch is gone for a single file');
+const leaks = await page.evaluate(() => [...document.querySelectorAll('[hidden]')].filter(e => getComputedStyle(e).display !== 'none').map(e => e.id || e.className));
+check(!leaks.length, `nothing marked hidden is showing${leaks.length ? ': ' + leaks.join(', ') : ''}`);
 check(downloads.length === before, 'no download arrives from the stopped batch');
 
 // 8. A new batch while a real model is still being packed: WebKit once crashed the whole
