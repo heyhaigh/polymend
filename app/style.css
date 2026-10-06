@@ -385,6 +385,18 @@ body.dragging.drag-wrong .cta-box {
 .batch-download { display: inline-flex; align-items: center; gap: 8px; }
 .batch-download svg { display: block; }
 .batch-download[disabled] { opacity: 0.5; cursor: default; }
+/* The model switch above the view, in a batch: arrows, a list of every model, and "2 of 4". */
+.model-switch { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.model-pick { position: relative; display: inline-flex; align-items: center; flex: 0 1 auto; min-width: 0; }
+.model-pick select { appearance: none; -webkit-appearance: none; min-width: 0; max-width: min(60vw, 520px); padding: 8px 34px 8px 32px; border: 1px solid var(--line-strong); border-radius: 50px; background: var(--glass); color: inherit; font: inherit; font-size: 13px; font-weight: 600; text-overflow: ellipsis; cursor: pointer; transition: background-color 0.2s ease-out; }
+.model-pick select:is(:hover, :focus-visible) { background: var(--glass-hover); }
+.model-pick select[disabled] { cursor: default; opacity: 0.6; }
+.model-dot { position: absolute; left: 13px; width: 9px; height: 9px; border-radius: 50%; background: var(--tone-good); pointer-events: none; }
+.model-dot.sound { background: var(--tone-info); }
+.model-dot.partial { background: var(--tone-warn); }
+.model-caret { position: absolute; right: 13px; display: block; pointer-events: none; opacity: 0.7; }
+.model-count { font-size: 13px; opacity: 0.6; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
 /* On a narrow screen the name gets the whole line and the count sits under it. */
 @media (max-width: 560px) { .batch-open { flex-direction: column; align-items: flex-start; gap: 2px; } .batch-name { max-width: 100%; } }
 

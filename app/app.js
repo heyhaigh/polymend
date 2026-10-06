@@ -130,6 +130,7 @@ function setBusy(busy) {
   for (const id of ['choose', 'rotate']) $(id).disabled = busy;
   for (const control of document.querySelectorAll('[data-option], [data-download], .split-caret')) control.disabled = busy;
   if (busy) closeMenus();
+  if (batch.rows.length && $('model-switch')) renderModelSwitch();
 }
 
 /**
@@ -308,7 +309,9 @@ function renderOutcome() {
   // The orange button is a promise that the file is ready, so it steps down when it is not.
   for (const split of document.querySelectorAll('[data-split]')) {
     split.classList.toggle('anyway', anyway);
-    split.querySelector('.download-label').textContent = anyway ? 'Download all anyway' : 'Download all';
+    // In a batch, "all" would sound like every model; this button is for the one in view.
+    const one = state.quietShown;
+    split.querySelector('.download-label').textContent = one ? (anyway ? 'Download this one anyway' : 'Download this one') : (anyway ? 'Download all anyway' : 'Download all');
   }
 }
 
@@ -500,6 +503,7 @@ function clearBatch() {
   if (batch.running) { batch.worker?.terminate(); batch.worker = null; clearTimeout(batch.timer); }
   Object.assign(batch, { rows: [], skipped: [], at: -1, running: false });
   $('batch').hidden = true;
+  if ($('model-switch')) $('model-switch').hidden = true;
   placeTop();
 }
 
@@ -635,10 +639,33 @@ function renderBatch() {
     else if (row.status === 'partial' && row.report) item.append(Object.assign(document.createElement('p'), { className: 'batch-error', textContent: remaining(row.report) }));
     return item;
   }));
+  renderModelSwitch();
   const ready = rows.filter(row => row.positions).length;
   $('batch-download').disabled = batch.running || batch.exporting || !ready;
   $('batch-download-label').textContent = batch.exporting ? 'Preparing the ZIP' : `Download all ${ready} (ZIP)`;
   renderBatchNote();
+}
+
+/** The switch above the view: which repaired model is in it, and the way to the others. */
+function renderModelSwitch() {
+  const viewable = batch.rows.map((row, i) => [row, i]).filter(([row]) => row.positions);
+  const show = batch.at >= 0 && viewable.length > 0;
+  $('model-switch').hidden = !show;
+  if (!show) return;
+  const select = $('model-select');
+  select.replaceChildren(...viewable.map(([row, i]) => Object.assign(document.createElement('option'), { value: String(i), textContent: `${row.file.name} · ${STATUS_WORDS[row.status]}`, selected: i === batch.at })));
+  const place = viewable.findIndex(([, i]) => i === batch.at);
+  $('model-count').textContent = `${place + 1} of ${viewable.length}`;
+  $('model-dot').className = 'model-dot ' + (batch.rows[batch.at]?.status || '');
+  for (const id of ['model-prev', 'model-next', 'model-select']) $(id).disabled = state.busy || viewable.length < 2;
+}
+
+/** Step to the previous or next viewable model, round the list. */
+function stepModel(direction) {
+  const viewable = batch.rows.map((row, i) => [row, i]).filter(([row]) => row.positions).map(([, i]) => i);
+  if (viewable.length < 2) return;
+  const place = viewable.indexOf(batch.at);
+  viewRow(viewable[(place + direction + viewable.length) % viewable.length]);
 }
 
 /** One line for a partly repaired row: what is left, and where to look. */
@@ -646,7 +673,7 @@ function remaining(report) {
   const after = report.after;
   const left = [after.openEdges && plural(after.openEdges, 'open edge'), after.nonManifoldEdges && plural(after.nonManifoldEdges, 'non-manifold edge'), after.inconsistentEdges && plural(after.inconsistentEdges, 'wrongly facing join')].filter(Boolean);
   const total = after.openEdges + after.nonManifoldEdges + after.inconsistentEdges;
-  return (left.length ? `${list(left)} remain${total === 1 ? 's' : ''}.` : 'The edge checks pass, but it is not a printable solid.') + ' Open it to see where, and try the Repair options below it.';
+  return (left.length ? `${list(left)} remain${total === 1 ? 's' : ''}.` : 'The edge checks pass, but it is not a printable solid.') + ' Open it in the view to see where, and try the Repair options below it.';
 }
 
 /** Says what the ZIP will hold, at what size. The height is the one under Size below. */
@@ -687,6 +714,9 @@ function saveBatchFile(message) {
 // --- wiring
 $('choose').addEventListener('click', () => $('file').click());
 $('batch-download')?.addEventListener('click', downloadBatch);
+$('model-prev')?.addEventListener('click', () => stepModel(-1));
+$('model-next')?.addEventListener('click', () => stepModel(1));
+$('model-select')?.addEventListener('change', event => viewRow(Number(event.target.value)));
 $('set-height').addEventListener('change', renderBatchNote);
 $('height').addEventListener('input', renderBatchNote);
 $('file').addEventListener('change', event => { sound.prime(); takeFiles([...event.target.files]); event.target.value = ''; });
