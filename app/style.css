@@ -1,3 +1,6 @@
+/* Anything marked hidden stays hidden, whatever display a rule gives it. */
+[hidden] { display: none !important; }
+
 /* Polymend. Visual language follows heyhaigh.ai: Geist Mono, the warm paper and deep
    navy themes, glass pills, the orange action card and bordered tables. */
 
@@ -391,10 +394,9 @@ body.dragging.drag-wrong .cta-box {
 .batch-download.building::before { content: ""; width: 9px; height: 9px; margin: 0 3px; border-radius: 50%; background: var(--orange); animation: pulse 1s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .batch-download.building::before { animation: none; } }
 /* The model switch above the view, in a batch: arrows, a list of every model, and "2 of 4". */
-.model-switch { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.model-switch[hidden] { display: none; }
+.model-switch { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .model-pick { position: relative; display: inline-flex; flex: 0 1 auto; min-width: 0; }
-.model-trigger { display: inline-flex; align-items: center; gap: 10px; min-width: 0; max-width: min(60vw, 520px); padding: 8px 14px 8px 13px; border: 1px solid var(--line-strong); border-radius: 50px; background: var(--glass); color: inherit; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color 0.2s ease-out; }
+.model-trigger { display: inline-flex; align-items: center; gap: 10px; min-width: 0; max-width: min(60vw, 280px); padding: 8px 14px 8px 13px; border: 1px solid var(--line-strong); border-radius: 50px; background: var(--glass); color: inherit; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color 0.2s ease-out; }
 .model-trigger:not([disabled]):is(:hover, :focus-visible), .model-trigger[aria-expanded="true"] { background: var(--glass-hover); }
 .model-trigger[disabled] { cursor: default; opacity: 0.6; }
 .model-current { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
