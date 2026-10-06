@@ -34,6 +34,26 @@
   // ?bg=dedcd4&edge=d0cec6. Anything else in those places is ignored.
   const hex = value => (/^[0-9a-fA-F]{6}$/.test(value || '') ? '#' + value : null);
   const colours = embedded ? { '--paper': hex(new URLSearchParams(location.search).get('bg')), '--edge': hex(new URLSearchParams(location.search).get('edge')) } : {};
+  // On the maker's own site the credit line is redundant, so ?credit=off removes it there.
+  // Elsewhere the line stays: the frame is the only sign of where the tool came from.
+  const own = /^https:\/\/(www\.)?heyhaigh\.ai(\/|$)|^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(document.referrer);
+  if (embedded && own && new URLSearchParams(location.search).get('credit') === 'off') root.classList.add('no-credit');
+  // An embedding page whose own theme can change sends the frame a window message, so the
+  // two flip together: { type: 'polymend:theme', theme: 'dark', bg: '050d18', edge: '152131' }
+  // (the home page shows the call). Only that shape is read, only those fields, and nothing
+  // is ever sent back.
+  if (embedded) {
+    window.addEventListener('message', event => {
+      const data = event.data;
+      if (!data || data.type !== 'polymend:theme') return;
+      if (data.theme === 'dark' || data.theme === 'light') dark = data.theme === 'dark';
+      for (const [name, key] of [['--paper', 'bg'], ['--edge', 'edge']]) {
+        const value = hex(data[key]);
+        if (value) document.body.style.setProperty(name, value); else if (key in data) document.body.style.removeProperty(name);
+      }
+      apply();
+    });
+  }
   document.addEventListener('DOMContentLoaded', () => {
     for (const [name, value] of Object.entries(colours)) if (value) document.body.style.setProperty(name, value);
     apply();

@@ -628,6 +628,9 @@ body.embed:not(.has-results) .cta-box { flex: 1; width: 100%; display: flex; fle
 body.embed .tool-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 body.embed :is(.tool-subtitle, .tool-scope) { display: none; }
 .embed-credit { width: 100%; max-width: 720px; margin: 8px auto 0; display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
+/* Without the credit line, the bottom edge gets the same room as the sides. */
+html.no-credit .embed-credit { display: none; }
+html.no-credit body.embed .tool-container { padding-bottom: 20px; }
 .embed-credit { align-items: center; }
 .embed-credit a { opacity: 0.65; text-decoration: none; }
 .embed-credit a:is(:hover, :focus-visible) { opacity: 1; text-decoration: underline; }

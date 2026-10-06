@@ -2,6 +2,11 @@
 
 What has changed in Polymend, newest first. Each version is marked with the moment it was published. From version 0.3.0 on, every change is listed here and recorded in the project's public history.
 
+## 0.4.3 (Published October 5, 2026 at 10:25 PM EDT)
+
+- An embedding page with its own light and dark modes can tell the frame when they change, and it flips with the page.
+- On a phone the home page's scope line is left out, to bring the upload card up.
+
 ## 0.4.2 (Published October 5, 2026 at 10:21 PM EDT)
 
 - A command line: `node cli.mjs model.glb --height 43.2 --out ./print` writes a repaired STL, a 3MF and a report. It is what the 2D to 3D Print skill on heyhaigh.ai now runs.
