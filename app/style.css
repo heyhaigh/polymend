@@ -356,7 +356,8 @@ body.dragging.drag-wrong .cta-box {
   .toolbar .split-main { padding-inline: 14px; }
 }
 
-.stage { position: relative; background: var(--stage); border-radius: 12px; overflow: hidden; transition: background-color 0.3s ease; }
+/* The same line as the divider between the two halves, so the stage is anchored, not floating. */
+.stage { position: relative; background: var(--stage); border: 1px solid var(--line-strong); border-radius: 12px; overflow: hidden; transition: background-color 0.3s ease; }
 canvas { display: block; width: 100%; height: min(68vh, 620px); touch-action: none; cursor: grab; border-radius: 12px; }
 canvas:active { cursor: grabbing; }
 canvas:focus-visible { outline-offset: -3px; }
