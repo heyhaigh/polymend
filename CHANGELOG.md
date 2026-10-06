@@ -2,7 +2,7 @@
 
 What has changed in Polymend, newest first. Each version is marked with the moment it was published. From version 0.3.0 on, every change is listed here and recorded in the project's public history.
 
-## 0.4.0 (Published TBD)
+## 0.4.0 (Published October 5, 2026 at 8:42 PM EDT)
 
 **Compressed GLB files**
 
