@@ -631,6 +631,7 @@ body.embed :is(.tool-subtitle, .tool-scope) { display: none; }
 /* Without the credit line, the bottom edge gets the same room as the sides. */
 html.no-credit .embed-credit { display: none; }
 html.no-credit body.embed .tool-container { padding-bottom: 20px; }
+html.no-credit body.embed:not(.has-results) .top-stick { padding-bottom: 0; } /* the card's bottom gap equals its side gaps */
 .embed-credit { align-items: center; }
 .embed-credit a { opacity: 0.65; text-decoration: none; }
 .embed-credit a:is(:hover, :focus-visible) { opacity: 1; text-decoration: underline; }
