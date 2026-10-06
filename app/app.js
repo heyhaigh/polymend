@@ -811,6 +811,11 @@ function renderBatch() {
   }));
   if (focused !== undefined) $('batch-list').querySelector(`[data-id="${focused}"] .batch-open`)?.focus({ preventScroll: true });
   renderModelSwitch();
+  // The list is folded away unless asked for, so the comparison below stays in view.
+  $('batch-more').hidden = !batch.expanded;
+  $('batch').classList.toggle('open', !!batch.expanded);
+  $('batch-toggle').setAttribute('aria-expanded', String(!!batch.expanded));
+  $('batch-toggle-label').textContent = batch.expanded ? 'Hide list' : 'Show list';
   // The ZIP is put together from each model's packed files, made in the background.
   const done = rows.filter(row => DONE.includes(row.status) && !row.buildError);
   const ready = done.filter(current).length;
@@ -830,10 +835,10 @@ function renderModelSwitch() {
   $('model-switch').hidden = !show;
   if (!show) return closeModelMenu();
   const row = batch.rows[batch.at];
+  $('model-count').textContent = `${viewable.findIndex(item => item.id === batch.at) + 1} of ${viewable.length}`; // before the name is fitted around it
   fitName($('model-current'), clean(row.file.name), viewable.filter(item => item !== row).map(item => clean(item.file.name)));
   $('model-trigger').setAttribute('aria-label', `Model in view: ${clean(row.file.name)}, ${STATUS_WORDS[row.status]}. Choose another.`);
   $('model-dot').className = 'model-dot ' + row.status;
-  $('model-count').textContent = `${viewable.findIndex(item => item.id === batch.at) + 1} of ${viewable.length}`;
   const locked = (state.busy && !state.batchLoading) || viewable.length < 2;
   for (const id of ['model-prev', 'model-next', 'model-trigger']) $(id).disabled = locked;
   if (locked) closeModelMenu();
@@ -981,6 +986,13 @@ async function downloadBatch() {
 // --- wiring
 $('choose').addEventListener('click', () => $('file').click());
 $('batch-download')?.addEventListener('click', downloadBatch);
+$('batch-toggle')?.addEventListener('click', () => { batch.expanded = !batch.expanded; renderBatch(); });
+// On a phone the whole folded line opens and closes the list, not only the chevron.
+document.querySelector('.batch-head')?.addEventListener('click', event => {
+  if (!matchMedia('(max-width: 640px)').matches || event.target.closest('button')) return;
+  batch.expanded = !batch.expanded;
+  renderBatch();
+});
 $('model-prev')?.addEventListener('click', () => stepModel(-1));
 $('model-next')?.addEventListener('click', () => stepModel(1));
 $('model-trigger')?.addEventListener('click', () => ($('model-menu').hidden ? openModelMenu() : closeModelMenu()));

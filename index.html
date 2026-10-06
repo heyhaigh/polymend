@@ -53,15 +53,21 @@
       </div>
       <!-- embed:cut -->
       <div id="batch" class="outcome batch" hidden>
-        <p class="label">Batch</p>
-        <h2 id="batch-title" tabindex="-1"></h2>
-        <p id="batch-detail"></p>
-        <ol id="batch-list" class="batch-list"></ol>
-        <div class="batch-actions">
+        <div class="batch-head">
+          <span class="batch-label" aria-hidden="true">Batch</span>
+          <h2 id="batch-title" tabindex="-1"></h2>
+          <button id="batch-toggle" type="button" class="batch-toggle" aria-expanded="false" aria-controls="batch-more">
+            <span id="batch-toggle-label">Show list</span>
+            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
           <button id="batch-download" type="button" class="pill batch-download" disabled>
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 4v12m0 0l-4.5-4.5M12 16l4.5-4.5M5 20h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span id="batch-download-label">Download all</span>
           </button>
+        </div>
+        <p id="batch-detail"></p>
+        <div id="batch-more" class="batch-more" hidden>
+          <ol id="batch-list" class="batch-list"></ol>
           <p id="batch-note" class="caption"></p>
         </div>
       </div>
@@ -118,12 +124,12 @@
                 <button id="model-trigger" type="button" class="model-trigger" aria-haspopup="menu" aria-expanded="false" aria-controls="model-menu">
                   <span id="model-dot" class="model-dot" aria-hidden="true"></span>
                   <span id="model-current" class="model-current"></span>
+                  <span id="model-count" class="model-count"></span>
                   <svg class="model-caret" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </button>
                 <div id="model-menu" class="model-menu" role="menu" aria-label="Choose a model" hidden></div>
               </span>
               <button id="model-next" type="button" class="round" aria-label="Next model"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-              <span id="model-count" class="model-count"></span>
             </div>
             <!-- /embed:cut -->
             <div class="stepper" id="stepper" role="group" aria-label="Changes" hidden>
