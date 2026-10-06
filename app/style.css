@@ -609,7 +609,7 @@ body.outcome-clean :is(.about, .faq) { display: none; }
 
 /* The explanation under the tool, set like one of the site's articles. */
 .about { max-width: 720px; margin: 72px auto 0; }
-@media (max-width: 768px) { .about { margin-top: 52px; } } /* a phone's upload card sits closer to the explanation */
+@media (max-width: 768px) { .about { margin-top: 44px; } } /* a phone's upload card sits closer to the explanation */
 .about h2 { margin: 32px 0 10px; padding-top: 12px; }
 .about h2:first-child { margin-top: 0; }
 .about p { margin-bottom: 10px; }
