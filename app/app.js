@@ -549,7 +549,13 @@ if ($('embed-maker')) {
     const quiet = !$('embed-sound').checked;
     const height = Math.min(1200, Math.max(200, Math.round(Number($('embed-height').value) || 340)));
     const query = [theme && `theme=${theme}`, quiet && 'sound=off'].filter(Boolean).join('&');
-    snippet.textContent = `<iframe src="https://polymend.xyz/embed${query ? '?' + query : ''}" title="Polymend: STL and GLB mesh repair" width="100%" height="${height}" style="border:0;border-radius:12px" loading="lazy"></iframe>`;
+    const attributes = [['src', `https://polymend.xyz/embed${query ? '?' + query : ''}`], ['title', 'Polymend: STL and GLB mesh repair'], ['width', '100%'], ['height', String(height)], ['style', 'border:0;border-radius:12px'], ['loading', 'lazy']];
+    // Set as code is set: the tag, the attribute names and the quoted values each in their
+    // own tone. Copying takes the text alone.
+    const piece = (kind, text) => Object.assign(document.createElement('span'), { className: `code-${kind}`, textContent: text });
+    snippet.replaceChildren(piece('punct', '<'), piece('tag', 'iframe'),
+      ...attributes.flatMap(([name, value]) => [' ', piece('attr', name), piece('punct', '='), piece('string', `"${value}"`)]),
+      piece('punct', '></'), piece('tag', 'iframe'), piece('punct', '>'));
   };
   for (const input of maker.querySelectorAll('input')) input.addEventListener('input', write);
   // The round buttons beside the height step it, as the arrows beside the viewer step through changes.

@@ -535,7 +535,12 @@ body.outcome-clean :is(.about, .faq) { display: none; }
 .field-stepper .round { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .choice, .switch-track, .switch-track::after { transition: none; } }
 .snippet code { font: inherit; }
-.snippet pre { font: inherit; font-size: 13px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; user-select: all; }
+.snippet pre { font: inherit; font-size: 13px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; user-select: all; opacity: 0.85; }
+/* Set like code: the tag warm, the names quiet, the values in the page's blue. */
+.code-tag { color: var(--orange-text); }
+.code-attr { opacity: 0.75; }
+.code-punct { opacity: 0.5; }
+.code-string { color: var(--info-text); }
 .snippet .copy { position: absolute; right: 12px; bottom: 12px; cursor: pointer; }
 .snippet-note { font-size: 13px; opacity: 0.75; }
 :is(.about, .modal) :is(p, li) code { padding: 1px 5px; background: var(--fill-strong); border-radius: 4px; white-space: nowrap; }
