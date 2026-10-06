@@ -49,6 +49,28 @@ function schedule(kind) {
     }
   }
   document.documentElement.dataset.lastSound = kind; // lets tests see that a chime was sent
+  return out;
+}
+
+/** How long a chime rings, in seconds. */
+export const length = kind => Math.max(...CHIMES[kind].map(({ t = 0, d }) => t + d));
+
+// A preview can be pressed again and again. Each press fades out the one still ringing over
+// a few hundredths of a second, so presses never pile up into one loud chord, then plays.
+let previewing = null;
+export function preview(kind) {
+  if (!CHIMES[kind] || !ensure()) return;
+  const start = () => {
+    if (previewing) {
+      const now = context.currentTime;
+      previewing.gain.cancelScheduledValues(now);
+      previewing.gain.setValueAtTime(previewing.gain.value, now);
+      previewing.gain.linearRampToValueAtTime(0, now + 0.03);
+    }
+    previewing = schedule(kind);
+  };
+  if (context.state === 'running') start();
+  else context.resume().then(() => { if (context.state === 'running') start(); }).catch(() => {});
 }
 
 // A site that embeds the tool can end the frame's address with ?sound=off to keep it quiet.

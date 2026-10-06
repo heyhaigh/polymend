@@ -106,9 +106,11 @@ strong { font-weight: 600; }
   justify-content: center;
   font-size: 18px;
   transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
+/* Only the theme button floats over the page, so only it blurs what is behind it. A blurred
+   button in the page's flow gets a layer of its own, and Chrome can paint such a layer over
+   the pinned upload card for a frame while the page scrolls. */
+.theme-toggle { backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 .theme-toggle:hover, .round:not([disabled]):hover { background: var(--glass-hover); }
 .round svg { display: block; }
 .theme-toggle svg { display: block; }
@@ -118,6 +120,9 @@ strong { font-weight: 600; }
 /* The top block is sticky. app.js slides it up far enough that the title and description
    (or the outcome card that replaces them) scroll away, leaving the status line and the
    upload card pinned while the rest of the page scrolls beneath them. The same on phones. */
+/* Pinned, the top block is drawn as a layer of its own, so nothing scrolling beneath it can
+   paint through it for a frame. */
+body:not(.has-results) .top-stick { will-change: transform; }
 .top-stick { position: sticky; top: -190px; z-index: 30; margin-inline: -24px; padding: 96px 24px 16px; background: var(--paper); transition: background-color 0.3s ease; }
 /* Text rising toward the card fades out, and is gone 16px below it. */
 /* The fade is a solid in the page colour under a mask, not a gradient of that colour: a
@@ -686,6 +691,17 @@ body.outcome-clean :is(.about, .faq) { display: none; }
 .choice:has(input:checked) { background: var(--ink); color: var(--paper); }
 .choice:has(input:focus-visible) { outline: 2px solid var(--orange); outline-offset: 2px; }
 .switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+/* A small button after the sound switch that plays the chime, so you know what it sounds
+   like. It can be pressed again and again; each press starts the chime afresh. */
+.chime-preview { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--glass); color: inherit; cursor: pointer; transition: background-color 0.2s ease-out, color 0.2s ease-out, border-color 0.2s ease-out; }
+.chime-preview:is(:hover, :focus-visible) { background: var(--glass-hover); border-color: color-mix(in srgb, currentColor 35%, transparent); }
+.chime-preview svg { display: block; }
+.chime-preview .chime-wave { display: none; }
+.chime-preview.playing { color: var(--orange-text); border-color: color-mix(in srgb, var(--orange) 55%, transparent); background: color-mix(in srgb, var(--orange) 14%, transparent); }
+.chime-preview.playing .chime-play { display: none; }
+.chime-preview.playing .chime-wave { display: block; animation: chime-ring 0.5s ease-in-out infinite alternate; }
+@keyframes chime-ring { from { transform: scaleY(0.7); } to { transform: scaleY(1.1); } }
+@media (prefers-reduced-motion: reduce) { .chime-preview.playing .chime-wave { animation: none; } }
 /* On the narrowest phones the three theme choices share the row evenly, and the sound
    switch's words wrap rather than run past the edge. */
 @media (max-width: 380px) {

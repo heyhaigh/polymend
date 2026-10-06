@@ -1179,6 +1179,16 @@ if ($('embed-maker')) {
       piece('punct', '></'), piece('tag', 'iframe'), piece('punct', '>'));
   };
   for (const input of maker.querySelectorAll('input')) input.addEventListener('input', write);
+  // The button after the sound switch plays the success chime. Each press starts it afresh
+  // and keeps the button lit until that chime has rung out.
+  const chime = $('chime-preview');
+  let ringing = 0;
+  chime?.addEventListener('click', () => {
+    sound.preview('repaired');
+    chime.classList.add('playing');
+    clearTimeout(ringing);
+    ringing = setTimeout(() => chime.classList.remove('playing'), sound.length('repaired') * 1000 + 150);
+  });
   // The round buttons beside the height step it, as the arrows beside the viewer step through changes.
   for (const button of maker.querySelectorAll('[data-step]')) {
     button.addEventListener('click', () => {
