@@ -601,7 +601,7 @@ body.embed :is(.tool-subtitle, .tool-scope) { display: none; }
 .embed-credit a:is(:hover, :focus-visible) { opacity: 1; text-decoration: underline; }
 /* The maker's mark: the hand from heyhaigh.ai through a halftone screen, as a small
    square badge, a ring appearing on hover. */
-.embed-badge { display: block; width: 20px; height: 20px; border-radius: 2px; opacity: 1; box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 35%, transparent); transition: box-shadow 0.2s ease-out, transform 0.2s ease-out; }
+.embed-badge { display: block; width: 20px; height: 20px; border-radius: 2px; opacity: 1; transition: transform 0.2s ease-out; } /* the ring appears at once; only the lift eases */
 .embed-badge img { display: block; width: 20px; height: 20px; border-radius: 2px; }
 /* Dark hand on paper in the light theme; paper hand on dark in the dark theme. */
 .embed-badge .badge-dark, html.dark-mode .embed-badge .badge-light { display: none; }
