@@ -30,7 +30,12 @@
     apply();
   };
   apply();
+  // An embedding site can give the frame its own backdrop and edge, as six-digit hex colours:
+  // ?bg=dedcd4&edge=d0cec6. Anything else in those places is ignored.
+  const hex = value => (/^[0-9a-fA-F]{6}$/.test(value || '') ? '#' + value : null);
+  const colours = embedded ? { '--paper': hex(new URLSearchParams(location.search).get('bg')), '--edge': hex(new URLSearchParams(location.search).get('edge')) } : {};
   document.addEventListener('DOMContentLoaded', () => {
+    for (const [name, value] of Object.entries(colours)) if (value) document.body.style.setProperty(name, value);
     apply();
     document.getElementById('theme-toggle')?.addEventListener('click', toggle);
   });
