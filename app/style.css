@@ -392,15 +392,33 @@ body.dragging.drag-wrong .cta-box {
 @media (prefers-reduced-motion: reduce) { .batch-download.building::before { animation: none; } }
 /* The model switch above the view, in a batch: arrows, a list of every model, and "2 of 4". */
 .model-switch { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.model-pick { position: relative; display: inline-flex; align-items: center; flex: 0 1 auto; min-width: 0; }
-.model-pick select { appearance: none; -webkit-appearance: none; min-width: 0; max-width: min(60vw, 520px); padding: 8px 34px 8px 32px; border: 1px solid var(--line-strong); border-radius: 50px; background: var(--glass); color: inherit; font: inherit; font-size: 13px; font-weight: 600; text-overflow: ellipsis; cursor: pointer; transition: background-color 0.2s ease-out; }
-.model-pick select:is(:hover, :focus-visible) { background: var(--glass-hover); }
-.model-pick select[disabled] { cursor: default; opacity: 0.6; }
-.model-dot { position: absolute; left: 13px; width: 9px; height: 9px; border-radius: 50%; background: var(--tone-good); pointer-events: none; }
+.model-pick { position: relative; display: inline-flex; flex: 0 1 auto; min-width: 0; }
+.model-trigger { display: inline-flex; align-items: center; gap: 10px; min-width: 0; max-width: min(60vw, 520px); padding: 8px 14px 8px 13px; border: 1px solid var(--line-strong); border-radius: 50px; background: var(--glass); color: inherit; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color 0.2s ease-out; }
+.model-trigger:not([disabled]):is(:hover, :focus-visible), .model-trigger[aria-expanded="true"] { background: var(--glass-hover); }
+.model-trigger[disabled] { cursor: default; opacity: 0.6; }
+.model-current { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-dot { flex-shrink: 0; width: 9px; height: 9px; border-radius: 50%; background: var(--tone-good); }
 .model-dot.sound { background: var(--tone-info); }
 .model-dot.partial { background: var(--tone-warn); }
-.model-caret { position: absolute; right: 13px; display: block; pointer-events: none; opacity: 0.7; }
+.model-caret { flex-shrink: 0; display: block; opacity: 0.7; transition: transform 0.2s ease-out; }
+.model-trigger[aria-expanded="true"] .model-caret { transform: rotate(180deg); }
+/* The list of models: the menu surface and item treatment of heyhaigh.ai's playback and share menus. */
+.model-menu { position: absolute; top: calc(100% + 8px); left: 0; z-index: 40; width: max-content; min-width: 100%; max-width: min(88vw, 560px); max-height: min(60vh, 420px); overflow-y: auto; padding: 6px; color: #1a1a1a; background: rgba(246, 245, 239, 0.98); border: 1px solid rgba(0, 0, 0, 0.12); border-radius: 12px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+:root.dark-mode .model-menu { color: #e6e5de; background: rgba(13, 19, 39, 0.98); border-color: rgba(255, 255, 255, 0.16); box-shadow: 0 12px 36px rgba(0, 0, 0, 0.46); }
+/* Shared columns, so every status and tick lines up: dot, name, status, tick. */
+.model-menu:not([hidden]) { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; }
+.model-menu button { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; column-gap: 12px; width: 100%; min-height: 36px; padding: 10px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: 500 12px/1.2 'Geist Mono', monospace; text-align: left; cursor: pointer; transition: background 0.15s ease; }
+.model-menu button:is(:hover, :focus-visible) { background: rgba(0, 0, 0, 0.06); outline: none; }
+:root.dark-mode .model-menu button:is(:hover, :focus-visible) { background: rgba(255, 255, 255, 0.09); }
+.model-item-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-item-status { flex-shrink: 0; opacity: 0.6; font-weight: 400; }
+.model-item-check { display: inline-flex; flex-shrink: 0; visibility: hidden; }
+.model-item-check svg { display: block; }
+.model-menu button[aria-checked="true"] .model-item-check { visibility: visible; }
 .model-count { font-size: 13px; opacity: 0.6; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* On a phone the model switch takes the width it has, so the name is cut as little as possible. */
+@media (max-width: 560px) { .model-pick { flex: 1 1 auto; } .model-trigger { max-width: none; width: 100%; } .model-trigger .model-caret { margin-left: auto; } }
 
 /* On a narrow screen the name gets the whole line and the count sits under it. */
 @media (max-width: 560px) { .batch-open { flex-direction: column; align-items: flex-start; gap: 2px; } .batch-name { max-width: 100%; } }

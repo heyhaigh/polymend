@@ -85,7 +85,7 @@ const twenty = await stlHeights(zipPath);
 check(Object.values(twenty.stl).every(s => Math.abs(s.height - 20) < 0.01), `every STL is 20 mm tall (${Object.values(twenty.stl).map(s => s.height).join(', ')})`);
 
 // 5. Turning the model in view upright changes only that model's files.
-const inView = await page.locator('#model-select option:checked').innerText();
+const inView = await page.locator('#model-current').innerText();
 await page.waitForFunction(() => !document.getElementById('rotate').disabled, null, { timeout: 60000 });
 await page.click('#rotate');
 await page.waitForFunction(() => !document.getElementById('rotate').disabled, null, { timeout: 60000 });
@@ -100,7 +100,7 @@ check(changed.length === 1, `only the turned model changed (${changed.join(', ')
 // 6. Quick switching ends on the right model, ready to download under its own name.
 await page.evaluate(() => { for (let i = 0; i < 5; i++) document.getElementById('model-next').click(); });
 await page.waitForFunction(() => !document.getElementById('download-all').disabled, null, { timeout: 60000 });
-const last = (await page.locator('#model-select option:checked').innerText()).split(' · ')[0].replace(/\.glb$/, '');
+const last = (await page.locator('#model-current').innerText()).replace(/\.glb$/, '');
 [download] = await Promise.all([page.waitForEvent('download'), page.click('#download-all')]);
 check(download.suggestedFilename() === `${last}-mended.zip`, `after quick switching the download is the model in view (${download.suggestedFilename()} for ${last})`);
 

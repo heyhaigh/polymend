@@ -827,11 +827,67 @@ function renderModelSwitch() {
   const viewable = batch.rows.filter(row => DONE.includes(row.status));
   const show = batch.at >= 0 && viewable.length > 0;
   $('model-switch').hidden = !show;
-  if (!show) return;
-  $('model-select').replaceChildren(...viewable.map(row => Object.assign(document.createElement('option'), { value: String(row.id), textContent: `${clean(row.file.name)} · ${STATUS_WORDS[row.status]}`, selected: row.id === batch.at })));
-  $('model-count').textContent = `${viewable.findIndex(row => row.id === batch.at) + 1} of ${viewable.length}`;
-  $('model-dot').className = 'model-dot ' + (batch.rows[batch.at]?.status || '');
-  for (const id of ['model-prev', 'model-next', 'model-select']) $(id).disabled = (state.busy && !state.batchLoading) || viewable.length < 2;
+  if (!show) return closeModelMenu();
+  const row = batch.rows[batch.at];
+  $('model-current').textContent = clean(row.file.name);
+  $('model-trigger').setAttribute('aria-label', `Model in view: ${clean(row.file.name)}, ${STATUS_WORDS[row.status]}. Choose another.`);
+  $('model-dot').className = 'model-dot ' + row.status;
+  $('model-count').textContent = `${viewable.findIndex(item => item.id === batch.at) + 1} of ${viewable.length}`;
+  const locked = (state.busy && !state.batchLoading) || viewable.length < 2;
+  for (const id of ['model-prev', 'model-next', 'model-trigger']) $(id).disabled = locked;
+  if (locked) closeModelMenu();
+  // The list keeps whichever item has the keyboard when it is drawn again.
+  const focused = document.activeElement?.closest?.('#model-menu [data-row]')?.dataset.row;
+  $('model-menu').replaceChildren(...viewable.map(item => {
+    const option = Object.assign(document.createElement('button'), { type: 'button', tabIndex: -1 });
+    option.setAttribute('role', 'menuitemradio');
+    option.setAttribute('aria-checked', String(item.id === batch.at));
+    option.dataset.row = String(item.id);
+    option.append(
+      Object.assign(document.createElement('span'), { className: 'model-dot ' + item.status }),
+      Object.assign(document.createElement('span'), { className: 'model-item-name', textContent: clean(item.file.name) }),
+      Object.assign(document.createElement('span'), { className: 'model-item-status', textContent: STATUS_WORDS[item.status] }),
+      checkmark());
+    return option;
+  }));
+  if (focused !== undefined) $('model-menu').querySelector(`[data-row="${focused}"]`)?.focus({ preventScroll: true });
+}
+
+/** The tick beside the chosen model, built as elements: the page never turns text into markup. */
+function checkmark() {
+  const svg = 'http://www.w3.org/2000/svg';
+  const icon = document.createElementNS(svg, 'svg');
+  for (const [name, value] of [['viewBox', '0 -960 960 960'], ['width', '18'], ['height', '18'], ['fill', 'currentColor'], ['aria-hidden', 'true'], ['focusable', 'false']]) icon.setAttribute(name, value);
+  const path = document.createElementNS(svg, 'path');
+  path.setAttribute('d', 'M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z');
+  icon.append(path);
+  const holder = Object.assign(document.createElement('span'), { className: 'model-item-check' });
+  holder.append(icon);
+  return holder;
+}
+
+// The model menu opens under its button, like the playback menu on heyhaigh.ai, and closes
+// with a short fade once a model is chosen.
+let menuFade = null;
+function openModelMenu() {
+  if ($('model-trigger').disabled) return;
+  menuFade?.cancel();
+  menuFade = null;
+  const menu = $('model-menu');
+  menu.hidden = false;
+  $('model-trigger').setAttribute('aria-expanded', 'true');
+  (menu.querySelector('[aria-checked="true"]') || menu.querySelector('button'))?.focus({ preventScroll: true });
+}
+function closeModelMenu(restoreFocus = false, fade = false) {
+  const menu = $('model-menu');
+  if (!menu || menu.hidden) return;
+  $('model-trigger').setAttribute('aria-expanded', 'false');
+  if (restoreFocus) $('model-trigger').focus({ preventScroll: true });
+  if (fade && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const animation = menu.animate([{ opacity: 1, transform: 'translateY(0)' }, { opacity: 0, transform: 'translateY(-4px)' }], { duration: 160, easing: 'ease-out', fill: 'forwards' });
+    menuFade = animation;
+    animation.finished.then(() => { if (menuFade !== animation) return; menu.hidden = true; animation.cancel(); menuFade = null; }, () => {});
+  } else menu.hidden = true;
 }
 
 /** Step to the previous or next model that can be opened, round the list. */
@@ -886,7 +942,23 @@ $('choose').addEventListener('click', () => $('file').click());
 $('batch-download')?.addEventListener('click', downloadBatch);
 $('model-prev')?.addEventListener('click', () => stepModel(-1));
 $('model-next')?.addEventListener('click', () => stepModel(1));
-$('model-select')?.addEventListener('change', event => viewRow(Number(event.target.value)));
+$('model-trigger')?.addEventListener('click', () => ($('model-menu').hidden ? openModelMenu() : closeModelMenu()));
+$('model-trigger')?.addEventListener('keydown', event => { if (['ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); openModelMenu(); } });
+$('model-menu')?.addEventListener('click', event => {
+  const item = event.target.closest('[data-row]');
+  if (!item) return;
+  closeModelMenu(true, true);
+  viewRow(Number(item.dataset.row));
+});
+$('model-menu')?.addEventListener('keydown', event => {
+  const items = [...$('model-menu').querySelectorAll('[data-row]')];
+  const at = items.indexOf(document.activeElement);
+  const next = { ArrowDown: at + 1, ArrowUp: at - 1, Home: 0, End: items.length - 1 }[event.key];
+  if (next !== undefined) { event.preventDefault(); items[(next + items.length) % items.length]?.focus({ preventScroll: true }); }
+  else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeModelMenu(true); }
+  else if (event.key === 'Tab') closeModelMenu();
+});
+document.addEventListener('click', event => { if (!event.target.closest('.model-pick')) closeModelMenu(); });
 $('set-height').addEventListener('change', heightChanged);
 $('height').addEventListener('input', heightChanged);
 $('file').addEventListener('change', event => { sound.prime(); takeFiles([...event.target.files]); event.target.value = ''; });

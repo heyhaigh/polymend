@@ -109,9 +109,12 @@
           <div id="model-switch" class="model-switch" role="group" aria-label="Which model to show" hidden>
             <button id="model-prev" type="button" class="round" aria-label="Previous model"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             <span class="model-pick">
-              <span id="model-dot" class="model-dot" aria-hidden="true"></span>
-              <select id="model-select" aria-label="Model in view"></select>
-              <svg class="model-caret" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <button id="model-trigger" type="button" class="model-trigger" aria-haspopup="menu" aria-expanded="false" aria-controls="model-menu">
+                <span id="model-dot" class="model-dot" aria-hidden="true"></span>
+                <span id="model-current" class="model-current"></span>
+                <svg class="model-caret" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <div id="model-menu" class="model-menu" role="menu" aria-label="Choose a model" hidden></div>
             </span>
             <button id="model-next" type="button" class="round" aria-label="Next model"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             <span id="model-count" class="model-count"></span>
