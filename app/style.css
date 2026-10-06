@@ -191,11 +191,12 @@ h3 { font-size: 18px; font-weight: 400; margin: 28px 0 8px; }
   mask-image: radial-gradient(circle farthest-corner at 50% 50%, transparent calc(var(--spread) - 60%), #000 calc(var(--spread) - 14%), #000 calc(var(--spread) - 6%), transparent var(--spread));
   -webkit-mask-image: radial-gradient(circle farthest-corner at 50% 50%, transparent calc(var(--spread) - 60%), #000 calc(var(--spread) - 14%), #000 calc(var(--spread) - 6%), transparent var(--spread));
   opacity: 0.26;
-  animation: spread-dots 5s cubic-bezier(0.25, 0.6, 0.35, 1) 1.2s infinite;
+  animation: spread-dots 6.5s cubic-bezier(0.3, 0.5, 0.4, 1) 1.2s infinite;
 }
+/* About three seconds on its way, then quiet until the next. */
 @keyframes spread-dots {
   0% { --spread: 0%; }
-  34% { --spread: 175%; }
+  48% { --spread: 175%; }
   100% { --spread: 175%; }
 }
 .cta-box:hover::after, .cta-box.has-pointer-trail::after, body.dragging .cta-box::after, .cta-box.compact::after { animation: none; }
