@@ -425,7 +425,7 @@ body.dragging.drag-wrong .cta-box {
 .model-trigger { display: inline-flex; align-items: center; gap: 10px; min-width: 0; padding: 8px 14px 8px 13px; border: 1px solid var(--line-strong); border-radius: 50px; background: var(--glass); color: inherit; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color 0.2s ease-out, opacity 0.3s ease; }
 .model-trigger:not([disabled]):is(:hover, :focus-visible), .model-trigger[aria-expanded="true"] { background: var(--glass-hover); }
 .model-trigger[disabled] { cursor: default; opacity: 0.6; }
-.model-current { min-width: 0; max-width: var(--name-room, 129px); overflow: hidden; white-space: nowrap; } /* shortened in the middle by the page */
+.model-current { min-width: 0; max-width: var(--name-room, 129px); overflow: hidden; white-space: nowrap; text-align: left; } /* shortened in the middle by the page */
 .model-dot { flex-shrink: 0; width: 9px; height: 9px; border-radius: 50%; background: var(--tone-good); }
 .model-dot.sound { background: var(--tone-info); }
 .model-dot.partial { background: var(--tone-warn); }
