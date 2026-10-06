@@ -60,7 +60,7 @@ test('Y-up becomes Z-up', () => {
 
 test('unsupported and broken files are refused with a reason', () => {
   assert.throws(() => parseGLB(new Uint8Array(40)), /does not look like a GLB/);
-  assert.throws(() => parseGLB(glb(scene({}, { extensionsRequired: ['KHR_draco_mesh_compression'] }), [triangle])), /Draco/);
+  assert.throws(() => parseGLB(glb(scene({}, { extensionsRequired: ['EXT_meshopt_compression'] }), [triangle])), /meshopt/);
   assert.throws(() => parseGLB(glb(scene({}, { accessors: [{ ...position, count: 300 }] }), [triangle])), /past the end/);
   assert.throws(() => parseGLB(glb(scene({}, { meshes: [{ primitives: [{ attributes: { POSITION: 0 }, mode: 1 }] }] }), [triangle])), /No triangles were found/);
   const bad = scene({}, { accessors: [position, { bufferView: 1, componentType: 5123, count: 3, type: 'SCALAR' }], meshes: [{ primitives: [{ attributes: { POSITION: 0 }, indices: 1 }] }] });

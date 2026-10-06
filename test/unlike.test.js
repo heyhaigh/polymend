@@ -461,3 +461,30 @@ test('a repaired file read back from STL is still sound, for an awkward model to
   const stats = analyze(again.positions, again.tris);
   assert.deepEqual([stats.openEdges, stats.nonManifoldEdges, stats.inconsistentEdges], [0, 0, 0]);
 });
+
+// ---------------------------------------------------------------- compressed GLB files
+
+test('a Draco-compressed GLB is unpacked and repaired', async () => {
+  const { loadAsync } = await import('../src/pipeline.js');
+  const bytes = new Uint8Array(await import('node:fs').then(fs => fs.readFileSync(new URL('./fixtures/holed-box-draco.glb', import.meta.url))));
+  assert.throws(() => load(bytes, 'box.glb'), error => Array.isArray(error.needsDraco) && error.needsDraco.length === 1, 'the plain reader says what needs unpacking');
+  const mesh = await loadAsync(bytes, 'box.glb');
+  assert.equal(mesh.tris.length / 3, 46, 'a box of 48 triangles with one square missing');
+  assert.equal(mesh.unit, 'meter');
+  const result = mend(mesh, { patchWide: true });
+  assert.equal(result.report.status, 'repaired');
+  assert.deepEqual(result.report.holes, { flat: 1, curved: 0 });
+  assert.ok(Math.abs(result.report.after.volume - 1000) < 1, `a 10-unit box has a volume of 1000, got ${result.report.after.volume}`);
+});
+
+test('unpacked geometry is held to the triangle limit', async () => {
+  const { decodeDraco } = await import('../src/draco.js');
+  const bytes = new Uint8Array(await import('node:fs').then(fs => fs.readFileSync(new URL('./fixtures/holed-box-draco.glb', import.meta.url))));
+  let needs;
+  try { load(bytes, 'box.glb'); } catch (error) { needs = error.needsDraco[0]; }
+  await assert.rejects(decodeDraco(needs.bytes, needs.attribute, { maxTriangles: 10 }), error => error.tooMany === 46);
+  const unpacked = await decodeDraco(needs.bytes, needs.attribute);
+  assert.equal(unpacked.positions.length, 26 * 3);
+  assert.equal(unpacked.indices.length, 46 * 3);
+  await assert.rejects(decodeDraco(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]), 0), /could not be unpacked|not a surface/);
+});

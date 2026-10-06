@@ -2,6 +2,13 @@
 
 What has changed in Polymend, newest first. Each version is marked with the moment it was published. From version 0.3.0 on, every change is listed here and recorded in the project's public history.
 
+## 0.4.0 (Published TBD)
+
+**Compressed GLB files**
+
+- Draco-compressed GLB files, which many museums and model sites publish, are now unpacked and repaired like any other. The decoder is fetched only the first time a file needs it, and nothing about the privacy promise changes: it runs in your browser and the page still cannot make a connection.
+- Meshopt-compressed GLB files are still refused, with a clearer message.
+
 ## 0.3.1 (Published October 5, 2026 at 8:31 PM EDT)
 
 The embed, refined, and a few things around it.

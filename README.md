@@ -62,13 +62,13 @@ Every size in a file is the file's own claim. The readers check each claim again
 | `src/repair.js` | The repair |
 | `src/intersect.js` | Finds places where the surface passes through itself |
 | `src/mesh.js` | Vertex welding, edge tables, defect counts |
-| `src/stl.js`, `src/glb.js` | Read STL and GLB; write binary STL |
+| `src/stl.js`, `src/glb.js`, `src/draco.js` | Read STL and GLB, unpack Draco-compressed GLB; write binary STL |
 | `src/output.js` | Print sizing and the 3MF writer |
 | `test/` | Unit tests on small hand-built meshes (`npm test`). `unlike.test.js` covers models unlike the figures the repair was first tuned on, and files built to waste memory |
 | `tools/` | Scripts that run the engine and the page on real models kept outside the repo |
 | `library/` | Local component library: a sidebar shell (`index.html`) and its pages. First page: the sound lab the chimes were chosen from. Open http://127.0.0.1:8650/library/ |
 
-No dependencies. Plain ES modules that run in Node and in a browser.
+No dependencies, with one vendored exception: Google's Draco decoder (`src/vendor/`, Apache 2.0, its JavaScript build, two marked lines changed) unpacks Draco-compressed GLB files. It is 700 KB, so the page fetches it only the first time a file needs it. Everything else is plain ES modules that run in Node and in a browser.
 
 ## Checking against real models
 
@@ -97,7 +97,7 @@ Results on 2026-10-05, version 0.3.0:
 - **Two slicers.** The author imported all twelve repaired files into Bambu Studio and none showed a warning; the originals all did. A second slicer's own mesh check (`node tools/slicer-check.mjs`) says the same: every original fails, every repaired file passes.
 - **Fifteen CAD-exported printer parts** (and the 3DBenchy). Twelve were sound and came back untouched. From the Benchy, 552 collapsed triangles were removed, exactly the ones a slicer discards on import. One part lost two duplicate and two stray triangles. One part showed a real bug, now fixed and tested: a deliberate cavity was being turned inside out.
 - **Eight museum 3D scans.** Two were sound, two were repaired and then passed the second slicer's check, and four with hundreds or thousands of faults came out `partial`, which that slicer agrees with for three of them. Turning on every optional switch does not rescue those: heavily damaged scans need a general repair tool.
-- **Not supported yet:** Draco-compressed GLB, which is what several museums publish. Rigged or animated GLB files are read in their rest pose only.
+- **Draco-compressed GLB** files, which several museums publish, are unpacked and give the same results as the museums' STL exports of the same scans. Meshopt-compressed GLB is not supported yet. Rigged or animated GLB files are read in their rest pose only.
 - **Flat sliver triangles** (three corners in a line) are counted in the analysis but left alone: the second slicer accepts files that contain them.
 
 Other slicers and a real phone are still untested. `node tools/run-folder.mjs <folder>` runs the repair over any folder of models and prints one line each.

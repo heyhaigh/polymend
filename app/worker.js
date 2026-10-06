@@ -1,6 +1,6 @@
 // Runs off the main thread so the page stays responsive while a model is processed.
 
-import { load, mend, countCrossings } from '../src/pipeline.js';
+import { loadAsync, mend, countCrossings } from '../src/pipeline.js';
 import { writeSTL } from '../src/stl.js';
 import { layout, write3MF, zip, VERSION } from '../src/output.js';
 
@@ -139,7 +139,7 @@ onmessage = async event => {
   try {
     if (message.type === 'load') {
       progress('Reading the file');
-      const loaded = load(new Uint8Array(message.buffer), message.name);
+      const loaded = await loadAsync(new Uint8Array(message.buffer), message.name, progress);
       // A model reloaded after a stopped job is turned the way it was before.
       for (let i = 0; i < (message.turns || 0) % 4; i++) turn(loaded.positions);
       const wanted = message.options || {};

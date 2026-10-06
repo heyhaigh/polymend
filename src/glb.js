@@ -10,9 +10,14 @@ const COMPONENTS = {
   5123: [Uint16Array, 2, 65535], 5125: [Uint32Array, 4, 4294967295], 5126: [Float32Array, 4, 1],
 };
 const WIDTHS = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
-const UNSUPPORTED = { KHR_draco_mesh_compression: 'Draco-compressed', EXT_meshopt_compression: 'meshopt-compressed' };
+const UNSUPPORTED = { EXT_meshopt_compression: 'meshopt-compressed' };
+const DRACO = 'KHR_draco_mesh_compression';
+// The most compressed geometry one primitive may hold. Draco packs a mesh ten to twenty
+// times smaller, so this still allows far more than the page will accept once unpacked.
+const MAX_PACKED = 64 * 1024 * 1024;
 // Extensions a file may insist on that do not change its shape, so they are safe to ignore.
-const HARMLESS = /^(KHR_materials_|KHR_texture_|KHR_lights_|KHR_mesh_quantization$|KHR_xmp|EXT_texture_|KHR_animation_pointer$)/;
+// Draco compression is handled, not ignored: see `draco` below.
+const HARMLESS = /^(KHR_materials_|KHR_texture_|KHR_lights_|KHR_mesh_quantization$|KHR_xmp|EXT_texture_|KHR_animation_pointer$|KHR_draco_mesh_compression$)/;
 const INDEX_TYPES = new Set([5121, 5123, 5125]);
 
 const count = (value, what) => {
@@ -24,8 +29,13 @@ const count = (value, what) => {
  * `maxTriangles` is enforced while reading, before memory is set aside: every size in a
  * GLB is the file's own claim, and a small file can claim to hold billions of points or
  * list one mesh a million times over.
+ *
+ * Draco-compressed primitives need a decoder, which is slow to load and asynchronous, so
+ * this reader stays simple: `draco` maps "mesh:primitive" to geometry already unpacked.
+ * On meeting a compressed primitive that is not in the map it stops and throws an error
+ * carrying `needsDraco`, a list of what to unpack; the caller unpacks and reads again.
  */
-export function parseGLB(buffer, { maxTriangles = Infinity, tooMany = total => new Error(`Too many triangles (${total})`), notes = [] } = {}) {
+export function parseGLB(buffer, { maxTriangles = Infinity, tooMany = total => new Error(`Too many triangles (${total})`), notes = [], draco = new Map() } = {}) {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (bytes.byteLength < 20 || view.getUint32(0, true) !== 0x46546c67) throw new Error('This does not look like a GLB file.');
@@ -86,27 +96,45 @@ export function parseGLB(buffer, { maxTriangles = Infinity, tooMany = total => n
   };
 
   const soup = [];
+  const needsDraco = [];
   let emitted = 0;
   // The same mesh is often used by several nodes; read its data once.
   const cache = new Map();
   const readOnce = index => { if (!cache.has(index)) cache.set(index, read(index)); return cache.get(index); };
   const emit = (meshIndex, matrix) => {
-    for (const primitive of json.meshes?.[meshIndex]?.primitives || []) {
+    (json.meshes?.[meshIndex]?.primitives || []).forEach((primitive, primitiveIndex) => {
       const mode = primitive.mode ?? 4;
-      if (mode < 4) continue; // points and lines have no surface
-      if (primitive.extensions && Object.keys(primitive.extensions).some(name => UNSUPPORTED[name])) throw new Error('This file uses compressed geometry, which is not supported yet. Re-export it without compression.');
-      if (primitive.attributes?.POSITION === undefined) continue;
-      const { values: p, width } = readOnce(primitive.attributes.POSITION);
-      if (width !== 3) throw new Error('GLB vertex positions must have three coordinates');
-      const points = p.length / 3;
-      let order;
-      if (primitive.indices !== undefined) {
-        const indices = readOnce(primitive.indices);
-        if (indices.width !== 1 || !INDEX_TYPES.has(indices.type)) throw new Error('GLB triangle lists must be whole numbers');
-        order = indices.values;
+      if (mode < 4) return; // points and lines have no surface
+      if (primitive.extensions && Object.keys(primitive.extensions).some(name => UNSUPPORTED[name])) throw new Error('This file uses meshopt-compressed geometry, which is not supported yet. Re-export it without compression.');
+      if (primitive.attributes?.POSITION === undefined) return;
+      let p, width, order;
+      const packed = primitive.extensions?.[DRACO];
+      if (packed) {
+        const key = `${meshIndex}:${primitiveIndex}`;
+        const unpacked = draco.get(key);
+        if (!unpacked) {
+          const bufferView = json.bufferViews?.[packed.bufferView];
+          if (!bufferView || (bufferView.buffer || 0) !== 0 || !bin) throw new Error('Only GLB files with their data embedded are supported');
+          const start = count(bufferView.byteOffset || 0, 'data position'), length = count(bufferView.byteLength ?? 0, 'data length');
+          if (start + length > bin.byteLength) throw new Error('GLB geometry data runs past the end of the file');
+          if (length > MAX_PACKED) throw new Error('The compressed geometry in this GLB file is larger than this page can unpack.');
+          if (!Number.isSafeInteger(packed.attributes?.POSITION)) throw new Error('The compressed geometry in this GLB file has no positions.');
+          needsDraco.push({ key, bytes: bin.subarray(start, start + length), attribute: packed.attributes.POSITION });
+          return;
+        }
+        p = unpacked.positions; width = 3; order = unpacked.indices;
       } else {
-        order = Float64Array.from({ length: points }, (_, i) => i);
+        ({ values: p, width } = readOnce(primitive.attributes.POSITION));
+        if (width !== 3) throw new Error('GLB vertex positions must have three coordinates');
+        if (primitive.indices !== undefined) {
+          const indices = readOnce(primitive.indices);
+          if (indices.width !== 1 || !INDEX_TYPES.has(indices.type)) throw new Error('GLB triangle lists must be whole numbers');
+          order = indices.values;
+        } else {
+          order = Float64Array.from({ length: p.length / 3 }, (_, i) => i);
+        }
       }
+      const points = p.length / 3;
       // Stop before building more triangles than the page will accept.
       emitted += mode === 4 ? Math.floor(order.length / 3) : Math.max(0, order.length - 2);
       if (emitted > maxTriangles) throw tooMany(emitted);
@@ -124,7 +152,7 @@ export function parseGLB(buffer, { maxTriangles = Infinity, tooMany = total => n
       if (mode === 4) for (let i = 0; i + 2 < order.length; i += 3) triangle(i, i + 1, i + 2);
       else if (mode === 5) for (let i = 0; i + 2 < order.length; i++) (i % 2 ? triangle(i + 1, i, i + 2) : triangle(i, i + 1, i + 2));
       else if (mode === 6) for (let i = 1; i + 1 < order.length; i++) triangle(0, i, i + 1);
-    }
+    });
   };
 
   // A scene is a tree. A file whose nodes loop back on themselves, or that lists a node
@@ -145,6 +173,7 @@ export function parseGLB(buffer, { maxTriangles = Infinity, tooMany = total => n
   const scene = json.scenes?.[json.scene ?? 0];
   if (scene) for (const root of Array.isArray(scene.nodes) ? scene.nodes : []) visit(root, identity);
   else (json.meshes || []).forEach((_, index) => emit(index, identity));
+  if (needsDraco.length) throw Object.assign(new Error('This GLB file holds Draco-compressed geometry, which needs unpacking first.'), { needsDraco });
   if (!soup.length) throw new Error('No triangles were found in this GLB file.');
   return Float64Array.from(soup);
 }

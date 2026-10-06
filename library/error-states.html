@@ -75,7 +75,7 @@
       ['You drop a .gltf file, which keeps its parts in separate files', FAILURES.unreadable.title, refusal(new Uint8Array(200), 'figure.gltf')],
       ['A file is named .stl but is not a model', FAILURES.unreadable.title, refusal(text('this is not a model'), 'notes.stl')],
       ['A text STL that was cut off partway', FAILURES.unreadable.title, refusal(text('solid part\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nendloop\nendfacet\n'), 'broken.stl')],
-      ['A GLB that uses Draco compression', FAILURES.unreadable.title, refusal(glb({ extensionsRequired: ['KHR_draco_mesh_compression'], scenes: [{ nodes: [] }] }), 'compressed.glb')],
+      ['A GLB that uses meshopt compression', FAILURES.unreadable.title, refusal(glb({ extensionsRequired: ['EXT_meshopt_compression'], scenes: [{ nodes: [] }] }), 'compressed.glb')],
       ['A GLB with no triangles in it', FAILURES.unreadable.title, refusal(glb({ scene: 0, scenes: [{ nodes: [] }] }), 'empty.glb')],
       ['A file named .glb that is not one', FAILURES.unreadable.title, refusal(new Uint8Array(200), 'not-really.glb')],
       ['The file is over 200 MB', FAILURES.tooLarge.title, FAILURES.tooLarge.detail],

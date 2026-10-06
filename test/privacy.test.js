@@ -15,7 +15,10 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 // Exactly the files the build publishes: a file cannot ship without being checked here.
 const shipped = siteFiles().filter(file => /\.(html|js|css)$/.test(file));
 const pages = shipped.filter(file => file.endsWith('.html'));
-const scripts = shipped.filter(file => file.endsWith('.js'));
+// Google's Draco decoder is the one piece of code not written for Polymend. It is checked
+// on its own terms below, and the policy's connect-src 'none' binds it like everything else.
+const vendored = file => file.startsWith('src/vendor/');
+const scripts = shipped.filter(file => file.endsWith('.js') && !vendored(file));
 
 const policyOf = text => Object.fromEntries(text.split(';').map(part => part.trim().split(/\s+/)).filter(part => part[0]).map(([name, ...values]) => [name, values]));
 
@@ -68,8 +71,24 @@ test('no shipped code can send data: no fetch, beacons, sockets, forms or analyt
   const banned = [/\bfetch\s*\(/, /XMLHttpRequest/, /sendBeacon/, /\bWebSocket\b/, /EventSource/, /RTCPeerConnection/, /importScripts\s*\(/,
     /googletagmanager|google-analytics|gtag\s*\(|cloudflareinsights|plausible|segment\.com|hotjar|mixpanel/i, /document\.cookie/, /<form\b/i];
   for (const file of shipped) {
+    if (vendored(file)) continue;
     const text = read(file);
     for (const pattern of banned) assert.ok(!pattern.test(text), `${file} contains ${pattern}`);
+  }
+});
+
+test('the vendored decoder is the only outside code, is licensed, and runs no text as code', () => {
+  const files = shipped.filter(vendored);
+  assert.deepEqual(files, ['src/vendor/draco-decoder.js'], 'exactly one vendored file');
+  assert.ok(siteFiles().includes('src/vendor/DRACO-LICENSE.txt'), 'its license ships beside it');
+  const text = read('src/vendor/draco-decoder.js');
+  assert.ok(!/\beval\s*\(|new\s+Function\b/.test(text), 'no eval');
+  assert.ok(!/document\s*\.\s*(write|cookie)|localStorage|indexedDB|sendBeacon|WebSocket/.test(text), 'no storage, sockets or beacons');
+  assert.match(text, /ENVIRONMENT_IS_NODE=false;/, 'it never reads files or requires modules');
+  assert.match(text, /export default DracoDecoderModule;\s*$/);
+  // The only code that loads it is the pipeline, by a fixed relative path, when a file needs it.
+  for (const file of scripts) {
+    for (const match of read(file).matchAll(/\bimport\s*\(\s*([^)]*)\)/g)) assert.match(match[1], /^'\.\/draco\.js'$/, `${file} loads code on the fly: ${match[0]}`);
   }
 });
 
@@ -96,7 +115,7 @@ test('no shipped code can leave the page or reach outside it by a side door', ()
     [/window\s*\.\s*open|\bopener\b/, 'opens or reaches another window'],
     [/\beval\s*\(|new\s+Function\b|setTimeout\s*\(\s*["'`]|setInterval\s*\(\s*["'`]/, 'runs text as code'],
     [/document\s*\.\s*write|innerHTML|outerHTML|insertAdjacentHTML|DOMParser|srcdoc/, 'builds markup from text'],
-    [/\bimport\s*\(/, 'loads code on the fly'],
+    [/\bimport\s*\((?!\s*'\.\/draco\.js')/, 'loads code on the fly'],
     [/new\s+Image\b|\.src\s*=|setAttribute\(\s*["'](src|href|action|formaction)["']/, 'points an element at an address'],
     [/createElement\(\s*["'](script|iframe|img|link|form|object|embed|video|audio|source|base)["']/, 'creates an element that loads something'],
     [/window\s*\.\s*(parent|top)\b|\b(parent|top)\s*\.\s*postMessage|BroadcastChannel|SharedWorker|serviceWorker/, 'talks to another page'],

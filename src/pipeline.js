@@ -26,7 +26,7 @@ export function sniff(bytes, name = '') {
 }
 
 /** Read a file into a welded mesh. GLB models are turned from Y-up to Z-up. */
-export function load(bytes, name = '') {
+export function load(bytes, name = '', { draco } = {}) {
   const megabytes = Math.round(LIMITS.bytes / (1024 * 1024));
   if (bytes.length > LIMITS.bytes) throw new Error(`This file is larger than ${megabytes} MB, which is more than this page can handle.`);
   const format = sniff(bytes, name);
@@ -36,9 +36,10 @@ export function load(bytes, name = '') {
   try {
     // Positions are rounded to 32-bit floats before welding, because that is what an
     // STL file stores: vertices that will be identical in the output are joined now.
-    soup = format === 'glb' ? Float32Array.from(yUpToZUp(parseGLB(bytes, { maxTriangles: LIMITS.triangles, tooMany, notes })))
+    soup = format === 'glb' ? Float32Array.from(yUpToZUp(parseGLB(bytes, { maxTriangles: LIMITS.triangles, tooMany, notes, draco })))
       : parseSTL(bytes, { maxTriangles: LIMITS.triangles });
   } catch (error) {
+    if (error && error.needsDraco) throw error; // for loadAsync, which unpacks and reads again
     if (error && error.tooMany) throw tooManyTriangles(error.tooMany);
     // A reader tripping over nonsense in the file is the file's fault, not a crash to report.
     if (error instanceof TypeError || error instanceof RangeError || error instanceof SyntaxError) throw new Error(`This file is damaged, or is not laid out as ${format === 'glb' ? 'a GLB' : 'an STL'} file should be.`);
@@ -50,6 +51,32 @@ export function load(bytes, name = '') {
   // GLB coordinates are meters by definition; an STL does not say what its numbers mean.
   // `notes` lists what the file had that was not applied: 'rigged', 'animated', 'morphs'.
   return { format, unit: format === 'glb' ? 'meter' : null, notes, ...weld(soup) };
+}
+
+/**
+ * `load`, plus Draco-compressed GLB files. The decoder is 700 KB, so it is fetched from the
+ * site only the first time a file needs it. `progress` is told while that happens.
+ */
+export async function loadAsync(bytes, name = '', progress = () => {}) {
+  try {
+    return load(bytes, name);
+  } catch (error) {
+    if (!error || !error.needsDraco) throw error;
+    progress('Unpacking compressed geometry');
+    const { decodeDraco } = await import('./draco.js');
+    const draco = new Map();
+    let budget = LIMITS.triangles;
+    for (const { key, bytes: packed, attribute } of error.needsDraco) {
+      let unpacked;
+      try { unpacked = await decodeDraco(packed, attribute, { maxTriangles: budget }); } catch (fault) {
+        if (fault && fault.tooMany) throw new Error(`This model has more than ${LIMITS.triangles.toLocaleString('en-US')} triangles, which is more than this page can handle.`);
+        throw fault;
+      }
+      budget -= unpacked.indices.length / 3;
+      draco.set(key, unpacked);
+    }
+    return load(bytes, name, { draco });
+  }
 }
 
 /**

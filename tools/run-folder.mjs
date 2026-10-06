@@ -4,7 +4,7 @@
 // Usage: node tools/run-folder.mjs <folder> [more folders]
 import fs from 'node:fs';
 import path from 'node:path';
-import { load, mend } from '../src/pipeline.js';
+import { loadAsync, mend } from '../src/pipeline.js';
 import { writeSTL } from '../src/stl.js';
 import { models } from './local.mjs';
 
@@ -20,7 +20,7 @@ for (const folder of folders) {
     const megabytes = (fs.statSync(file).size / 1e6).toFixed(0);
     try {
       const started = performance.now();
-      const mesh = load(fs.readFileSync(file), file);
+      const mesh = await loadAsync(fs.readFileSync(file), file);
       const result = mend(mesh);
       const ms = (performance.now() - started).toFixed(0);
       const r = result.report, b = r.before, a = r.after;
