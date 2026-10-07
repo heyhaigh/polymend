@@ -638,11 +638,13 @@ body.outcome-clean :is(.about, .faq) { display: none; }
 .prose-back a { text-decoration: none; padding: 6px 12px; border: 1px solid var(--line-strong); border-radius: 19px; background: var(--glass); }
 .prose .tool-title { margin-bottom: 10px; }
 .prose-lede { margin-top: 24px; font-size: 15px; }
+.prose-sections { margin: 18px 0 0; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--fill); font-size: 13.5px; }
+.prose h2[id] { scroll-margin-top: 24px; }
 .prose h2 { margin: 32px 0 10px; }
 .prose p { margin-bottom: 10px; }
 .prose ul { margin: 8px 0 12px 24px; }
 .prose li { margin-bottom: 6px; }
-.prose h3 { margin: 20px 0 6px; font-size: 14px; }
+.prose h3 { margin: 22px 0 6px; font-size: 14px; font-weight: 650; }
 .prose h2 .when { font-size: 13px; font-weight: 400; opacity: 0.6; margin-left: 8px; }
 
 /* The one link home: the hand and a credit, in the site's glass pill. */
