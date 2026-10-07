@@ -2,7 +2,7 @@
 
 What has changed in Polymend, newest first. Each version is marked with the moment it was published. From version 0.3.0 on, every change is listed here and recorded in the project's public history.
 
-## 0.5.2 (Unreleased)
+## 0.5.2 (Published October 6, 2026 at 9:37 PM EDT)
 
 - The privacy policy now has two parts: Polymend on the web, and Polymend on your computer, for its command line and its plugin for desktop apps. Both keep the same promise: your model is repaired on your device and never sent to Polymend. The terms now cover all three.
 
