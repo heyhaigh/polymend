@@ -32,42 +32,67 @@
     <article class="prose">
       <p class="prose-back"><a href="/">Polymend</a></p>
       <h1 class="tool-title">Privacy</h1>
-      <p class="tool-meta"><span class="meta-text">Last updated: Oct 5, 2026</span></p>
-      <p class="prose-lede">Polymend is built so that there is nothing to collect. Your model is repaired on your own device and is never sent anywhere.</p>
+      <p class="tool-meta"><span class="meta-text">Last updated: Oct 6, 2026</span></p>
+      <p class="prose-lede">Polymend is built so that there is nothing to collect. Wherever you use it, your model is repaired on your own device and is never sent to Polymend.</p>
 
-      <h2>The short version</h2>
+      <p class="prose-sections">This policy has two parts: <a href="#web">Polymend on the web</a>, for this site and copies of it embedded on other sites, and <a href="#computer">Polymend on your computer</a>, for its command line and its plugin for desktop apps. The rest applies to both.</p>
+
+      <h2 id="web">Polymend on the web</h2>
+      <h3>The short version</h3>
       <ul>
         <li><strong>Your files stay with you.</strong> The repair runs in your browser. Polymend never receives, sees or stores your model.</li>
         <li><strong>No analytics, collected or stored.</strong> Polymend does not measure, record or keep anything about you or how you use it. There are no cookies, no advertising and no accounts.</li>
         <li><strong>You can check.</strong> The code is open source, and the page carries a security policy that tells your browser to block it from opening any network connection.</li>
       </ul>
 
-      <h2>Your files</h2>
+      <h3>Your files</h3>
       <p>When you choose or drop a file, it is read by the page running in your browser and repaired there. It is not uploaded. The repaired file is created on your device and saved by you. When you close the page, nothing of your model remains with Polymend, because nothing was ever sent.</p>
 
-      <h2>No analytics</h2>
+      <h3>No analytics</h3>
       <p>Polymend puts no analytics of any kind in the page. Nothing in it counts visits, records what you click, logs which files you open, or builds any history of how the tool is used. The only record of traffic that exists is the hosting provider's own, described below.</p>
 
-      <h2>What the page stores on your device</h2>
+      <h3>What the page stores on your device</h3>
       <p>One thing: if you switch between the light and dark themes, your choice is saved in your browser so the page looks the same next time. It never leaves your device, and you can clear it by clearing this site's data in your browser.</p>
 
-      <h2>When Polymend is embedded on another site</h2>
+      <h3>When Polymend is embedded on another site</h3>
       <p>Other sites can place Polymend inside their own pages. It works the same way there: your model is repaired in your browser and is not sent to that site or to Polymend. Your browser keeps the two apart, so the surrounding page cannot see into Polymend's frame or read the file you give it. That site is still responsible for its own page and has its own privacy practices, so use an embedded copy only on a site you trust. When embedded, Polymend saves nothing on your device, not even a theme choice.</p>
 
-      <h2>What the hosting provider sees</h2>
+      <h3>What the hosting provider sees</h3>
       <p>One thing is outside Polymend's control. The site is delivered by Cloudflare, and like every web host, Cloudflare's servers receive your IP address and basic details about your browser when your browser asks for the page. Cloudflare may keep those for a time to keep its service secure and reliable, and it keeps its own totals of traffic to every site it serves, such as how many requests arrived. Those totals are shown to the site's owner in the hosting dashboard: how many requests arrived, and from which countries. They say nothing about your files or what you did on the page. Polymend adds nothing to them, puts no measuring script in the page, and does not use them to identify or follow anyone. <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare's privacy policy</a> describes how it handles that data.</p>
 
-      <h2>How the "no upload" promise is enforced</h2>
+      <h3>How the "no upload" promise is enforced</h3>
       <p>The page carries a security policy that tells your browser to block it from making any network connection. That is a rule your browser enforces, not just a statement. It covers the ways a page normally sends data: requests, sockets, beacons and forms. No single rule can rule out every trick, so two more things stand behind the promise: the code is public and small enough to read, and automated checks fail if anyone adds analytics, outside scripts, or code that sends data or opens another address. The same checks are run against the live site.</p>
 
+      <h2 id="computer">Polymend on your computer</h2>
+      <p>Polymend also runs on your own computer: as a command line you run yourself, and as a plugin for desktop apps that support plugins. It is the same repair as on the web, and it keeps the same promise.</p>
+
+      <h3>The short version</h3>
+      <ul>
+        <li><strong>Your files stay with you.</strong> The repair runs on your computer. Polymend never receives, sees or stores your model.</li>
+        <li><strong>No analytics, collected or stored.</strong> Polymend does not measure, record or send anything about you or how you use it. There are no accounts.</li>
+        <li><strong>One kind of network use.</strong> If you give Polymend a link to a model, it downloads that model. It sends nothing anywhere.</li>
+      </ul>
+
+      <h3>Your files</h3>
+      <p>Polymend reads the model files you point it to, repairs them on your computer, and saves the results there: the repaired files, pictures of the model, and a written review, in a new folder for each run. It never changes your original files. Nothing is uploaded to Polymend, because there is nowhere to upload it to.</p>
+
+      <h3>Links you give it</h3>
+      <p>When you give Polymend a link instead of a file, it downloads the model from that address, and nothing else. It only follows secure (https) links to public addresses, and it refuses addresses on your own network. The site you download from receives the request, like any download, and has its own privacy practices.</p>
+
+      <h3>What it keeps on your computer</h3>
+      <p>The run folders it creates, which are yours to keep or delete, and a short list of recent runs so you can show one of them again. Both stay on your computer.</p>
+
+      <h3>The app you use it in</h3>
+      <p>When you use Polymend as a plugin, it runs inside another app on your computer. That app decides what it shows, keeps or shares, including what you ask for and what Polymend reports back, under its own privacy policy. Polymend itself sends nothing to that app's makers or to anyone else.</p>
+
       <h2>Open source</h2>
-      <p>All of Polymend's code is public under the MIT license at <a href="https://github.com/heyhaigh/polymend">github.com/heyhaigh/polymend</a>. Anyone can read it to confirm what is written here.</p>
+      <p>This site, Polymend's repair engine and its command line are public under the MIT license at <a href="https://github.com/heyhaigh/polymend">github.com/heyhaigh/polymend</a>. Anyone can read them to confirm what is written here. The plugin for desktop apps is built on the same repair engine.</p>
 
       <h2>Links to other sites</h2>
       <p>This site links to GitHub and to heyhaigh.ai. Those sites have their own privacy practices.</p>
 
       <h2>Children</h2>
-      <p>Polymend does not knowingly collect information from anyone, including children.</p>
+      <p>Polymend does not knowingly collect information from anyone, including children, on the web or on your computer.</p>
 
       <h2>Changes</h2>
       <p>If this policy changes, the new version will be posted here with a new date. From version 0.3.0 (October 2026) onward, every change to this page and to the code is recorded in the project's public history on GitHub and listed on the <a href="/changelog">Changelog</a> page. Drafts from before that version were not kept in the public history.</p>
