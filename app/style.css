@@ -739,6 +739,8 @@ body.outcome-clean :is(.about, .faq) { display: none; }
 .snippet-code .copy { position: absolute; right: 12px; bottom: 12px; cursor: pointer; }
 .snippet-note { font-size: 13px; opacity: 0.75; }
 :is(.about, .modal) :is(p, li) code { padding: 1px 5px; background: var(--fill-strong); border-radius: 4px; white-space: nowrap; }
+/* The theme-message line in the embed note is longer than a phone is wide: it may break, but only where it has to. */
+.about .snippet-note code { white-space: normal; overflow-wrap: anywhere; }
 
 /* The pop-up as on heyhaigh.ai: the page behind it blurred and dimmed, the box itself in a
    darker, greyer tone than the page so it reads as a layer of its own. */
