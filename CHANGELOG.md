@@ -2,6 +2,10 @@
 
 What has changed in Polymend, newest first. Each version is marked with the moment it was published. From version 0.3.0 on, every change is listed here and recorded in the project's public history.
 
+## 0.6.1 (Published October 9, 2026 at 12:42 PM EDT)
+
+- Fixed: in 0.6.0, an STL file stayed on "Back to the rest pose" after its repair, so it could not be downloaded or changed. A GLB was also repaired a second time, needlessly, each time it was opened.
+
 ## 0.6.0 (Published October 9, 2026 at 12:32 PM EDT)
 
 - A rigged or animated GLB can now be repaired in any pose from its animation clips, not only in its rest pose. When a file has clips, a Pose panel appears under the view: choose a clip, drag to any moment of it and let go, and that pose is repaired. While you drag, the view follows the pose. The arrows, or ← and → on your keyboard, step from keyframe to keyframe and wrap round, so you can walk through a cycle.
