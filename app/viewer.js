@@ -89,7 +89,12 @@ export function createViewer(canvas) {
   let frame = 0;
   const redraw = () => { if (!frame) frame = requestAnimationFrame(draw); };
 
-  function setModel(data) {
+  /**
+   * `keepCamera` leaves the view where the visitor put it, for a new pose of the model in
+   * view; otherwise the camera goes back to the whole model.
+   */
+  function setModel(data, { keepCamera = false } = {}) {
+    clearPreview();
     for (const key of ['before', 'after', 'removed', 'added', 'flipped']) { free(scene[key]); scene[key] = null; }
     for (const key of Object.keys(scene.markers)) free(scene.markers[key]);
     scene.markers = {};
@@ -109,7 +114,25 @@ export function createViewer(canvas) {
     for (let i = 0; i < p.length; i++) { const c = i % 3; if (p[i] < lo[c]) lo[c] = p[i]; if (p[i] > hi[c]) hi[c] = p[i]; }
     view.centre = [0, 1, 2].map(c => (lo[c] + hi[c]) / 2);
     view.radius = Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) / 2 || 1;
-    home();
+    if (keepCamera) redraw(); else home();
+  }
+
+  // While a pose is being chosen, both sides show that bare pose, unrepaired, without the
+  // change markers; the camera stays put. The next `setModel` puts the repair back.
+  let held = null;
+  function preview(positions) {
+    if (!held) held = { before: scene.before, after: scene.after, removed: scene.removed, added: scene.added, flipped: scene.flipped, markers: scene.markers };
+    else free(scene.before);
+    const shape = makeBuffer(positions);
+    Object.assign(scene, { before: shape, after: shape, removed: null, added: null, flipped: null, markers: {} });
+    leaveFocus();
+    redraw();
+  }
+  function clearPreview() {
+    if (!held) return;
+    free(scene.before);
+    Object.assign(scene, held);
+    held = null;
   }
 
   function home() {
@@ -227,7 +250,8 @@ export function createViewer(canvas) {
     gl.enable(gl.POLYGON_OFFSET_FILL);
     gl.polygonOffset(1, 1);
     gl.bindVertexArray(base.vao);
-    gl.drawElements(gl.TRIANGLES, base.count, gl.UNSIGNED_INT, 0);
+    if (base.indexed) gl.drawElements(gl.TRIANGLES, base.count, gl.UNSIGNED_INT, 0);
+    else gl.drawArrays(gl.TRIANGLES, 0, base.count); // a pose being chosen: bare triangles
     gl.disable(gl.POLYGON_OFFSET_FILL);
 
     gl.uniform1i(U.mode, 1);
@@ -351,6 +375,8 @@ export function createViewer(canvas) {
     getCamera: () => ({ target: [...view.target], distance: view.distance, yaw: view.yaw, pitch: view.pitch }),
     setCamera(camera) { leaveFocus(); Object.assign(view, { target: [...camera.target], distance: camera.distance, yaw: camera.yaw, pitch: camera.pitch }); redraw(); },
     setModel,
+    preview,
+    endPreview() { clearPreview(); redraw(); },
     show(which) { view.which = which; redraw(); },
     focus,
     home,

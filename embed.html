@@ -118,6 +118,19 @@
             <span class="stage-label right" aria-hidden="true">After</span>
             <p id="no-webgl" class="no-webgl" hidden>This browser cannot show the 3D view, but the repair and download still work.</p>
           </div>
+          <div id="pose" class="pose" role="group" aria-labelledby="pose-title" hidden>
+            <div class="pose-head">
+              <h3 id="pose-title" class="visually-hidden">Pose</h3>
+              <select id="pose-clip" class="pose-clip" aria-label="Pose to repair"></select>
+              <span id="pose-time" class="pose-time"></span>
+            </div>
+            <div id="pose-scrub" class="pose-scrub">
+              <button id="pose-prev" type="button" class="round" aria-label="Previous keyframe"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <input id="pose-slider" type="range" min="0" max="1" step="0.001" value="0" aria-label="Moment in the clip">
+              <button id="pose-next" type="button" class="round" aria-label="Next keyframe"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </div>
+            <p id="pose-note" class="caption"></p>
+          </div>
           <figcaption>
             <ul class="legend" id="legend">
               <li><span class="swatch removed"></span>Removed</li>

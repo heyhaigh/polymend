@@ -9,7 +9,7 @@ const $ = id => document.getElementById(id);
 const number = value => value.toLocaleString('en-US');
 const plural = (count, one, many = one + 's') => `${number(count)} ${count === 1 ? one : many}`;
 
-const state = { name: '', format: '', unit: null, notes: [], report: null, extent: [0, 0, 0], spots: [], spot: -1, busy: false, which: 'after', turns: 0, gen: 0 };
+const state = { name: '', format: '', unit: null, notes: [], clips: [], pose: null, report: null, extent: [0, 0, 0], spots: [], spot: -1, busy: false, which: 'after', turns: 0, gen: 0 };
 const viewer = createViewer($('canvas'));
 if (!viewer) { $('canvas').hidden = true; $('no-webgl').hidden = false; }
 if ($('version')) $('version').textContent = `Version ${VERSION}.`; // absent from the embedded page
@@ -69,7 +69,7 @@ function lostModel() {
     state.reloading = true; // one quiet reload only; if that also fails, start over
     for (const input of document.querySelectorAll('[data-option]')) input.checked = state.goodOptions[input.dataset.option];
     state.gen++;
-    state.file.arrayBuffer().then(buffer => { setBusy(true); ask({ type: 'load', buffer, name: state.shown, options: state.goodOptions, turns: state.turns }, [buffer]); }).catch(() => {});
+    state.file.arrayBuffer().then(buffer => { setBusy(true); ask({ type: 'load', buffer, name: state.shown, options: state.goodOptions, turns: state.turns, pose: state.pose }, [buffer]); }).catch(() => {});
     return;
   }
   state.reloading = false;
@@ -137,7 +137,7 @@ function setBusy(busy) {
   $('choose').disabled = busy && !state.batchLoading;
   const locked = busy || !!state.unsynced;
   $('rotate').disabled = locked;
-  for (const control of document.querySelectorAll('[data-option], [data-download], .split-caret')) control.disabled = locked;
+  for (const control of document.querySelectorAll('[data-option], [data-download], .split-caret, #pose-clip, #pose-slider, #pose-prev, #pose-next')) control.disabled = locked;
   if (typeof lockDownloads === 'function' && batch.rows.length) lockDownloads();
   if (busy) closeMenus();
   if (batch.rows.length && $('model-switch')) renderModelSwitch();
@@ -217,6 +217,13 @@ function onMessage(event) {
     if (state.report) { Object.assign(state.report, { crossingsBefore: message.crossingsBefore, crossingsAfter: message.crossingsAfter, crossingsSkipped: message.crossingsSkipped }); renderCrossings(); }
     return;
   }
+  // A pose to show while the slider moves. Its clock stops only if no repair is waiting.
+  if (message.type === 'pose-preview') {
+    if (!state.busy) clearTimeout(limit);
+    pose.inFlight = false;
+    if (!state.busy && state.report) viewer?.preview(message.positions);
+    return sendPreview();
+  }
   clearTimeout(limit);
   if (message.type === 'ready') {
     state.batchLoading = false;
@@ -227,6 +234,7 @@ function onMessage(event) {
   // A batch model that failed to load here is still on screen from its kept view, but the
   // worker holds another model, so it must not be downloaded on its own.
   if (message.type === 'error' && state.batchLoading) { Object.assign(state, { batchLoading: false, unsynced: true }); }
+  if (message.type === 'error' && pose.repairing) { pose.repairing = false; viewer?.endPreview(); renderPose(); }
   if (message.type === 'error') fail(message.message);
   else if (message.type === 'result') showResult(message);
   else if (message.type === 'file') save(message);
@@ -235,7 +243,9 @@ function onMessage(event) {
 function showResult(message) {
   const fresh = state.fresh;
   state.fresh = false;
-  Object.assign(state, { format: message.format, unit: message.unit, notes: message.notes || [], report: message.report, extent: message.extent, spots: message.spots, spot: -1, reloading: false });
+  Object.assign(state, { format: message.format, unit: message.unit, notes: message.notes || [], clips: message.clips || [], pose: message.pose || null, report: message.report, extent: message.extent, spots: message.spots, spot: -1, reloading: false });
+  const reposed = pose.repairing;
+  pose.repairing = false;
   const quiet = fresh ? state.fromBatch : state.quietShown;
   if (fresh) { state.shown = state.name; state.file = state.pendingFile; state.turns = batch.rows[batch.at]?.turns || 0; state.quietShown = quiet; }
   if (message.type === 'result') state.batchLoading = false; // an answer from the worker, not a kept view
@@ -270,7 +280,9 @@ function showResult(message) {
   renderCounts();
   renderChanges();
   renderSize();
-  viewer?.setModel(message);
+  renderPose();
+  // A new pose of the same model keeps the camera where the visitor put it.
+  viewer?.setModel(message, { keepCamera: reposed && !fresh });
   show(state.which);
   leaveCloseUp(false);
   if (fresh) viewer?.home();
@@ -297,7 +309,9 @@ function renderOutcome() {
   // A rigged or animated model has many poses; say which one this is.
   if (state.notes.length) {
     const has = [state.notes.includes('rigged') && 'a rig', state.notes.includes('animated') && 'animation', state.notes.includes('morphs') && 'blend shapes'].filter(Boolean);
-    notes.push(`This GLB has ${list(has)}. It was read in its rest pose: the shape stored in the file, before ${state.notes.includes('animated') ? 'any animation plays' : 'anything moves it'}. That one pose is what was checked here and what you will download.`);
+    const clip = state.pose && state.clips[state.pose.clip];
+    if (clip) notes.push(`This GLB has ${list(has)}. It was repaired in the pose from "${clip.label}" at ${state.pose.time.toFixed(2)} s, chosen under the view. That pose is what was checked here and what you will download. A posed figure often has parts that pass through each other, such as an arm through the body; Polymend counts those but leaves them as they are, and they print as solid.`);
+    else notes.push(`This GLB has ${list(has)}. It was read in its rest pose: the shape stored in the file, before ${state.notes.includes('animated') ? 'any animation plays' : 'anything moves it'}. That one pose is what was checked here and what you will download.${state.clips.length ? ' To repair another, choose a clip and a moment under the view.' : ''}`);
   }
   if (r.patchesCrossing) notes.push(`${plural(r.patchesCrossing, 'patch', 'patches')} had no clean way to close ${r.patchesCrossing === 1 ? 'its' : 'their'} hole and ${r.patchesCrossing === 1 ? 'grazes' : 'graze'} surface that runs close by. This is common where a sculpted model already overlaps itself, and slicers accept it. Step through the changes to look.`);
 
@@ -482,7 +496,7 @@ function show(which) {
 function save(message) {
   setBusy(false);
   setStatus(`${state.shown} · ${number(state.report.before.triangles)} triangles`);
-  const base = state.shown.replace(/\.[^.]+$/, '') || 'model';
+  const base = (state.shown.replace(/\.[^.]+$/, '') || 'model') + poseSuffix();
   const blob = new Blob([message.bytes], { type: { zip: 'application/zip', '3mf': 'model/3mf', stl: 'model/stl' }[message.format] });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
@@ -496,7 +510,7 @@ function save(message) {
 function download(format) {
   if (!state.report || state.busy) return;
   setBusy(true);
-  ask({ type: 'export', format, heightMm: heightMm(), title: state.shown.replace(/\.[^.]+$/, '') || 'model' });
+  ask({ type: 'export', format, heightMm: heightMm(), title: (state.shown.replace(/\.[^.]+$/, '') || 'model') + poseSuffix() });
 }
 
 // --- several files at once
@@ -560,7 +574,7 @@ function startBatch(files, skipped) {
     let fileName = base;
     for (let n = 2; taken.has(fileName.toLowerCase()); n++) fileName = `${base}-${n}`;
     taken.add(fileName.toLowerCase());
-    return { id, file, title, fileName, status: 'waiting', options: { ...batchOptions }, turns: 0, rev: 0, built: -1, entries: null, view: null, viewBytes: 0 };
+    return { id, file, title, fileName, status: 'waiting', options: { ...batchOptions }, turns: 0, pose: null, rev: 0, built: -1, entries: null, view: null, viewBytes: 0 };
   });
   batch.skipped = skipped.map(clean);
   batch.running = true;
@@ -643,7 +657,7 @@ async function runJob(row) {
   if (job.first) row.status = 'working';
   renderBatch();
   if (row.file.size > MAX_BYTES) return jobFailed(job, FAILURES.tooLarge.detail);
-  const common = { job: job.token, name: row.file.name, options: row.options, turns: row.turns };
+  const common = { job: job.token, name: row.file.name, options: row.options, turns: row.turns, pose: row.pose };
   let request, transfer = [];
   if (!job.first && row.view) {
     const after = row.view.after; // copied to the worker, so the view keeps its own
@@ -748,7 +762,7 @@ function viewRow(index) {
   clearTimeout(state.syncTimer);
   Object.assign(state, { name: row.file.name, pendingFile: row.file, fresh: true, fromBatch: true, unsynced: false });
   const load = quiet => row.file.arrayBuffer()
-    .then(buffer => { if (gen === state.gen) ask({ type: 'load', buffer, name: row.file.name, options: row.options, turns: row.turns, quiet }, [buffer]); })
+    .then(buffer => { if (gen === state.gen) ask({ type: 'load', buffer, name: row.file.name, options: row.options, turns: row.turns, pose: row.pose, quiet }, [buffer]); })
     .catch(() => { if (gen === state.gen) notLoaded(row); });
   if (row.view) {
     showResult(row.view);
@@ -783,6 +797,7 @@ function keepRow(message, edited) {
   if (edited) {
     row.options = options();
     row.turns = state.turns;
+    row.pose = state.pose;
     row.rev++;
     pump();
   }
@@ -1094,6 +1109,105 @@ $('rotate').addEventListener('click', () => {
   state.pendingEdit = true;
   ask({ type: 'rotate' });
 });
+// --- poses of a rigged or animated GLB
+// The rest pose is the shape the file stores. A clip and a moment of it give another pose:
+// while the slider moves, the bare shape follows in the view (quick, unrepaired); when it
+// is let go, that pose is repaired. In a batch, each model keeps the pose chosen for it.
+const pose = { wanted: null, inFlight: false, repairing: false, keyTimer: 0 };
+const seconds = time => `${time.toFixed(2)} s`;
+const chosenClip = () => (state.pose ? state.clips[state.pose.clip] : null);
+function poseSuffix() {
+  const clip = chosenClip();
+  return clip ? `-${safeFileName(clip.label)}-${state.pose.time.toFixed(2)}s` : '';
+}
+function renderPose() {
+  const clips = state.clips || [];
+  $('pose').hidden = !clips.length;
+  if (!clips.length) return;
+  const select = $('pose-clip');
+  const key = JSON.stringify(clips.map(clip => [clip.index, clip.label]));
+  if (select.dataset.key !== key) {
+    select.replaceChildren(new Option('Rest pose, as stored', ''), ...clips.map(clip => new Option(`${clip.label} · ${seconds(clip.duration)}`, String(clip.index))));
+    select.dataset.key = key;
+  }
+  const clip = chosenClip();
+  select.value = clip ? String(clip.index) : '';
+  $('pose-scrub').hidden = !clip;
+  if (clip) {
+    $('pose-slider').max = String(clip.duration);
+    $('pose-slider').value = String(state.pose.time);
+  }
+  renderPoseTime(clip ? state.pose.time : null);
+  $('pose-note').textContent = clip ? 'Drag to choose a moment; it is repaired when you let go. The arrows step from keyframe to keyframe.' : `This file has ${plural(clips.length, 'animation clip')}. Choose one to repair the model in another pose.`;
+}
+function renderPoseTime(time) {
+  const clip = chosenClip();
+  $('pose-time').textContent = clip && time !== null ? `${seconds(time)} / ${seconds(clip.duration)}` : '';
+  $('pose-slider').setAttribute('aria-valuetext', clip && time !== null ? `${seconds(time)} of ${seconds(clip.duration)}` : '');
+}
+// Previews are sent one at a time; while one is out, only the latest wish is kept.
+function previewPose(next) {
+  pose.wanted = next;
+  if (!pose.inFlight) sendPreview();
+}
+function sendPreview() {
+  if (!pose.wanted || state.busy) return;
+  const next = pose.wanted;
+  pose.wanted = null;
+  pose.inFlight = true;
+  ask({ type: 'pose-preview', pose: next, turns: state.turns });
+}
+function repairPose(next) {
+  if (!state.report || state.busy) return;
+  clearTimeout(pose.keyTimer);
+  pose.wanted = null;
+  pose.repairing = true;
+  setBusy(true);
+  $('failure').hidden = true;
+  placeTop();
+  setBadge('working', 'Working on this device');
+  setStatus(next ? 'Posing and repairing' : 'Back to the rest pose', 'busy');
+  state.pendingEdit = true;
+  ask({ type: 'pose', pose: next, turns: state.turns });
+}
+const sliderPose = () => ({ clip: chosenClip().index, time: Number($('pose-slider').value) });
+$('pose-clip').addEventListener('change', event => {
+  const value = event.target.value;
+  repairPose(value === '' ? null : { clip: Number(value), time: 0 });
+});
+$('pose-slider').addEventListener('input', () => {
+  if (!chosenClip()) return;
+  renderPoseTime(Number($('pose-slider').value));
+  previewPose(sliderPose());
+});
+$('pose-slider').addEventListener('change', () => { if (chosenClip()) repairPose(sliderPose()); });
+// The keyframe a step away from where the slider is, or the clip's ends.
+function keyframe(direction) {
+  const clip = chosenClip(), now = Number($('pose-slider').value);
+  const keys = clip.keys.length ? clip.keys : [0, clip.duration];
+  const found = direction > 0 ? keys.find(time => time > now + 1e-4) : [...keys].reverse().find(time => time < now - 1e-4);
+  return found ?? (direction > 0 ? clip.duration : 0);
+}
+function stepKeyframe(direction, wait = 0) {
+  if (!chosenClip() || state.busy) return;
+  const time = keyframe(direction);
+  $('pose-slider').value = String(time);
+  renderPoseTime(time);
+  clearTimeout(pose.keyTimer);
+  if (!wait) return repairPose(sliderPose());
+  // Held arrow keys move through the keyframes; the repair waits until they stop.
+  previewPose(sliderPose());
+  pose.keyTimer = setTimeout(() => repairPose(sliderPose()), wait);
+}
+$('pose-prev').addEventListener('click', () => stepKeyframe(-1));
+$('pose-next').addEventListener('click', () => stepKeyframe(1));
+$('pose-slider').addEventListener('keydown', event => {
+  const direction = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 }[event.key];
+  if (!direction) return;
+  event.preventDefault();
+  stepKeyframe(direction, 350);
+});
+
 for (const button of document.querySelectorAll('[data-download]')) {
   button.addEventListener('click', () => {
     closeMenus();

@@ -65,7 +65,7 @@ function viewOf(mesh, result) {
   const normalAt = normalFinder(result.positions, result.tris, size, spots.length);
   for (const spot of spots) spot.normal = normalAt(spot.centre, Math.max(spot.radius * 2.5, size * 0.006));
   return {
-    message: { format: mesh.format, unit: mesh.unit, notes: mesh.notes || [], report: result.report, extent, before, after, removed, added, flipped, spots },
+    message: { format: mesh.format, unit: mesh.unit, notes: mesh.notes || [], clips: (mesh.clips || []).map(({ index, label, duration, keys }) => ({ index, label, duration, keys })), pose: mesh.pose || null, report: result.report, extent, before, after, removed, added, flipped, spots },
     transfer: [before.positions.buffer, before.tris.buffer, after.positions.buffer, after.tris.buffer, removed.buffer, added.buffer, flipped.buffer],
   };
 }
@@ -162,7 +162,7 @@ async function handle(message) {
   try {
     if (message.type === 'load') {
       progress('Reading the file');
-      const loaded = await loadAsync(new Uint8Array(message.buffer), message.name, progress);
+      const loaded = await loadAsync(new Uint8Array(message.buffer), message.name, progress, { pose: message.pose || null });
       // A model reloaded after a stopped job, or a batch model, is turned the way it was.
       for (let i = 0; i < (message.turns || 0) % 4; i++) turn(loaded.positions);
       const wanted = message.options || {};
@@ -177,6 +177,19 @@ async function handle(message) {
       options = message.options; result = mended;
       send();
       later();
+    } else if (message.type === 'pose-preview' && mesh?.posed) {
+      // The bare shape at a moment of a clip, unrepaired, to show while a pose is chosen.
+      const positions = mesh.posed(message.pose);
+      for (let i = 0; i < (message.turns || 0) % 4; i++) turn(positions);
+      reply({ type: 'pose-preview', pose: message.pose, positions }, [positions.buffer]);
+    } else if (message.type === 'pose' && mesh?.repose) {
+      progress('Posing');
+      const posed = mesh.repose(message.pose);
+      for (let i = 0; i < (message.turns || 0) % 4; i++) turn(posed.positions);
+      const mended = mend(posed, options, progress, { crossings: false });
+      mesh = posed; result = mended;
+      send();
+      later();
     } else if (message.type === 'rotate' && mesh) {
       turn(mesh.positions);
       turn(result.positions);
@@ -184,7 +197,7 @@ async function handle(message) {
     } else if (message.type === 'batch-repair') {
       // One model of a batch, repaired from its file. Nothing is kept here, so a stuck or
       // crashed file costs only its own row when this worker is replaced.
-      const loaded = await loadAsync(new Uint8Array(message.buffer), message.name, progress);
+      const loaded = await loadAsync(new Uint8Array(message.buffer), message.name, progress, { pose: message.pose || null });
       const mended = mend(loaded, message.options || {}, progress, { crossings: false });
       const { message: view, transfer } = viewOf(loaded, mended);
       reply({ type: 'batch-repaired', ...view }, transfer);
@@ -193,7 +206,7 @@ async function handle(message) {
       // or, if it no longer has it, from the file, repaired again with the model's options and turns.
       let { positions, tris, unit } = message;
       if (!positions) {
-        const loaded = await loadAsync(new Uint8Array(message.buffer), message.name, progress);
+        const loaded = await loadAsync(new Uint8Array(message.buffer), message.name, progress, { pose: message.pose || null });
         for (let i = 0; i < (message.turns || 0) % 4; i++) turn(loaded.positions);
         const mended = mend(loaded, message.options || {}, progress, { crossings: false });
         ({ positions, tris } = mended);
