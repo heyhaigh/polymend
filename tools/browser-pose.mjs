@@ -24,6 +24,17 @@ const read = () => page.evaluate(() => ({
   scrub: !document.getElementById('pose-scrub').hidden, time: document.getElementById('pose-time').textContent, status: document.getElementById('status').textContent,
   outcome: document.getElementById('outcome-title').textContent, note: [...document.querySelectorAll('#outcome-reasons li')].map(li => li.textContent).find(text => /GLB has/.test(text)) || '',
 }));
+// How much of the 3D view the model covers: the share of pixels unlike the stage's corner.
+// A model the camera has lost (too small, or out of frame) covers almost nothing.
+const { execFileSync: run } = await import('node:child_process');
+async function coverage(name) {
+  const file = `${out}/${engine}-${name}.png`;
+  await page.waitForTimeout(300);
+  await page.locator('.stage').screenshot({ path: file });
+  const corner = run('magick', [file, '-format', '%[pixel:p{12,40}]', 'info:']).toString().trim();
+  return Number(run('magick', [file, '-fuzz', '6%', '-fill', 'black', '-opaque', corner, '-fill', 'white', '+opaque', 'black', '-format', '%[fx:mean]', 'info:']).toString());
+}
+const VISIBLE = 0.05;
 let failed = 0;
 const check = (label, ok, detail = '') => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}${detail ? ` | ${detail}` : ''}`); if (!ok) failed++; };
 
@@ -40,13 +51,16 @@ await page.selectOption('#pose-clip', { index: Math.min(2, s.options - 1) });
 await settled();
 s = await read();
 check('choosing a clip repairs its first moment', s.scrub && /^0\.00 s \//.test(s.time) && /repaired in the pose from/.test(s.note), `${s.clip} | ${s.time}`);
+let seen = await coverage('clip');
+check('the posed model fills the view, not a speck', seen > VISIBLE, `covers ${(seen * 100).toFixed(1)}% of the view`);
 
 // Scrub: previews follow while dragging; the repair runs on release.
 const box = await page.locator('#pose-slider').boundingBox();
 await page.mouse.move(box.x + 4, box.y + box.height / 2);
 await page.mouse.down();
 for (let i = 1; i <= 8; i++) { await page.mouse.move(box.x + box.width * (0.1 * i), box.y + box.height / 2); await page.waitForTimeout(60); }
-await page.screenshot({ path: `${out}/${engine}-2-scrubbing.png` });
+seen = await coverage('scrubbing');
+check('while dragging, the preview fills the view', seen > VISIBLE, `covers ${(seen * 100).toFixed(1)}% of the view`);
 const during = await read();
 await page.mouse.up();
 await settled();
@@ -78,6 +92,8 @@ await page.selectOption('#pose-clip', '');
 await settled();
 s = await read();
 check('the rest pose comes back', s.clip === 'Rest pose, as stored' && !s.scrub && /rest pose/.test(s.note));
+seen = await coverage('rest-again');
+check('the rest pose fills the view again', seen > VISIBLE, `covers ${(seen * 100).toFixed(1)}% of the view`);
 
 // A batch: each model keeps its own pose, and the ZIP holds that pose.
 const second = process.argv[3];

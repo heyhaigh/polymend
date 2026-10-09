@@ -109,12 +109,26 @@ export function createViewer(canvas) {
       const points = ofKind.flatMap(spot => spot.centre);
       if (points.length) scene.markers[kind] = makeBuffer(new Float32Array(points));
     }
+    if (fit(data.before.positions, keepCamera)) redraw();
+  }
+
+  /**
+   * Fit the view to a model. With `keep`, the camera stays where it is as long as the model
+   * is about the same size and in about the same place: a new pose is often not, since a
+   * rigged file's stored shape and its animated one can differ in scale a hundredfold.
+   * Returns true when the camera was kept (the caller only needs to redraw).
+   */
+  function fit(p, keep = false) {
     const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
-    const p = data.before.positions;
     for (let i = 0; i < p.length; i++) { const c = i % 3; if (p[i] < lo[c]) lo[c] = p[i]; if (p[i] > hi[c]) hi[c] = p[i]; }
-    view.centre = [0, 1, 2].map(c => (lo[c] + hi[c]) / 2);
-    view.radius = Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) / 2 || 1;
-    if (keepCamera) redraw(); else home();
+    const centre = [0, 1, 2].map(c => (lo[c] + hi[c]) / 2);
+    const radius = Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) / 2 || 1;
+    const similar = radius / view.radius < 1.6 && view.radius / radius < 1.6 && Math.hypot(...centre.map((v, c) => v - view.centre[c])) < radius * 0.6;
+    view.centre = centre;
+    view.radius = radius;
+    if (keep && similar) return true;
+    home();
+    return false;
   }
 
   // While a pose is being chosen, both sides show that bare pose, unrepaired, without the
@@ -126,7 +140,7 @@ export function createViewer(canvas) {
     const shape = makeBuffer(positions);
     Object.assign(scene, { before: shape, after: shape, removed: null, added: null, flipped: null, markers: {} });
     leaveFocus();
-    redraw();
+    if (fit(positions, true)) redraw();
   }
   function clearPreview() {
     if (!held) return;
