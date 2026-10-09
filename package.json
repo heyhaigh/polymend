@@ -1,6 +1,6 @@
 {
   "name": "polymend",
-  "version": "0.5.3",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "description": "Free STL and GLB mesh repair for 3D printing, entirely in the browser.",

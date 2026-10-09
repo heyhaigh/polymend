@@ -2,6 +2,15 @@
 
 What has changed in Polymend, newest first. Each version is marked with the moment it was published. From version 0.3.0 on, every change is listed here and recorded in the project's public history.
 
+## 0.6.0 (Published October 9, 2026 at 12:32 PM EDT)
+
+- A rigged or animated GLB can now be repaired in any pose from its animation clips, not only in its rest pose. When a file has clips, a Pose panel appears under the view: choose a clip, drag to any moment of it and let go, and that pose is repaired. While you drag, the view follows the pose. The arrows, or ← and → on your keyboard, step from keyframe to keyframe and wrap round, so you can walk through a cycle.
+- Skeletons, blend shapes and every kind of keyframe curve are followed. On 171 rigged and animated files, every pose tried matched a widely used 3D library point for point.
+- Downloads are named for the pose, such as `figure-Wave-0.84s-mended.zip`.
+- When you repair several files at once, each keeps the pose chosen for it, and "Download all" holds those poses.
+- From the command line, `--clips` lists a file's clips, and `--clip Wave --time 0.8` repairs that pose.
+- A GLB that stores part of its shape as a short list of changes (a "sparse" layout) is now read instead of refused.
+
 ## 0.5.3 (Published October 9, 2026 at 10:36 AM EDT)
 
 - On a phone, the home page fits the screen again. One long line of code in "Add it to your site" made the page wider than the screen, so it could be dragged sideways and the theme button sat past the edge. The line now wraps.

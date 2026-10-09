@@ -43,3 +43,11 @@ export function playwright() {
   }
   throw new Error('Playwright was not found. Run `npm i -D playwright`, or set POLYMEND_PLAYWRIGHT to a folder that has it.');
 }
+
+/** Where three.js is, for checking posed shapes against it: the same folders as Playwright. */
+export function threeModule() {
+  for (const from of [process.env.POLYMEND_PLAYWRIGHT, saved.playwrightFrom, root].filter(Boolean)) {
+    try { return createRequire(path.join(path.resolve(from), '/')).resolve('three'); } catch {}
+  }
+  throw new Error('three.js was not found. Run `npm i -D three`, or set POLYMEND_PLAYWRIGHT to a folder that has it.');
+}

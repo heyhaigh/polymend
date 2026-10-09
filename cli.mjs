@@ -18,6 +18,10 @@
 // --name <name>   output name, for a single model only (default: the input's name)
 // --separate      also cut apart surfaces that touch along an edge (off by default)
 // --wide          also close wide openings (off by default: a wide opening may be meant)
+// --clips         list each GLB's animation clips, and stop
+// --clip <clip>   repair a rigged or animated GLB in a pose from this clip (its name, or its
+//                 number in the --clips list) rather than in its rest pose
+// --time <s>      the moment of that clip, in seconds (default 0, its first frame)
 // --json          print the report as JSON instead of prose
 // Needs Node 20 or later. No dependencies.
 import fs from 'node:fs';
@@ -29,10 +33,10 @@ import { layout, write3MF, VERSION } from './src/output.js';
 const args = process.argv.slice(2);
 const flag = name => args.includes(name);
 const value = name => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
-const WITH_VALUE = ['--height', '--out', '--name'];
-const KNOWN = [...WITH_VALUE, '--as-is', '--separate', '--wide', '--json', '--help'];
+const WITH_VALUE = ['--height', '--out', '--name', '--clip', '--time'];
+const KNOWN = [...WITH_VALUE, '--as-is', '--separate', '--wide', '--clips', '--json', '--help'];
 const given = args.filter((arg, i) => !arg.startsWith('--') && !WITH_VALUE.includes(args[i - 1]));
-const USAGE = 'Usage: node cli.mjs <model.glb|model.stl|folder>... (--height <mm> | --as-is) [--out <dir>] [--name <name>] [--separate] [--wide] [--json]';
+const USAGE = 'Usage: node cli.mjs <model.glb|model.stl|folder>... (--height <mm> | --as-is) [--out <dir>] [--name <name>] [--separate] [--wide] [--clip <name|number> [--time <s>]] [--json]\n       node cli.mjs <model.glb>... --clips';
 if (!given.length || flag('--help')) { console.log(USAGE); process.exit(given.length ? 0 : 1); }
 const stop = text => { console.error(text); process.exit(1); };
 for (const arg of args.filter(arg => arg.startsWith('--'))) if (!KNOWN.includes(arg)) stop(`Unknown option ${arg}.\n${USAGE}`);
@@ -53,6 +57,37 @@ const inputs = given.flatMap(item => {
   if (!found.length) stop(`No .glb or .stl files in ${clean(item)}`);
   return found;
 });
+const time = flag('--time') ? Number(value('--time')) : 0;
+if (flag('--time') && !(time >= 0 && Number.isFinite(time))) stop('--time must be a number of seconds, zero or more.');
+if (flag('--time') && !flag('--clip')) stop('--time needs --clip: which clip is it a moment of?');
+
+// --clips: what each file can be posed in, and nothing else.
+if (flag('--clips')) {
+  const lists = [];
+  for (const input of inputs) {
+    try {
+      const mesh = await loadAsync(fs.readFileSync(input), input);
+      lists.push({ input: path.resolve(input), clips: mesh.clips.map(({ index, name, label, duration, keys }) => ({ number: index + 1, name: clean(label), fullName: clean(name), seconds: Math.round(duration * 1000) / 1000, keyframes: keys.length })) });
+    } catch (error) { lists.push({ input: path.resolve(input), error: clean(error.message) }); }
+  }
+  if (flag('--json')) console.log(JSON.stringify(inputs.length === 1 ? lists[0] : lists));
+  else for (const list of lists) {
+    console.log(`${clean(list.input)}${list.error ? `: could not be read: ${list.error}` : list.clips.length ? '' : ': no animation clips; it can only be repaired in its rest pose.'}`);
+    for (const clip of list.clips || []) console.log(`  ${String(clip.number).padStart(3)}  ${clip.name}  (${clip.seconds} s, ${clip.keyframes} keyframes)`);
+  }
+  process.exit(lists.some(list => list.error) ? 1 : 0);
+}
+
+// --clip names a clip, or gives its number in the --clips list.
+const poseFor = mesh => {
+  if (!flag('--clip')) return null;
+  const asked = value('--clip');
+  const clip = mesh.clips.find(c => c.name === asked) || mesh.clips.find(c => c.label === asked) || (/^\d+$/.test(asked) ? mesh.clips[Number(asked) - 1] : null);
+  if (!clip) throw new Error(mesh.clips.length ? `It has no clip "${clean(asked)}". Run with --clips to list them.` : 'It has no animation clips, so it can only be repaired in its rest pose.');
+  if (time > clip.duration) throw new Error(`"${clean(clip.label)}" lasts ${Math.round(clip.duration * 1000) / 1000} s, so --time ${time} is past its end.`);
+  return { clip: clip.index, time };
+};
+
 const height = Number(value('--height'));
 if (flag('--height') && !(height > 0 && Number.isFinite(height))) stop('--height must be a number of millimeters above zero.');
 if (!(height > 0) && !flag('--as-is')) stop('Give --height <mm> for the print, or --as-is to keep the file\'s own size.');
@@ -88,7 +123,10 @@ async function repairOne(input) {
     // Refuse an oversized file before reading it, rather than after.
     if (fs.statSync(input).size > LIMITS.bytes) throw new Error(`It is larger than ${LIMITS.bytes / 1024 ** 2} MB, the most Polymend reads.`);
     const started = performance.now();
-    mesh = await loadAsync(fs.readFileSync(input), input, label => say(`${label}…`));
+    const bytes = fs.readFileSync(input);
+    mesh = await loadAsync(bytes, input, label => say(`${label}…`));
+    const pose = poseFor(mesh);
+    if (pose) { say('Posing…'); mesh = await loadAsync(bytes, input, () => {}, { pose }); }
     result = mend(mesh, options, label => say(`${label}…`));
     say(`Read and repaired in ${((performance.now() - started) / 1000).toFixed(1)} s.`);
   } catch (error) {
@@ -116,6 +154,7 @@ async function writeOne(input, name, out, mesh, result) {
 
   const summary = {
     polymend: VERSION, input: path.resolve(input), status: r.status, notes: mesh.notes || [],
+    pose: mesh.pose ? { clip: clean(mesh.clips[mesh.pose.clip].label), seconds: mesh.pose.time } : null,
     before: r.before, after: r.after, sizeMm: sized.size.map(v => Math.round(v * 100) / 100),
     done: { strayTrianglesRemoved: r.strayFacesRemoved, separatePiecesRemoved: r.specksRemoved, collapsedOrDuplicateRemoved: r.degenerateRemoved + r.duplicateRemoved,
       holesPatched: r.holesFilled.length, holes: r.holes, patchesGrazing: r.patchesCrossing, seamPointsJoined: r.seamPointsJoined, trianglesTurned: r.facesFlipped, pinchedEdgesCut: r.pinchedEdgesCut },
@@ -130,7 +169,8 @@ async function writeOne(input, name, out, mesh, result) {
     r.holesFilled.length && `patched ${r.holesFilled.length} holes${r.patchesCrossing ? ` (${r.patchesCrossing} grazing nearby surface)` : ''}`, r.seamPointsJoined && `joined ${r.seamPointsJoined} seam points`, r.facesFlipped && `turned ${r.facesFlipped} triangles`].filter(Boolean);
   if (did.length) say(`Did: ${did.join(', ')}.`);
   if (r.status === 'partial') say(`Left: ${JSON.stringify(summary.left)}. The slicer will probably still warn; a general repair tool or a 3D editor is the next step.`);
-  if (mesh.notes?.length) say(`Note: this GLB has ${mesh.notes.join(', ')}; it was read in its rest pose.`);
+  if (summary.pose) say(`Pose: "${summary.pose.clip}" at ${summary.pose.seconds} s.`);
+  else if (mesh.notes?.length) say(`Note: this GLB has ${mesh.notes.join(', ')}; it was read in its rest pose.${mesh.clips?.length ? ' Use --clips and --clip to repair another pose.' : ''}`);
   say(`Size: ${summary.sizeMm.join(' × ')} mm${height > 0 ? ` (height set to ${height} mm)` : ' (the file\'s own size)'}.`);
   say(`Wrote ${stlPath}\n      ${mfPath}`);
   return summary;
