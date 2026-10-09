@@ -10,6 +10,8 @@ Live at **https://polymend.xyz**. MIT licensed.
 ```sh
 node cli.mjs model.glb --height 43.2 --out ./print   # the same repair from the command line: STL, 3MF and a report
 node cli.mjs ./figures --height 43.2 --out ./print   # every .glb and .stl in a folder, plus polymend-batch.json
+node cli.mjs figure.glb --clips                      # list a rigged GLB's animation clips
+node cli.mjs figure.glb --clip Wave --time 0.8 --height 43.2 --out ./print   # repair that pose
 node tools/serve.mjs          # local copy at http://127.0.0.1:8650/
 node tools/build-site.mjs     # copy only the public files into dist/
 npx wrangler deploy           # publish dist/ to Cloudflare (polymend.xyz)
@@ -94,6 +96,9 @@ node tools/profile.mjs             # where the time goes, stage by stage
 node tools/browser-check.mjs webkit glb mobile   # drive the real page (needs the server running)
 node tools/browser-states.mjs      # the page's partly-repaired, error and time-limit states
 node tools/browser-embed.mjs       # the embedded copy inside a made-up third-party page
+node tools/browser-pose.mjs <rigged.glb>   # choose a clip, scrub, keyframes, pose-named downloads, back to rest
+node tools/pose-parity.mjs <list.txt>      # posed shapes match three.js point for point, clip by clip
+node tools/glb-fingerprint.mjs <list.txt> --save <f.json>   # then without --save: GLB rest poses unchanged by a reader change
 node tools/check-live.mjs          # the live site: headers, pages, no injected scripts
 node tools/browser-shots.mjs       # screenshots in both themes, desktop and phone, into out/shots/
 ```
@@ -106,7 +111,7 @@ Results on 2026-10-05, version 0.3.0:
 - **Two slicers.** The author imported all twelve repaired files into Bambu Studio and none showed a warning; the originals all did. A second slicer's own mesh check (`node tools/slicer-check.mjs`) says the same: every original fails, every repaired file passes.
 - **Fifteen CAD-exported printer parts** (and the 3DBenchy). Twelve were sound and came back untouched. From the Benchy, 552 collapsed triangles were removed, exactly the ones a slicer discards on import. One part lost two duplicate and two stray triangles. One part showed a real bug, now fixed and tested: a deliberate cavity was being turned inside out.
 - **Eight museum 3D scans.** Two were sound, two were repaired and then passed the second slicer's check, and four with hundreds or thousands of faults came out `partial`, which that slicer agrees with for three of them. Turning on every optional switch does not rescue those: heavily damaged scans need a general repair tool.
-- **Draco-compressed GLB** files, which several museums publish, are unpacked and give the same results as the museums' STL exports of the same scans. Meshopt-compressed GLB is not supported yet. Rigged or animated GLB files are read in their rest pose only.
+- **Draco-compressed GLB** files, which several museums publish, are unpacked and give the same results as the museums' STL exports of the same scans. Meshopt-compressed GLB is not supported yet. Rigged or animated GLB files are read in their rest pose, and can be repaired in any moment of their animation clips instead (skeleton, blend shapes and every glTF interpolation; checked point for point against three.js).
 - **Flat sliver triangles** (three corners in a line) are counted in the analysis but left alone: the second slicer accepts files that contain them.
 
 Other slicers and a real phone are still untested. `node tools/run-folder.mjs <folder>` runs the repair over any folder of models and prints one line each.
