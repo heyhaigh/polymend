@@ -2,7 +2,7 @@
 // Used by the browser worker and by the command-line tools, so both do the same thing.
 
 import { parseSTL, tooMany } from './stl.js';
-import { parseGLB, yUpToZUp } from './glb.js';
+import { openGLB, yUpToZUp } from './glb.js';
 import { weld, analyze } from './mesh.js';
 import { repair } from './repair.js';
 import { selfIntersections } from './intersect.js';
@@ -25,57 +25,86 @@ export function sniff(bytes, name = '') {
   return 'stl';
 }
 
-/** Read a file into a welded mesh. GLB models are turned from Y-up to Z-up. */
-export function load(bytes, name = '', { draco } = {}) {
+/**
+ * Read a file into a welded mesh. GLB models are turned from Y-up to Z-up.
+ * `pose` is `{ clip, time }` for one moment of a GLB file's animation clip, or null for the
+ * shape as stored. A GLB's result also lists its `clips`, and `posed(pose)` gives the
+ * unwelded triangles of another pose quickly, for showing while a pose is being chosen.
+ */
+export function load(bytes, name = '', { draco, pose = null } = {}) {
   const megabytes = Math.round(LIMITS.bytes / (1024 * 1024));
   if (bytes.length > LIMITS.bytes) throw new Error(`This file is larger than ${megabytes} MB, which is more than this page can handle.`);
   const format = sniff(bytes, name);
   const tooManyTriangles = total => new Error(`This model has about ${Math.round(total).toLocaleString('en-US')} triangles, more than this page can handle (${LIMITS.triangles.toLocaleString('en-US')}).`);
-  let soup;
+  let soup, glb = null, at = null;
   const notes = [];
+  const fault = error => {
+    if (error && error.needsDraco) return error; // for loadAsync, which unpacks and reads again
+    if (error && error.tooMany) return tooManyTriangles(error.tooMany);
+    // A reader tripping over nonsense in the file is the file's fault, not a crash to report.
+    if (error instanceof TypeError || error instanceof RangeError || error instanceof SyntaxError) return new Error(`This file is damaged, or is not laid out as ${format === 'glb' ? 'a GLB' : 'an STL'} file should be.`);
+    return error;
+  };
   try {
     // Positions are rounded to 32-bit floats before welding, because that is what an
     // STL file stores: vertices that will be identical in the output are joined now.
-    soup = format === 'glb' ? Float32Array.from(yUpToZUp(parseGLB(bytes, { maxTriangles: LIMITS.triangles, tooMany, notes, draco })))
-      : parseSTL(bytes, { maxTriangles: LIMITS.triangles });
+    if (format === 'glb') {
+      glb = openGLB(bytes, { maxTriangles: LIMITS.triangles, tooMany, notes, draco });
+      if (pose) {
+        const clip = glb.clips[pose.clip];
+        if (!clip) throw new Error('This file has no such animation.');
+        at = { clip: clip.index, time: Math.min(Math.max(Number(pose.time) || 0, 0), clip.duration) };
+      }
+      soup = Float32Array.from(yUpToZUp(glb.bake(at)));
+    } else soup = parseSTL(bytes, { maxTriangles: LIMITS.triangles });
   } catch (error) {
-    if (error && error.needsDraco) throw error; // for loadAsync, which unpacks and reads again
-    if (error && error.tooMany) throw tooManyTriangles(error.tooMany);
-    // A reader tripping over nonsense in the file is the file's fault, not a crash to report.
-    if (error instanceof TypeError || error instanceof RangeError || error instanceof SyntaxError) throw new Error(`This file is damaged, or is not laid out as ${format === 'glb' ? 'a GLB' : 'an STL'} file should be.`);
-    throw error;
+    throw fault(error);
   }
-  for (let i = 0; i < soup.length; i++) if (!Number.isFinite(soup[i])) throw new Error('This file contains invalid coordinates.');
-  if (soup.length / 9 > LIMITS.triangles) throw tooManyTriangles(soup.length / 9);
-  if (soup.length < 9) throw new Error('No triangles were found in this file.');
   // GLB coordinates are meters by definition; an STL does not say what its numbers mean.
-  // `notes` lists what the file had that was not applied: 'rigged', 'animated', 'morphs'.
-  return { format, unit: format === 'glb' ? 'meter' : null, notes, ...weld(soup) };
+  // `notes` lists what the file has that its rest pose leaves out: 'rigged', 'animated', 'morphs'.
+  const clips = glb ? glb.clips.map(({ index, name, label, duration, keys }) => ({ index, name, label, duration, keys })) : [];
+  const finish = (shape, chosen) => {
+    for (let i = 0; i < shape.length; i++) if (!Number.isFinite(shape[i])) throw new Error('This file contains invalid coordinates.');
+    if (shape.length / 9 > LIMITS.triangles) throw tooManyTriangles(shape.length / 9);
+    if (shape.length < 9) throw new Error('No triangles were found in this file.');
+    return { format, unit: format === 'glb' ? 'meter' : null, notes, clips, pose: chosen, posed, repose, ...weld(shape) };
+  };
+  // Another pose of the same file, without reading it again: `posed` gives the bare triangles
+  // quickly, for showing while a pose is chosen; `repose` gives a whole new mesh to repair.
+  const clamp = next => {
+    if (!next) return null;
+    const clip = glb.clips[next.clip];
+    if (!clip) throw new Error('This file has no such animation.');
+    return { clip: clip.index, time: Math.min(Math.max(Number(next.time) || 0, 0), clip.duration) };
+  };
+  const posed = glb ? next => { try { return Float32Array.from(yUpToZUp(glb.bake(clamp(next)))); } catch (error) { throw fault(error); } } : null;
+  const repose = glb ? next => finish(posed(next), clamp(next)) : null;
+  return finish(soup, at);
 }
 
 /**
  * `load`, plus Draco-compressed GLB files. The decoder is 700 KB, so it is fetched from the
  * site only the first time a file needs it. `progress` is told while that happens.
  */
-export async function loadAsync(bytes, name = '', progress = () => {}) {
+export async function loadAsync(bytes, name = '', progress = () => {}, { pose = null } = {}) {
   try {
-    return load(bytes, name);
+    return load(bytes, name, { pose });
   } catch (error) {
     if (!error || !error.needsDraco) throw error;
     progress('Unpacking compressed geometry');
     const { decodeDraco } = await import('./draco.js');
     const draco = new Map();
     let budget = LIMITS.triangles;
-    for (const { key, bytes: packed, attribute } of error.needsDraco) {
+    for (const { key, bytes: packed, attribute, extra } of error.needsDraco) {
       let unpacked;
-      try { unpacked = await decodeDraco(packed, attribute, { maxTriangles: budget }); } catch (fault) {
+      try { unpacked = await decodeDraco(packed, attribute, { maxTriangles: budget, extra }); } catch (fault) {
         if (fault && fault.tooMany) throw new Error(`This model has more than ${LIMITS.triangles.toLocaleString('en-US')} triangles, which is more than this page can handle.`);
         throw fault;
       }
       budget -= unpacked.indices.length / 3;
       draco.set(key, unpacked);
     }
-    return load(bytes, name, { draco });
+    return load(bytes, name, { draco, pose });
   }
 }
 

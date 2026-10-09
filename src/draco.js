@@ -18,7 +18,7 @@ function module() {
  * of each triangle as indexes into them. `maxTriangles` is checked before the points are
  * copied out, since a small compressed buffer can unpack into a very large mesh.
  */
-export async function decodeDraco(bytes, attribute, { maxTriangles = Infinity } = {}) {
+export async function decodeDraco(bytes, attribute, { maxTriangles = Infinity, extra = {} } = {}) {
   const draco = await module();
   const decoder = new draco.Decoder();
   const buffer = new draco.DecoderBuffer();
@@ -45,7 +45,20 @@ export async function decodeDraco(bytes, attribute, { maxTriangles = Infinity } 
       decoder.GetTrianglesUInt32Array(mesh, indexBytes, indexPtr);
       indices = new Uint32Array(draco.HEAPU32.buffer, indexPtr, faces * 3).slice();
     } finally { draco._free(indexPtr); }
-    return { positions, indices };
+    // A rigged model's bone links and weights, four numbers a point, for posing it. Weights
+    // may come out unscaled (0 to 255, say); posing divides by their sum, so that is harmless.
+    const extras = {};
+    for (const [name, id] of Object.entries(extra)) {
+      const found = decoder.GetAttributeByUniqueId(mesh, id);
+      if (!found || found.ptr === 0 || found.num_components() !== 4) continue;
+      const size = points * 4 * 4;
+      const ptr = draco._malloc(size);
+      try {
+        decoder.GetAttributeDataArrayForAllPoints(mesh, found, draco.DT_FLOAT32, size, ptr);
+        extras[name] = Float64Array.from(new Float32Array(draco.HEAPF32.buffer, ptr, points * 4));
+      } finally { draco._free(ptr); }
+    }
+    return { positions, indices, extras };
   } finally {
     draco.destroy(mesh); draco.destroy(buffer); draco.destroy(decoder);
   }
