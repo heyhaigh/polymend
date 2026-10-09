@@ -83,6 +83,30 @@ await settled();
 const keyed = await read();
 check('arrow keys step back through keyframes and repair once they stop', keyed.time !== s.time, `${s.time} -> ${keyed.time}`);
 
+// Stepping as someone would: a fresh clip at 0.00 s, the left arrow wraps to the end; a
+// click on the step button, then the keyboard, each step waiting for its repair; then quick
+// presses during a repair, which wait their turn instead of being lost.
+const timeOf = text => Number(text.split(' ')[0]);
+await page.selectOption('#pose-clip', { index: 1 });
+await settled();
+await page.click('#pose-prev');
+await settled();
+s = await read();
+check('the left arrow at the start wraps round to the end of the clip', timeOf(s.time) > 0, s.time);
+await page.click('#pose-next');
+await settled();
+const afterClick = timeOf((await read()).time);
+const steps = [];
+for (let i = 0; i < 3; i++) { await page.keyboard.press('ArrowRight'); await page.waitForTimeout(450); await settled(); steps.push(timeOf((await read()).time)); }
+check('after clicking a step button, the arrow keys keep stepping, one repair each', steps.every((t, i) => t !== (i ? steps[i - 1] : afterClick)), `${afterClick} -> ${steps.join(' -> ')}`);
+await page.keyboard.press('ArrowLeft');
+await page.waitForTimeout(400);           // its repair has started
+const startedAt = timeOf((await read()).time);
+await page.keyboard.press('ArrowLeft'); await page.keyboard.press('ArrowLeft');
+await page.waitForTimeout(500); await settled(); await page.waitForTimeout(300); await settled();
+s = await read();
+check('presses made during a repair are repaired next, not dropped', timeOf(s.time) < startedAt && /repaired in the pose from/.test(s.note) && s.note.includes(timeOf(s.time).toFixed(2)), `${startedAt} -> ${s.time}`);
+
 // The download is named for the pose.
 const [download] = await Promise.all([page.waitForEvent('download'), page.click('#download-all')]);
 check('the download is named for the pose', /-\d+\.\d\ds-mended\.zip$/.test(download.suggestedFilename()), download.suggestedFilename());

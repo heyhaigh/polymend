@@ -10,6 +10,10 @@ const number = value => value.toLocaleString('en-US');
 const plural = (count, one, many = one + 's') => `${number(count)} ${count === 1 ? one : many}`;
 
 const state = { name: '', format: '', unit: null, notes: [], clips: [], pose: null, report: null, extent: [0, 0, 0], spots: [], spot: -1, busy: false, which: 'after', turns: 0, gen: 0 };
+// Choosing a pose (see "poses" below): a preview waiting to be sent, a pose waiting for the
+// worker to be free (`queued`; null is the rest pose, undefined is none), and whether the
+// visitor is working in the panel, so the arrow keys step through keyframes.
+const pose = { wanted: null, inFlight: false, repairing: false, queued: undefined, keyTimer: 0, active: false };
 const viewer = createViewer($('canvas'));
 if (!viewer) { $('canvas').hidden = true; $('no-webgl').hidden = false; }
 if ($('version')) $('version').textContent = `Version ${VERSION}.`; // absent from the embedded page
@@ -137,9 +141,15 @@ function setBusy(busy) {
   $('choose').disabled = busy && !state.batchLoading;
   const locked = busy || !!state.unsynced;
   $('rotate').disabled = locked;
-  for (const control of document.querySelectorAll('[data-option], [data-download], .split-caret, #pose-clip, #pose-slider, #pose-prev, #pose-next')) control.disabled = locked;
+  for (const control of document.querySelectorAll('[data-option], [data-download], .split-caret')) control.disabled = locked;
+  // The pose controls stay usable, so keyboard focus is never lost: a pose chosen while a
+  // repair runs waits and is repaired next. Only a model that cannot be changed locks them.
+  for (const control of document.querySelectorAll('#pose-clip, #pose-slider, #pose-prev, #pose-next')) control.disabled = !!state.unsynced;
   if (typeof lockDownloads === 'function' && batch.rows.length) lockDownloads();
   if (busy) closeMenus();
+  // Free again, after a repair, a download or a model loading in the background: a pose
+  // chosen meanwhile goes next, once whatever finished has had its say on the page.
+  if (!busy && pose.queued !== undefined) setTimeout(() => { if (!state.busy && pose.queued !== undefined) repairPose(pose.queued); });
   if (batch.rows.length && $('model-switch')) renderModelSwitch();
 }
 
@@ -234,7 +244,7 @@ function onMessage(event) {
   // A batch model that failed to load here is still on screen from its kept view, but the
   // worker holds another model, so it must not be downloaded on its own.
   if (message.type === 'error' && state.batchLoading) { Object.assign(state, { batchLoading: false, unsynced: true }); }
-  if (message.type === 'error' && pose.repairing) { pose.repairing = false; viewer?.endPreview(); renderPose(); }
+  if (message.type === 'error' && pose.repairing) { pose.repairing = false; pose.queued = null; viewer?.endPreview(); renderPose(); }
   if (message.type === 'error') fail(message.message);
   else if (message.type === 'result') showResult(message);
   else if (message.type === 'file') save(message);
@@ -246,6 +256,7 @@ function showResult(message) {
   Object.assign(state, { format: message.format, unit: message.unit, notes: message.notes || [], clips: message.clips || [], pose: message.pose || null, report: message.report, extent: message.extent, spots: message.spots, spot: -1, reloading: false });
   const reposed = pose.repairing;
   pose.repairing = false;
+  if (fresh) pose.queued = null; // another model: what was waiting was for the one before
   const quiet = fresh ? state.fromBatch : state.quietShown;
   if (fresh) { state.shown = state.name; state.file = state.pendingFile; state.turns = batch.rows[batch.at]?.turns || 0; state.quietShown = quiet; }
   if (message.type === 'result') state.batchLoading = false; // an answer from the worker, not a kept view
@@ -1113,7 +1124,6 @@ $('rotate').addEventListener('click', () => {
 // The rest pose is the shape the file stores. A clip and a moment of it give another pose:
 // while the slider moves, the bare shape follows in the view (quick, unrepaired); when it
 // is let go, that pose is repaired. In a batch, each model keeps the pose chosen for it.
-const pose = { wanted: null, inFlight: false, repairing: false, keyTimer: 0 };
 const seconds = time => `${time.toFixed(2)} s`;
 const chosenClip = () => (state.pose ? state.clips[state.pose.clip] : null);
 function poseSuffix() {
@@ -1133,12 +1143,13 @@ function renderPose() {
   const clip = chosenClip();
   select.value = clip ? String(clip.index) : '';
   $('pose-scrub').hidden = !clip;
+  const waiting = pose.queued && pose.queued.clip === clip?.index ? pose.queued.time : null;
   if (clip) {
     $('pose-slider').max = String(clip.duration);
-    $('pose-slider').value = String(state.pose.time);
+    $('pose-slider').value = String(waiting ?? state.pose.time);
   }
-  renderPoseTime(clip ? state.pose.time : null);
-  $('pose-note').textContent = clip ? 'Drag to choose a moment; it is repaired when you let go. The arrows step from keyframe to keyframe.' : `This file has ${plural(clips.length, 'animation clip')}. Choose one to repair the model in another pose.`;
+  renderPoseTime(clip ? waiting ?? state.pose.time : null);
+  $('pose-note').textContent = clip ? 'Drag to choose a moment; it is repaired when you let go. The arrows, or ← and → on your keyboard, step from keyframe to keyframe and wrap round, for walking through a cycle.' : `This file has ${plural(clips.length, 'animation clip')}. Choose one to repair the model in another pose.`;
 }
 function renderPoseTime(time) {
   const clip = chosenClip();
@@ -1158,8 +1169,11 @@ function sendPreview() {
   ask({ type: 'pose-preview', pose: next, turns: state.turns });
 }
 function repairPose(next) {
-  if (!state.report || state.busy) return;
+  if (!state.report) return;
   clearTimeout(pose.keyTimer);
+  // Busy with the last one: this pose waits, and only the latest wish is kept.
+  if (state.busy) { pose.queued = next; return; }
+  pose.queued = undefined;
   pose.wanted = null;
   pose.repairing = true;
   setBusy(true);
@@ -1182,28 +1196,38 @@ $('pose-slider').addEventListener('input', () => {
 });
 $('pose-slider').addEventListener('change', () => { if (chosenClip()) repairPose(sliderPose()); });
 // The keyframe a step away from where the slider is, or the clip's ends.
+// Stepping wraps round, treating the clip's start and end as one moment, so a walk cycle
+// can be stepped through again and again in either direction.
 function keyframe(direction) {
   const clip = chosenClip(), now = Number($('pose-slider').value);
-  const keys = clip.keys.length ? clip.keys : [0, clip.duration];
+  const keys = clip.keys.length >= 2 ? clip.keys : [0, clip.duration];
   const found = direction > 0 ? keys.find(time => time > now + 1e-4) : [...keys].reverse().find(time => time < now - 1e-4);
-  return found ?? (direction > 0 ? clip.duration : 0);
+  if (found !== undefined && !(direction > 0 && found >= clip.duration - 1e-4 && now >= clip.duration - 1e-4)) return found;
+  return direction > 0 ? (keys.find(time => time > keys[0] + 1e-4) ?? keys[0]) : ([...keys].reverse().find(time => time < clip.duration - 1e-4) ?? keys[0]);
 }
 function stepKeyframe(direction, wait = 0) {
-  if (!chosenClip() || state.busy) return;
+  if (!chosenClip()) return;
   const time = keyframe(direction);
   $('pose-slider').value = String(time);
   renderPoseTime(time);
   clearTimeout(pose.keyTimer);
   if (!wait) return repairPose(sliderPose());
   // Held arrow keys move through the keyframes; the repair waits until they stop.
-  previewPose(sliderPose());
+  if (!state.busy) previewPose(sliderPose());
   pose.keyTimer = setTimeout(() => repairPose(sliderPose()), wait);
 }
 $('pose-prev').addEventListener('click', () => stepKeyframe(-1));
 $('pose-next').addEventListener('click', () => stepKeyframe(1));
-$('pose-slider').addEventListener('keydown', event => {
-  const direction = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 }[event.key];
-  if (!direction) return;
+// Arrow keys step through keyframes while the visitor is working in the panel: from the
+// slider or the step buttons, and also once focus has moved on (Safari does not focus a
+// button that is clicked), until they click somewhere else. The clip menu keeps its own keys.
+document.addEventListener('pointerdown', event => { pose.active = !!event.target.closest?.('#pose') && !event.target.closest('#pose-clip'); });
+document.addEventListener('keydown', event => {
+  const direction = { ArrowLeft: -1, ArrowRight: 1, ...(event.target === $('pose-slider') ? { ArrowDown: -1, ArrowUp: 1 } : {}) }[event.key];
+  if (!direction || event.metaKey || event.ctrlKey || event.altKey || $('pose').hidden || !chosenClip()) return;
+  const inPanel = event.target.closest?.('#pose') && event.target !== $('pose-clip');
+  const loose = pose.active && (event.target === document.body || event.target === document.documentElement);
+  if (!inPanel && !loose) return;
   event.preventDefault();
   stepKeyframe(direction, 350);
 });
