@@ -11,9 +11,9 @@ const plural = (count, one, many = one + 's') => `${number(count)} ${count === 1
 
 const state = { name: '', format: '', unit: null, notes: [], clips: [], pose: null, report: null, extent: [0, 0, 0], spots: [], spot: -1, busy: false, which: 'after', turns: 0, gen: 0 };
 // Choosing a pose (see "poses" below): a preview waiting to be sent, a pose waiting for the
-// worker to be free (`queued`; null is the rest pose, undefined is none), and whether the
-// visitor is working in the panel, so the arrow keys step through keyframes.
-const pose = { wanted: null, inFlight: false, repairing: false, queued: undefined, keyTimer: 0, active: false };
+// worker to be free (`queued`; null is the rest pose, undefined is none), and the timer that
+// repairs a pose once held arrow keys stop.
+const pose = { wanted: null, inFlight: false, repairing: false, queued: undefined, keyTimer: 0 };
 const viewer = createViewer($('canvas'));
 if (!viewer) { $('canvas').hidden = true; $('no-webgl').hidden = false; }
 if ($('version')) $('version').textContent = `Version ${VERSION}.`; // absent from the embedded page
@@ -1218,16 +1218,15 @@ function stepKeyframe(direction, wait = 0) {
 }
 $('pose-prev').addEventListener('click', () => stepKeyframe(-1));
 $('pose-next').addEventListener('click', () => stepKeyframe(1));
-// Arrow keys step through keyframes while the visitor is working in the panel: from the
-// slider or the step buttons, and also once focus has moved on (Safari does not focus a
-// button that is clicked), until they click somewhere else. The clip menu keeps its own keys.
-document.addEventListener('pointerdown', event => { pose.active = !!event.target.closest?.('#pose') && !event.target.closest('#pose-clip'); });
+// Once a clip is chosen, the left and right arrow keys step through its keyframes from
+// anywhere on the page, with nothing to click first. They are left alone where they already
+// mean something: typing in a field, turning the 3D view (once it has been clicked), and
+// inside an open menu or pop-up. On the slider, up and down step too; on the clip menu,
+// up and down still change the clip.
+const ownArrows = target => target.closest?.('input:not(#pose-slider), textarea, [contenteditable=""], [contenteditable="true"], canvas, [role="menu"], dialog[open]');
 document.addEventListener('keydown', event => {
   const direction = { ArrowLeft: -1, ArrowRight: 1, ...(event.target === $('pose-slider') ? { ArrowDown: -1, ArrowUp: 1 } : {}) }[event.key];
-  if (!direction || event.metaKey || event.ctrlKey || event.altKey || $('pose').hidden || !chosenClip()) return;
-  const inPanel = event.target.closest?.('#pose') && event.target !== $('pose-clip');
-  const loose = pose.active && (event.target === document.body || event.target === document.documentElement);
-  if (!inPanel && !loose) return;
+  if (!direction || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || $('pose').hidden || !chosenClip() || ownArrows(event.target)) return;
   event.preventDefault();
   stepKeyframe(direction, 350);
 });

@@ -107,6 +107,31 @@ await page.waitForTimeout(500); await settled(); await page.waitForTimeout(300);
 s = await read();
 check('presses made during a repair are repaired next, not dropped', timeOf(s.time) < startedAt && /repaired in the pose from/.test(s.note) && s.note.includes(timeOf(s.time).toFixed(2)), `${startedAt} -> ${s.time}`);
 
+// No clicking into the panel first: right after choosing a clip, and after a click on an
+// empty part of the page, the arrow keys step. In the height field and the clicked 3D view
+// they keep their own meaning. The menu is pressed first, as a mouse does before it opens.
+await page.dispatchEvent('#pose-clip', 'pointerdown');
+await page.focus('#pose-clip');
+await page.selectOption('#pose-clip', { index: 1 });
+await settled();
+let t0 = timeOf((await read()).time);
+await page.keyboard.press('ArrowRight'); await page.waitForTimeout(450); await settled();
+let t1 = timeOf((await read()).time);
+check('right after choosing a clip, the arrow key steps', t1 !== t0, `${t0} -> ${t1}`);
+await page.mouse.click(8, 450); // the page's empty margin
+await page.keyboard.press('ArrowRight'); await page.waitForTimeout(450); await settled();
+t0 = t1; t1 = timeOf((await read()).time);
+check('after clicking an empty part of the page, the arrow key steps', t1 !== t0, `${t0} -> ${t1}`);
+await page.check('#set-height');
+await page.focus('#height');
+await page.keyboard.press('ArrowRight'); await page.waitForTimeout(450); await settled();
+t0 = t1; t1 = timeOf((await read()).time);
+check('in the height field, the arrow keys move the cursor, not the clip', t1 === t0, `${t0} -> ${t1}`);
+await page.focus('#canvas');
+await page.keyboard.press('ArrowRight'); await page.waitForTimeout(450); await settled();
+t0 = t1; t1 = timeOf((await read()).time);
+check('in the clicked 3D view, the arrow keys turn the model, not the clip', t1 === t0, `${t0} -> ${t1}`);
+
 // The download is named for the pose.
 const [download] = await Promise.all([page.waitForEvent('download'), page.click('#download-all')]);
 check('the download is named for the pose', /-\d+\.\d\ds-mended\.zip$/.test(download.suggestedFilename()), download.suggestedFilename());
