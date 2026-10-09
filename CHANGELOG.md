@@ -5,7 +5,7 @@ What has changed in Polymend, newest first. Each version is marked with the mome
 ## 0.6.0
 
 - A rigged or animated GLB can now be repaired in any pose from its animation clips, not only in its rest pose. When a file has clips, a Pose panel appears under the view: choose a clip, drag to any moment of it and let go, and that pose is repaired. While you drag, the view follows the pose. The arrows, or the arrow keys, step from keyframe to keyframe.
-- Skeletons, blend shapes and every kind of keyframe curve are followed. On 173 rigged and animated files, every pose tried matched a widely used 3D library point for point.
+- Skeletons, blend shapes and every kind of keyframe curve are followed. On 171 rigged and animated files, every pose tried matched a widely used 3D library point for point.
 - Downloads are named for the pose, such as `figure-Wave-0.84s-mended.zip`.
 - When you repair several files at once, each keeps the pose chosen for it, and "Download all" holds those poses.
 - From the command line, `--clips` lists a file's clips, and `--clip Wave --time 0.8` repairs that pose.

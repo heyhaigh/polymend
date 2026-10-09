@@ -18,7 +18,7 @@ console.warn = () => {}; // three.js warns about textures it cannot decode in No
 const args = process.argv.slice(2);
 const list = args[0];
 const perFile = Number(args[args.indexOf('--clips') + 1]) || 4;
-const files = fs.readFileSync(list, 'utf8').split('\n').map(line => line.trim()).filter(Boolean);
+const files = fs.readFileSync(list, 'utf8').split('\n').map(line => line.trim()).filter(line => line && fs.existsSync(line) && fs.statSync(line).isFile());
 let seed = 12345;
 const random = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
 const TOLERANCE = 0.001; // a thousandth of the model's size
