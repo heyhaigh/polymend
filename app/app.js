@@ -244,7 +244,7 @@ function onMessage(event) {
   // A batch model that failed to load here is still on screen from its kept view, but the
   // worker holds another model, so it must not be downloaded on its own.
   if (message.type === 'error' && state.batchLoading) { Object.assign(state, { batchLoading: false, unsynced: true }); }
-  if (message.type === 'error' && pose.repairing) { pose.repairing = false; pose.queued = null; viewer?.endPreview(); renderPose(); }
+  if (message.type === 'error' && pose.repairing) { pose.repairing = false; pose.queued = undefined; viewer?.endPreview(); renderPose(); }
   if (message.type === 'error') fail(message.message);
   else if (message.type === 'result') showResult(message);
   else if (message.type === 'file') save(message);
@@ -256,7 +256,7 @@ function showResult(message) {
   Object.assign(state, { format: message.format, unit: message.unit, notes: message.notes || [], clips: message.clips || [], pose: message.pose || null, report: message.report, extent: message.extent, spots: message.spots, spot: -1, reloading: false });
   const reposed = pose.repairing;
   pose.repairing = false;
-  if (fresh) pose.queued = null; // another model: what was waiting was for the one before
+  if (fresh) pose.queued = undefined; // another model: what was waiting was for the one before
   const quiet = fresh ? state.fromBatch : state.quietShown;
   if (fresh) { state.shown = state.name; state.file = state.pendingFile; state.turns = batch.rows[batch.at]?.turns || 0; state.quietShown = quiet; }
   if (message.type === 'result') state.batchLoading = false; // an answer from the worker, not a kept view
@@ -1169,7 +1169,8 @@ function sendPreview() {
   ask({ type: 'pose-preview', pose: next, turns: state.turns });
 }
 function repairPose(next) {
-  if (!state.report) return;
+  // Only a model with clips has poses; for any other there is nothing to repair again.
+  if (!state.report || !state.clips.length) { pose.queued = undefined; return; }
   clearTimeout(pose.keyTimer);
   // Busy with the last one: this pose waits, and only the latest wish is kept.
   if (state.busy) { pose.queued = next; return; }
