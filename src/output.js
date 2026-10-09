@@ -1,6 +1,6 @@
 // Sizing for print, and the 3MF writer.
 
-export const VERSION = '0.5.2';
+export const VERSION = '0.5.3';
 
 /**
  * With a print height: scale a Z-up model to that height in millimetres, stand it on the

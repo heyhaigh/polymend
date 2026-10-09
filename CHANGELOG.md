@@ -2,7 +2,7 @@
 
 What has changed in Polymend, newest first. Each version is marked with the moment it was published. From version 0.3.0 on, every change is listed here and recorded in the project's public history.
 
-## 0.5.3
+## 0.5.3 (Published October 9, 2026 at 10:36 AM EDT)
 
 - On a phone, the home page fits the screen again. One long line of code in "Add it to your site" made the page wider than the screen, so it could be dragged sideways and the theme button sat past the edge. The line now wraps.
 
