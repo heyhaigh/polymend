@@ -2,6 +2,10 @@
 
 What has changed in Polymend, newest first. Each version is marked with the moment it was published. From version 0.3.0 on, every change is listed here and recorded in the project's public history.
 
+## 0.6.2 (Published October 27, 2026 at 2:22 PM EDT)
+
+- New guides, one for each question people ask about getting a model ready to print: Convert GLB to STL for 3D printing, How to fix non-manifold edges in an STL, and Fix the open edges warning in Bambu Studio. A Guides page lists them, and every page's footer links to it.
+
 ## 0.6.1 (Published October 9, 2026 at 12:42 PM EDT)
 
 - Fixed: in 0.6.0, an STL file stayed on "Back to the rest pose" after its repair, so it could not be downloaded or changed. A GLB was also repaired a second time, needlessly, each time it was opened.
