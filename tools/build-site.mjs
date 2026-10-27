@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { embedPage } from './make-embed.mjs';
 import { changelogPage } from './make-changelog.mjs';
-import { guides, guidePage } from './make-guides.mjs';
+import { guides, guidePage, guidesIndex, guidesIndexPage } from './make-guides.mjs';
 import { root, siteFiles } from './site-files.mjs';
 
 const dist = path.join(root, 'dist');
@@ -22,6 +22,7 @@ if (fs.readFileSync(path.join(root, 'changelog.html'), 'utf8') !== changelogPage
 for (const g of guides) {
   if (fs.readFileSync(path.join(root, g.file), 'utf8') !== guidePage(g)) throw new Error(`${g.file} is out of date. Run: node tools/make-guides.mjs`);
 }
+if (fs.readFileSync(path.join(root, guidesIndex.file), 'utf8') !== guidesIndexPage()) throw new Error('guides.html is out of date. Run: node tools/make-guides.mjs');
 
 fs.rmSync(dist, { recursive: true, force: true });
 const copied = siteFiles();
@@ -31,7 +32,7 @@ for (const relative of copied) {
 }
 // Each sitemap entry gets the date its page last changed, read from git, so it cannot
 // fall behind. The homepage counts the tool's own code, since that is what it shows.
-const sources = { '/': ['index.html', 'app', 'src'], '/privacy': ['privacy.html'], '/terms': ['terms.html'], '/changelog': ['changelog.html', 'CHANGELOG.md'], ...Object.fromEntries(guides.map(g => [g.slug, [g.file]])) };
+const sources = { '/': ['index.html', 'app', 'src'], '/privacy': ['privacy.html'], '/terms': ['terms.html'], '/changelog': ['changelog.html', 'CHANGELOG.md'], ...Object.fromEntries(guides.map(g => [g.slug, [g.file]])), '/guides': ['guides.html'] };
 const sitemap = fs.readFileSync(path.join(dist, 'sitemap.xml'), 'utf8').replace(/<loc>https:\/\/polymend\.xyz(\/[^<]*)<\/loc>/g, (whole, page) => {
   const files = sources[page];
   if (!files) throw new Error(`sitemap.xml lists ${page}, which has no source files to date it by`);

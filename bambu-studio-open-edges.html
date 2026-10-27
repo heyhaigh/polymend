@@ -38,10 +38,7 @@
       <p class="prose-back"><a href="/">Polymend</a></p>
       <h1 class="tool-title">Fix the open edges warning in Bambu Studio</h1>
       <p class="tool-meta"><span class="meta-text">Updated <time datetime="2026-10-27">Oct 27, 2026</time></span></p>
-      <section class="quick-answer" aria-label="Quick answer">
-        <p class="quick-answer-label">Quick answer</p>
-        <p>Bambu Studio warns when the model's mesh has gaps (open edges), places where the surface branches (non-manifold edges) or triangles facing the wrong way (reversed faces). Drop the STL or GLB on <a href="/">Polymend</a>, download the repaired STL or 3MF, and import that instead. In testing, twelve figures that all triggered the warning imported into Bambu Studio without it after repair.</p>
-      </section>
+      <p class="prose-lede">Bambu Studio warns when the model's mesh has gaps (open edges), places where the surface branches (non-manifold edges) or triangles facing the wrong way (reversed faces). Drop the STL or GLB on <a href="/">Polymend</a>, download the repaired STL or 3MF, and import that instead. In testing, twelve figures that all triggered the warning imported into Bambu Studio without it after repair.</p>
 
       <h2>What the warning means</h2>
       <p>Bambu Studio checks every model it imports. A printable model is a closed surface where every edge is shared by exactly two triangles. When it finds edges with only one triangle, edges shared by three or more, or triangles turned inside out, it reports them as errors. Detailed sculpted figures and 3D scans are the models that most often carry them, even when they look finished.</p>
@@ -78,6 +75,7 @@
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
       <a href="/changelog">Changelog</a>
+      <a href="/guides">Guides</a>
       <a href="mailto:feedback@polymend.xyz?subject=Polymend%20feedback">Send feedback</a>
       <a href="https://github.com/heyhaigh/polymend">GitHub</a>
       <a href="/#embed">Embed on your site</a>
