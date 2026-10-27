@@ -9,6 +9,7 @@ import { execFileSync } from 'node:child_process';
 import { embedPage } from '../tools/make-embed.mjs';
 import { siteFiles } from '../tools/site-files.mjs';
 import { changelogPage } from '../tools/make-changelog.mjs';
+import { guides, guidePage, guidesIndex, guidesIndexPage } from '../tools/make-guides.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
@@ -38,7 +39,7 @@ test('the page policy forbids every network connection and all outside code', ()
 });
 
 test('the privacy and terms pages carry the same no-connection policy', () => {
-  for (const file of ['privacy.html', 'terms.html', 'embed.html', 'changelog.html']) {
+  for (const file of ['privacy.html', 'terms.html', 'embed.html', 'changelog.html', 'guides.html', ...guides.map(g => g.file)]) {
     const meta = read(file).match(/http-equiv="Content-Security-Policy" content="([^"]+)"/);
     assert.ok(meta, `${file} must carry a Content-Security-Policy`);
     const policy = policyOf(meta[1]);
@@ -172,8 +173,9 @@ test('the changelog page is made from CHANGELOG.md and is up to date', () => {
   assert.equal(read('changelog.html'), changelogPage(read('CHANGELOG.md')), 'changelog.html is out of date. Run: node tools/make-changelog.mjs');
   const version = read('src/output.js').match(/VERSION = '([^']+)'/)[1];
   assert.ok(read('CHANGELOG.md').split('\n').some(line => line.startsWith(`## ${version} `)), `CHANGELOG.md has no entry for version ${version}`);
-  for (const file of ['index.html', 'privacy.html', 'terms.html', 'changelog.html']) {
+  for (const file of ['index.html', 'privacy.html', 'terms.html', 'changelog.html', 'guides.html', ...guides.map(g => g.file)]) {
     assert.match(read(file), /<a href="\/changelog">Changelog<\/a>/, `${file} links to the change log`);
+    assert.match(read(file), /<a href="\/guides">Guides<\/a>/, `${file} links to the guides`);
     assert.match(read(file), /<a href="mailto:feedback@polymend\.xyz\?subject=[^"]+">Send feedback<\/a>/, `${file} has the feedback link`);
   }
 });
@@ -193,4 +195,40 @@ test('nothing public uses a word the owner has ruled out', () => {
   // Every commit's message and every line ever added, since the history is public too.
   const history = execFileSync('git', ['log', '-p', '--format=%B'], { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28 }).toLowerCase();
   for (const word of words) assert.ok(!history.includes(word), 'the public history contains a word that must not appear in anything public');
+});
+
+test('each guide page is made by tools/make-guides.mjs and is up to date', () => {
+  for (const g of guides) assert.equal(read(g.file), guidePage(g), `${g.file} is out of date. Run: node tools/make-guides.mjs`);
+  assert.equal(read(guidesIndex.file), guidesIndexPage(), 'guides.html is out of date. Run: node tools/make-guides.mjs');
+});
+
+test('each guide page says what its structured data says', () => {
+  for (const g of guides) {
+    const html = read(g.file);
+    const data = JSON.parse(html.match(/<script type="application\/ld\+json">(.+?)<\/script>/)[1]);
+    const byType = Object.fromEntries(data['@graph'].map(node => [node['@type'], node]));
+    const text = s => s.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+    // The date a reader sees is the date the data gives.
+    assert.equal(html.match(/Updated <time datetime="([^"]+)">/)[1], byType.TechArticle.dateModified, `${g.file}: visible date`);
+    assert.equal(text(html.match(/<h1[^>]*>(.*?)<\/h1>/)[1]), byType.TechArticle.headline, `${g.file}: headline`);
+    assert.equal(html.match(/<meta name="description" content="([^"]+)"/)[1].replace(/&quot;/g, '"'), byType.TechArticle.description, `${g.file}: description`);
+    assert.equal(text(html.match(/<p class="prose-lede">([\s\S]*?)<\/p>/)[1]), byType.TechArticle.abstract, `${g.file}: opening answer`);
+    // Every question and answer in the data is on the page, in the same order.
+    const shown = [...html.split('<h2>Questions</h2>')[1].matchAll(/<h3>(.*?)<\/h3>\s*<p>([\s\S]*?)<\/p>/g)].map(m => [text(m[1]), text(m[2])]);
+    assert.deepEqual(shown, byType.FAQPage.mainEntity.map(q => [q.name, q.acceptedAnswer.text]), `${g.file}: questions`);
+    // Every step in the data is a step on the page.
+    const steps = [...html.matchAll(/<ol>([\s\S]*?)<\/ol>/g)].flatMap(m => [...m[1].matchAll(/<li>([\s\S]*?)<\/li>/g)].map(li => text(li[1])));
+    assert.deepEqual(steps, byType.HowTo.step.map(st => st.text), `${g.file}: steps`);
+    assert.equal(byType.TechArticle.url, 'https://polymend.xyz' + g.slug);
+    assert.match(html, new RegExp(`<link rel="canonical" href="https://polymend\\.xyz${g.slug}">`), `${g.file}: canonical`);
+  }
+});
+
+test('every guide is in the sitemap, in llms.txt and linked from the home page', () => {
+  for (const g of guides) {
+    assert.ok(read('sitemap.xml').includes(`<loc>https://polymend.xyz${g.slug}</loc>`), `${g.slug} is in sitemap.xml`);
+    assert.ok(read('llms.txt').includes(`(https://polymend.xyz${g.slug})`), `${g.slug} is in llms.txt`);
+    assert.ok(read('index.html').includes(`<a href="${g.slug}">`), `${g.slug} is linked from index.html`);
+    assert.ok(read('guides.html').includes(`<a href="${g.slug}">`), `${g.slug} is listed on the Guides page`);
+  }
 });

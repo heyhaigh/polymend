@@ -11,6 +11,12 @@
 - Leaves original vertices where they are, except that points a hair apart along a seam are joined. A model with no faults is not changed at all.
 - It is deliberately narrow. It does not fix large holes, wide openings, thin sheets with no thickness, self-intersections or badly damaged scans; it leaves them alone and reports "Partly repaired".
 
+## Guides
+
+- [Convert GLB to STL for 3D printing](https://polymend.xyz/glb-to-stl): units (glTF meters vs slicer millimeters), turning the model upright, Draco and rigged GLB files, STL or 3MF.
+- [How to fix non-manifold edges in an STL](https://polymend.xyz/non-manifold-edges): what open and non-manifold edges are, how Polymend fixes them, and what it leaves alone.
+- [Fix the open edges warning in Bambu Studio](https://polymend.xyz/bambu-studio-open-edges): why Bambu Studio warns on import and how to get a file that imports without the warning.
+
 ## Facts
 
 - Input: GLB (binary glTF, including Draco-compressed) and STL (binary or text), up to 200 MB or 1 million triangles. Up to 20 files at once, 1 GB in all. Meshopt-compressed GLB is not supported.

@@ -645,6 +645,9 @@ body.outcome-clean :is(.about, .faq) { display: none; }
 .prose ul { margin: 8px 0 12px 24px; }
 .prose li { margin-bottom: 6px; }
 .prose h3 { margin: 22px 0 6px; font-size: 14px; font-weight: 650; }
+.prose ol { margin: 8px 0 12px 24px; }
+.prose .guide-cta { margin-top: 28px; }
+.prose .guide-cta a { display: inline-block; text-decoration: none; padding: 8px 16px; border: 1px solid var(--line-strong); border-radius: 19px; background: var(--glass); }
 .prose h2 .when { font-size: 13px; font-weight: 400; opacity: 0.6; margin-left: 8px; }
 
 /* The one link home: the hand and a credit, in the site's glass pill. */
