@@ -2,6 +2,10 @@
 
 What has changed in Polymend, newest first. Each version is marked with the moment it was published. From version 0.3.0 on, every change is listed here and recorded in the project's public history.
 
+## 0.6.3 (Published October 27, 2026 at 9:32 PM EDT)
+
+- New guide: How to fix an STL file for 3D printing. It covers the signs an STL needs fixing, how to repair it in Polymend, and what to do when a model needs more than a quick fix. It is listed on the Guides page, on the home page and in every guide's More guides list.
+
 ## 0.6.2 (Published October 27, 2026 at 2:22 PM EDT)
 
 - New guides, one for each question people ask about getting a model ready to print: Convert GLB to STL for 3D printing, How to fix non-manifold edges in an STL, and Fix the open edges warning in Bambu Studio. A Guides page lists them, and every page's footer links to it.

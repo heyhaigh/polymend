@@ -1,4 +1,4 @@
-// Make the guide pages (glb-to-stl.html, non-manifold-edges.html, bambu-studio-open-edges.html)
+// Make the guide pages (fix-stl.html, glb-to-stl.html, non-manifold-edges.html, bambu-studio-open-edges.html)
 // and the Guides page that lists them (guides.html),
 // one page for each question people ask about printing a model. The visible text and the
 // page's structured data are made from the same entries below, so they cannot disagree.
@@ -16,6 +16,65 @@ const plain = html => html.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replac
 const longDate = iso => new Date(iso + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 
 export const guides = [
+  {
+    file: 'fix-stl.html',
+    slug: '/fix-stl',
+    title: 'How to fix an STL file for 3D printing',
+    link: 'Fix an STL file',
+    description: 'How to repair a broken STL file for free in your browser: what the slicer warnings mean, how to fix holes, non-manifold edges and reversed faces, and what to do when a quick fix is not enough.',
+    published: '2026-10-27',
+    updated: '2026-10-27',
+    answer: 'Drop the STL on <a href="/">Polymend</a>. It removes stray triangles, patches small holes and turns triangles that face the wrong way, which clears the open edges, non-manifold edges and reversed faces that slicers warn about. Download the repaired STL or 3MF and slice that instead. It is free, it runs in your browser, and the file is never uploaded.',
+    sections: [
+      {
+        heading: 'Signs your STL needs fixing',
+        paragraphs: [
+          'An STL is a list of triangles that should form one closed surface. When some are missing, doubled up or facing the wrong way, the file still opens, but the slicer has to guess where the inside of the model is. You will usually see one of two things:',
+        ],
+        list: [
+          '<strong>A warning on import.</strong> Bambu Studio and other slicers report open edges, non-manifold edges or reversed faces.',
+          '<strong>Strange slices.</strong> The preview shows missing layers, gaps in walls or stray strands, usually where a hole or a stray triangle sits.',
+        ],
+        after: 'A model can look perfect on screen and still carry dozens of these faults. The <a href="/non-manifold-edges">guide to non-manifold edges</a> explains what each one is.',
+      },
+      {
+        heading: 'How to fix an STL with Polymend',
+        steps: [
+          'Open <a href="/">polymend.xyz</a> and drop in the STL, binary or text. You can drop up to 20 files at once.',
+          'Polymend removes stray triangles stuck to the surface, patches holes of up to 100 edges and turns triangles that face the wrong way. A detailed figure of 300,000 triangles takes about a second.',
+          'Compare before and after side by side, and step through each change.',
+          'If you want a different size, set the print height in millimeters under Size.',
+          'Download the repaired STL, a 3MF, or a ZIP with both, and open it in your slicer.',
+        ],
+        after: 'In testing, twelve detailed figures failed the mesh checks of Bambu Studio and a second slicer before repair, and all twelve passed both after. Files up to 200 MB or 1 million triangles work on a laptop.',
+      },
+      {
+        heading: 'When an STL needs more than a quick fix',
+        paragraphs: [
+          'Polymend is built for small faults and changes as little as it can. It leaves holes of more than 100 edges, wide openings that may be meant (like the top of a vase), thin sheets with no thickness and badly damaged scans, and the result says "Partly repaired" when faults remain. Switches under Repair options let you ask for some of these.',
+          'For a model with large missing areas, a 3D editor such as Blender will do better. In Edit Mode, Select, Select All by Trait, Non Manifold shows every fault so you can fix it by hand.',
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'Can I fix an STL file online for free?',
+        a: 'Yes. Polymend is free and open source under the MIT license. It runs in your browser, so the file is repaired on your device and never uploaded.',
+      },
+      {
+        q: 'Can my slicer fix the STL for me?',
+        a: 'Many slicers try to close small faults on their own, but the result can have missing layers, gaps in walls or stray strands, and you cannot see what was changed. Repairing the file first lets you check every change before you print.',
+      },
+      {
+        q: 'Will fixing an STL change my model?',
+        a: 'Very little. Polymend deletes stray triangles, usually a few dozen out of hundreds of thousands, and adds a few to patch small holes. No existing point is moved, except that points a hair apart on the two sides of a seam are joined. A model with no faults is left exactly as it is.',
+      },
+      {
+        q: 'Should I save the fixed file as STL or 3MF?',
+        a: 'Either works in most slicers. A 3MF records its units, so it always opens at the size you set. An STL has no units, and slicers assume millimeters, which is what Polymend writes.',
+      },
+    ],
+  },
   {
     file: 'glb-to-stl.html',
     slug: '/glb-to-stl',
