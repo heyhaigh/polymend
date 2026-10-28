@@ -13,6 +13,7 @@
 
 ## Guides
 
+- [How to fix an STL file for 3D printing](https://polymend.xyz/fix-stl): signs an STL needs fixing, how Polymend repairs holes, non-manifold edges and reversed faces, and when a model needs more than a quick fix.
 - [Convert GLB to STL for 3D printing](https://polymend.xyz/glb-to-stl): units (glTF meters vs slicer millimeters), turning the model upright, Draco and rigged GLB files, STL or 3MF.
 - [How to fix non-manifold edges in an STL](https://polymend.xyz/non-manifold-edges): what open and non-manifold edges are, how Polymend fixes them, and what it leaves alone.
 - [Fix the open edges warning in Bambu Studio](https://polymend.xyz/bambu-studio-open-edges): why Bambu Studio warns on import and how to get a file that imports without the warning.
